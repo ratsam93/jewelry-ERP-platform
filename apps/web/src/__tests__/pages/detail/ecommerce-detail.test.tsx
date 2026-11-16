@@ -12,7 +12,7 @@ vi.mock('@/features/ecommerce', () => ({
   PaymentStatusBadge: ({ status }: { status: string }) => (
     <span data-testid="payment-status-badge">{status}</span>
   ),
-  ShipmentTracker: (props: Record<string, unknown>) => (
+  ShipmentTracker: (_props: Record<string, unknown>) => (
     <div data-testid="shipment-tracker">Shipment Tracker</div>
   ),
   SyncStatusIndicator: ({ status }: { status: string }) => (

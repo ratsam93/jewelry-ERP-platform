@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PageHeader, FormField } from '@caratflow/ui';
-import { Diamond, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { StoneStockCard } from '@/features/inventory/stone-stock-card';
 import { caratsToMg } from '@caratflow/shared-types';

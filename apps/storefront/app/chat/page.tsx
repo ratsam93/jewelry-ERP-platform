@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback, type ReactNode } from "react"
 import Link from "next/link";
 import { STORE_API } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
-import type { Metadata } from "next";
 
 // ─── Types ──────────────────────────────────────────────────────
 

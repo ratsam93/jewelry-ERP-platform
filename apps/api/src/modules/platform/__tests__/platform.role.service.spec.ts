@@ -5,7 +5,6 @@ import {
   createMockPrismaService,
   TEST_TENANT_ID,
   TEST_USER_ID,
-  resetAllMocks,
 } from '../../../__tests__/setup';
 
 // Extend mock prisma with role/permission models

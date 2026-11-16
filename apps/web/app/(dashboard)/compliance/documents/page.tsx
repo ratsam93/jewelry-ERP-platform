@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { PageHeader, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { FileText, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { ExpiryAlert } from '@/features/compliance';
 import type { ColumnDef } from '@caratflow/ui';
 
 const docTypeLabels: Record<string, string> = {

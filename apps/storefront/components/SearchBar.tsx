@@ -354,7 +354,7 @@ export default function SearchBar({ className, expanded = false }: SearchBarProp
                     Products
                   </h4>
                   <div className="space-y-1">
-                    {autocomplete.products.map((product, i) => {
+                    {autocomplete.products.map((product) => {
                       const itemIndex = allItems.findIndex(
                         (item) => item.type === "product" && item.id === product.id,
                       );

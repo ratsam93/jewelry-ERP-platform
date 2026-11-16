@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { WholesaleCreditService } from '../wholesale.credit.service';
 import { createMockPrismaService, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
 
@@ -256,7 +256,7 @@ describe('WholesaleCreditService (Unit)', () => {
         lastName: 'Customer',
       });
 
-      const result = await service.recordPaymentOnOutstanding(
+      await service.recordPaymentOnOutstanding(
         TEST_TENANT_ID,
         TEST_USER_ID,
         'ob-1',
@@ -312,7 +312,7 @@ describe('WholesaleCreditService (Unit)', () => {
         lastName: 'Customer',
       });
 
-      const result = await service.recordPaymentOnOutstanding(
+      await service.recordPaymentOnOutstanding(
         TEST_TENANT_ID,
         TEST_USER_ID,
         'ob-1',

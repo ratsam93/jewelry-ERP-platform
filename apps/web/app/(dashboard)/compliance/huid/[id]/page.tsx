@@ -2,10 +2,9 @@
 
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { Shield, Package, Building2, Calendar, Scale } from 'lucide-react';
+import { Shield, Package } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import Link from 'next/link';
-import { HuidBadge } from '@/features/compliance';
 
 export default function HuidDetailPage() {
   const { id } = useParams<{ id: string }>();

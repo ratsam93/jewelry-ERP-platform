@@ -1,15 +1,10 @@
 // ─── Digital Gold Endpoint Integration Tests ───────────────────
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
-import { v4 as uuid } from 'uuid';
 import type { INestApplication } from '@nestjs/common';
 import {
   createTestApp,
   type TestApp,
-  TEST_TENANT_ID,
-  TEST_B2C_CUSTOMER,
-  generateB2CToken,
-  storefrontHeaders,
 } from './test-app';
 import { resetMocks } from './mocks';
 

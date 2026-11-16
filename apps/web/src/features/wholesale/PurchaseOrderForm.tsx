@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { cn } from '@caratflow/ui';
 import { Plus, Trash2, X } from 'lucide-react';
 
 interface LineItem {

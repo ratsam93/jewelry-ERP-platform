@@ -66,9 +66,6 @@ export function DateRangePicker({
     setShowPresets(false);
   };
 
-  const formatDate = (d: Date) =>
-    d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-
   return (
     <div className="relative inline-flex items-center gap-2">
       <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">

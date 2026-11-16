@@ -1,13 +1,13 @@
 // ─── AR Asset Management Service ──────────────────────────────
 // Manages 3D/AR assets for products: upload, retrieve, list, delete.
 
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   ArAssetInput,
   ArAssetResponse,
   ArProductListItem,
 } from '@caratflow/shared-types';
-import { ArAssetType, ArProcessingStatus } from '@caratflow/shared-types';
+import { ArProcessingStatus } from '@caratflow/shared-types';
 import type { PaginatedResult, Pagination } from '@caratflow/shared-types';
 import { Prisma } from '@caratflow/db';
 import { PrismaService } from '../../common/prisma.service';

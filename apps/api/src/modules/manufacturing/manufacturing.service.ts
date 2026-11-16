@@ -13,7 +13,6 @@ import {
   type JobOrderFilter,
   type BomFilter,
   MfgJobOrderStatus,
-  BomStatus,
   JOB_ORDER_TRANSITIONS,
   type JobCostType,
 } from '@caratflow/shared-types';
@@ -351,7 +350,7 @@ export class ManufacturingService extends TenantAwareService {
       updateData.notes = input.notes;
     }
 
-    const updated = await this.prisma.jobOrder.update({
+    await this.prisma.jobOrder.update({
       where: { id: jobId },
       data: updateData,
       include: { product: true },

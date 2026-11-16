@@ -4,7 +4,6 @@ import {
   RefreshControl,
   ActivityIndicator,
   View,
-  Text,
   type ListRenderItem,
 } from 'react-native';
 import { EmptyState } from './EmptyState';

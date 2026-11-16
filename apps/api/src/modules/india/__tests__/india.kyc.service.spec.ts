@@ -138,7 +138,7 @@ describe('IndiaKycService (Unit)', () => {
         customer: {},
       });
 
-      const result = await service.recordDocument(TEST_TENANT_ID, TEST_USER_ID, {
+      await service.recordDocument(TEST_TENANT_ID, TEST_USER_ID, {
         customerId: 'cust-1',
         verificationType: 'AADHAAR',
         documentNumber: '999888777666',

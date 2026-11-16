@@ -8,7 +8,6 @@ import { parsePagination, buildPaginatedResult } from '../../common/pagination.h
 import type { Prisma } from '@caratflow/db';
 import type {
   BankAccountInput,
-  BankTransactionInput,
   ImportStatementInput,
   BankReconciliationInput,
 } from '@caratflow/shared-types';
@@ -125,7 +124,6 @@ export class FinancialBankService extends TenantAwareService {
 
     for (const txn of unreconciledTxns) {
       const txnAmount = txn.creditPaise > BigInt(0) ? txn.creditPaise : txn.debitPaise;
-      const isCredit = txn.creditPaise > BigInt(0);
 
       // Try to match by amount and reference
       const matchingPayment = payments.find((p) => {

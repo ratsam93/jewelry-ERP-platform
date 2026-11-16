@@ -140,7 +140,7 @@ export class PlatformEventHandler implements OnModuleInit {
       'financial.invoice.created': (p) => `Invoice created: ${p.invoiceNumber}`,
       'financial.payment.received': (p) => `Payment received: ${p.paymentId}`,
       'crm.customer.created': (p) => `New customer: ${p.firstName} ${p.lastName}`,
-      'wholesale.purchase.completed': (p) => `Purchase completed from supplier`,
+      'wholesale.purchase.completed': (_p) => `Purchase completed from supplier`,
       'platform.user.created': (p) => `New user created: ${p.email}`,
       'platform.branch.created': (p) => `New branch created: ${p.name}`,
       'platform.settings.updated': (p) => `Setting updated: ${p.settingKey}`,
@@ -169,7 +169,7 @@ export class PlatformEventHandler implements OnModuleInit {
         });
         break;
 
-      case 'inventory.stock.adjusted':
+      case 'inventory.stock.adjusted': {
         // Notify about stock adjustments (potential loss/shrinkage)
         const qty = payload.quantityChange as number;
         if (qty < 0) {
@@ -182,6 +182,7 @@ export class PlatformEventHandler implements OnModuleInit {
           });
         }
         break;
+      }
 
       case 'ecommerce.order.received':
         // Notify about new online orders

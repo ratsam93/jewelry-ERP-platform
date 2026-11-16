@@ -147,7 +147,7 @@ describe('StorefrontCartService', () => {
         deleteMany: vi.fn(),
       };
 
-      const result = await service.addItem(TEST_TENANT_ID, 'cart-1', 'p-1', 2);
+      await service.addItem(TEST_TENANT_ID, 'cart-1', 'p-1', 2);
       expect((mockPrisma as any).cartItem.create).toHaveBeenCalled();
     });
 
@@ -321,7 +321,7 @@ describe('StorefrontCartService', () => {
         }]),
       };
 
-      const result = await service.mergeGuestCart(TEST_TENANT_ID, 'session-1', 'cust-1');
+      await service.mergeGuestCart(TEST_TENANT_ID, 'session-1', 'cust-1');
       expect((mockPrisma as any).cart.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'guest-cart' },

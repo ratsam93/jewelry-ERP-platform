@@ -227,7 +227,7 @@ describe('ComplianceHallmarkService (Unit)', () => {
         hallmarkCenter: {},
       });
 
-      const result = await service.recordResults(TEST_TENANT_ID, TEST_USER_ID, {
+      await service.recordResults(TEST_TENANT_ID, TEST_USER_ID, {
         submissionId: 'sub-1',
         results: [
           { itemId: 'item-1', status: 'PASSED' },

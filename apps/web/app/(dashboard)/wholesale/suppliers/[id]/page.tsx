@@ -30,9 +30,9 @@ export default function SupplierDetailPage() {
     return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
   }
 
-  const s = data as Record<string, unknown>;
-  const perf = (performance as Record<string, unknown> | undefined) ?? null;
-  const purchaseOrders = ((purchaseOrdersData?.items as Array<Record<string, unknown>>) ?? []);
+  const s = data as unknown as Record<string, unknown>;
+  const perf = (performance as unknown as Record<string, unknown> | undefined) ?? null;
+  const purchaseOrders = ((purchaseOrdersData?.items as unknown as Array<Record<string, unknown>>) ?? []);
 
   return (
     <div className="space-y-6">

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { ManufacturingKarigarService } from '../manufacturing.karigar.service';
 import { KarigarTransactionType, AttendanceStatus } from '@caratflow/shared-types';
 import { createMockPrismaService, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
@@ -286,7 +286,7 @@ describe('ManufacturingKarigarService (Unit)', () => {
         wagePaidPaise: BigInt(75000),
       });
 
-      const result = await service.recordAttendance(TEST_TENANT_ID, TEST_USER_ID, {
+      await service.recordAttendance(TEST_TENANT_ID, TEST_USER_ID, {
         karigarId: 'kar-1',
         date: new Date(),
         status: AttendanceStatus.HALF_DAY,

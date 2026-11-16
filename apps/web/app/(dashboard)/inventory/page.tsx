@@ -1,7 +1,7 @@
 'use client';
 
 import { PageHeader, StatCard, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { Package, ArrowLeftRight, ClipboardCheck, AlertTriangle, Plus, ArrowRightLeft, Search } from 'lucide-react';
+import { Package, ArrowLeftRight, ClipboardCheck, AlertTriangle, ArrowRightLeft, Search } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import Link from 'next/link';
 import type { ColumnDef } from '@caratflow/ui';
@@ -13,7 +13,7 @@ export default function InventoryDashboardPage() {
     id: string;
     movementType: string;
     quantityChange: number;
-    movedAt: string;
+    movedAt: string | Date;
     notes: string | null;
     stockItem?: {
       product?: { sku: string; name: string };

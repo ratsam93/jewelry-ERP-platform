@@ -157,7 +157,7 @@ export function RfidStockTakeWizard({
               </div>
             ) : (
               <div className="divide-y">
-                {scannedTags.map((tag, idx) => (
+                {scannedTags.map((tag, _idx) => (
                   <div key={tag.epc} className="flex items-center justify-between px-3 py-2 text-sm">
                     <span className="font-mono text-xs">{tag.epc}</span>
                     <span className="text-xs text-muted-foreground">

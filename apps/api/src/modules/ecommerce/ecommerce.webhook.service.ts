@@ -3,7 +3,6 @@
 // payment captured, etc.), retry failed webhooks.
 
 import { Injectable, Logger } from '@nestjs/common';
-import type { WebhookPayload } from '@caratflow/shared-types';
 import { Prisma } from '@caratflow/db';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
@@ -116,7 +115,7 @@ export class EcommerceWebhookService extends TenantAwareService {
     eventType: string,
     payload: Record<string, unknown>,
     channelId?: string,
-    gatewayId?: string,
+    _gatewayId?: string,
   ): Promise<void> {
     switch (source.toLowerCase()) {
       case 'shopify':

@@ -25,7 +25,7 @@ export function TaxBreakdownDisplay({
   sgstRate,
   igstRate,
   isInterState,
-  currencyCode = 'INR',
+  currencyCode: _currencyCode = 'INR',
 }: TaxBreakdownProps) {
   const formatAmount = (paise: number) => {
     return (paise / 100).toLocaleString('en-IN', {

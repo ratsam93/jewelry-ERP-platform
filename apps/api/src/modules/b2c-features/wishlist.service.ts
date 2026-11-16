@@ -1,7 +1,7 @@
 // ─── Wishlist Service ───────────────────────────────────────────
 // Add/remove products, price snapshots, price alert monitoring.
 
-import { Injectable, Logger, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';

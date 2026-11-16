@@ -6,11 +6,9 @@
 
 import {
   Controller,
-  Get,
   Post,
   Body,
   Req,
-  Res,
   Query,
   HttpCode,
   HttpStatus,
@@ -21,8 +19,8 @@ import {
   MessageEvent,
   Logger,
 } from '@nestjs/common';
-import { Observable, fromEvent, map, takeUntil, Subject, merge, of } from 'rxjs';
-import type { Request, Response } from 'express';
+import { Observable, map, takeUntil, Subject, merge, of } from 'rxjs';
+import type { Request } from 'express';
 import { HardwareScaleService } from './hardware.scale.service';
 import { HardwareBarcodeService } from './hardware.barcode.service';
 import { HardwarePrinterService } from './hardware.printer.service';

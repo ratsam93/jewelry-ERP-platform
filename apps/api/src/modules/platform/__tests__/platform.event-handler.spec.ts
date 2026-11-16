@@ -7,7 +7,7 @@ describe('PlatformEventHandler', () => {
   let mockEventBus: ReturnType<typeof createMockEventBus>;
   let mockAuditService: any;
   let mockNotificationService: any;
-  let subscribedHandlers: Map<string, Function>;
+  let subscribedHandlers: Map<string, (...args: any[]) => any>;
 
   const TENANT = TEST_TENANT_ID;
 
@@ -15,7 +15,7 @@ describe('PlatformEventHandler', () => {
     mockEventBus = createMockEventBus();
     subscribedHandlers = new Map();
 
-    mockEventBus.subscribe.mockImplementation((eventType: string, fn: Function) => {
+    mockEventBus.subscribe.mockImplementation((eventType: string, fn: (...args: any[]) => any) => {
       // Store all handlers (platform subscribes to many event types)
       subscribedHandlers.set(eventType, fn);
     });

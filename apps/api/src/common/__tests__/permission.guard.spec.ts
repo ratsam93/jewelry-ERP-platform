@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PermissionGuard, PERMISSION_KEY } from '../permission.guard';
+import { PermissionGuard } from '../permission.guard';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 
 describe('PermissionGuard', () => {

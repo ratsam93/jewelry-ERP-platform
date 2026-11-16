@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { PageHeader, StatusBadge } from '@caratflow/ui';
+import { PageHeader } from '@caratflow/ui';
 import { Award, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import Link from 'next/link';
@@ -125,7 +125,7 @@ export default function CertificateDetailPage() {
                   <CheckCircle className="h-5 w-5 text-emerald-500" />
                   <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
                     VERIFIED{lastResult?.verificationMode ? ` (${lastResult.verificationMode})` : ''}
-                    {cert.verifiedAt ? ` on ${new Date(cert.verifiedAt as string).toLocaleDateString()}` : ''}
+                    {cert.verifiedAt ? ` on ${new Date(cert.verifiedAt as unknown as string | Date).toLocaleDateString()}` : ''}
                   </span>
                 </>
               ) : (

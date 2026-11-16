@@ -16,7 +16,6 @@ import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
 import { SearchSynonymService } from './search.synonym.service';
 import { SearchAnalyticsService } from './search.analytics.service';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Escape LIKE wildcards so user input is matched literally by Prisma `contains`.

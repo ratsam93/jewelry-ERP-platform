@@ -82,7 +82,6 @@ const VERHOEFF_TABLE_P = [
   [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
 ];
 
-const VERHOEFF_TABLE_INV = [0, 4, 3, 2, 1, 5, 6, 7, 8, 9];
 
 function verhoeffChecksum(num: string): boolean {
   let c = 0;

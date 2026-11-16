@@ -57,7 +57,7 @@ describe('EcommerceCatalogService (Unit)', () => {
         .mockResolvedValueOnce(catalogItem); // getCatalogItem
       mockPrisma.catalogItem.update.mockResolvedValue(catalogItem);
 
-      const result = await service.syncProduct(TEST_TENANT_ID, TEST_USER_ID, {
+      await service.syncProduct(TEST_TENANT_ID, TEST_USER_ID, {
         productId: 'p-1', channelId: 'ch-1', title: 'Ring Updated', pricePaise: 500000,
       });
 
@@ -111,7 +111,7 @@ describe('EcommerceCatalogService (Unit)', () => {
         .mockResolvedValueOnce({ ...catalogItem, syncStatus: 'SYNCED' }); // getCatalogItem
       mockPrisma.catalogItem.update.mockResolvedValue({});
 
-      const result = await service.markSynced(TEST_TENANT_ID, 'ci-1', 'ext-123');
+      await service.markSynced(TEST_TENANT_ID, 'ci-1', 'ext-123');
       expect(mockPrisma.catalogItem.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ syncStatus: 'SYNCED', externalProductId: 'ext-123' }),

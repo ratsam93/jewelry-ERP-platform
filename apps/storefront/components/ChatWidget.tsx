@@ -99,13 +99,6 @@ async function apiGetSession(sessionId: string) {
   return json.data;
 }
 
-async function apiEscalate(sessionId: string) {
-  await fetch(`${STORE_API}/chat/escalate/${sessionId}`, {
-    method: "POST",
-    headers: getHeaders(sessionId),
-  });
-}
-
 // ─── Chat Widget Component ─────────────────────────────────────
 
 export default function ChatWidget() {

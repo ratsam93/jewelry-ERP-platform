@@ -2,7 +2,6 @@
 
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant, DataTable } from '@caratflow/ui';
-import { Shield } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { HallmarkStatusTracker, HuidBadge } from '@/features/compliance';
 import type { ColumnDef } from '@caratflow/ui';
@@ -117,14 +116,14 @@ export default function HallmarkSubmissionDetailPage() {
         <div className="rounded-lg border p-3">
           <div className="text-xs text-muted-foreground">Submitted</div>
           <div className="text-sm font-medium">
-            {new Date(submission.submittedDate as string).toLocaleDateString()}
+            {new Date(submission.submittedDate as unknown as string | Date).toLocaleDateString()}
           </div>
         </div>
         <div className="rounded-lg border p-3">
           <div className="text-xs text-muted-foreground">Expected Return</div>
           <div className="text-sm font-medium">
             {submission.expectedReturnDate
-              ? new Date(submission.expectedReturnDate as string).toLocaleDateString()
+              ? new Date(submission.expectedReturnDate as unknown as string | Date).toLocaleDateString()
               : '-'}
           </div>
         </div>
@@ -132,7 +131,7 @@ export default function HallmarkSubmissionDetailPage() {
           <div className="text-xs text-muted-foreground">Actual Return</div>
           <div className="text-sm font-medium">
             {submission.actualReturnDate
-              ? new Date(submission.actualReturnDate as string).toLocaleDateString()
+              ? new Date(submission.actualReturnDate as unknown as string | Date).toLocaleDateString()
               : '-'}
           </div>
         </div>

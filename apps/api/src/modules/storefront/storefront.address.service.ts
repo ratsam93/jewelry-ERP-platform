@@ -1,7 +1,7 @@
 // ─── Storefront Address Service ────────────────────────────────
 // CRUD for customer delivery addresses.
 
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { AddressInput, AddressResponse } from '@caratflow/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';

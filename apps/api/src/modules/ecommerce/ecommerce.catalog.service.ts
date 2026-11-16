@@ -2,7 +2,7 @@
 // Push products to channels, pull updates, bulk sync, manage
 // images, pricing rules per channel. Idempotent sync.
 
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CatalogSyncInput,
   CatalogItemResponse,

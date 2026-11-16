@@ -13,7 +13,6 @@ import { ReportingCustomService } from './reporting.custom.service';
 import { ReportingDashboardService } from './reporting.dashboard.service';
 import {
   DateRangeSchema,
-  PaginationSchema,
   SavedReportInputSchema,
   ScheduledReportInputSchema,
   DashboardLayoutInputSchema,
@@ -22,7 +21,6 @@ import {
   DashboardInputSchema,
   WidgetDataInputSchema,
   SalesReportInputSchema,
-  InventoryReportInputSchema,
   ManufacturingReportInputSchema,
 } from '@caratflow/shared-types';
 import { Prisma } from '@caratflow/db';

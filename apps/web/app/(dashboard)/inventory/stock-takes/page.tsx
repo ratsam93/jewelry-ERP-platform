@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PageHeader, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { ClipboardCheck, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import type { ColumnDef } from '@caratflow/ui';
 import { StockTakeForm } from '@/features/inventory/stock-take-form';

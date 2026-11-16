@@ -19,7 +19,7 @@ export default function SuppliersPage() {
     },
     pagination: { page, limit: 20, sortOrder: 'asc' },
   });
-  const items = ((data?.items as Array<Record<string, unknown>>) ?? []);
+  const items = ((data?.items as unknown as Array<Record<string, unknown>>) ?? []);
 
   return (
     <div className="space-y-6">

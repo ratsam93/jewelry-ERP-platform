@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 import type { BiometricEventResponse } from '@caratflow/shared-types';
 

@@ -101,18 +101,18 @@ const mockTryOnProducts: TryOnProduct[] = [
 export default function TryOnPage() {
   const [selectedCategory, setSelectedCategory] = useState<JewelryCategory>("RING");
   const [activeTryOn, setActiveTryOn] = useState<TryOnProduct | null>(null);
-  const { addToCart } = useStore();
+  useStore();
 
   const filteredProducts = mockTryOnProducts.filter(
     (p) => p.category === selectedCategory,
   );
 
-  function handleAddToCart(productId: string) {
+  function handleAddToCart(_productId: string) {
     // In production: call store's addToCart with actual product data
     setActiveTryOn(null);
   }
 
-  function handleShare(productId: string, via: string) {
+  function handleShare(_productId: string, _via: string) {
     // In production: POST /api/v1/store/ar/sessions/:sessionId/end with sharedVia
   }
 

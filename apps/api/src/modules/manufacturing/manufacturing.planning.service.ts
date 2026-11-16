@@ -4,7 +4,6 @@ import { PrismaService } from '../../common/prisma.service';
 import {
   type ProductionPlanInput,
   type ProductionPlanItemInput,
-  ProductionPlanStatus,
 } from '@caratflow/shared-types';
 import type { Pagination, PaginatedResult } from '@caratflow/shared-types';
 import { ManufacturingService } from './manufacturing.service';

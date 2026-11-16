@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PageHeader, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { ArrowRightLeft, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import type { ColumnDef } from '@caratflow/ui';
 import { TransferForm } from '@/features/inventory/transfer-form';

@@ -87,7 +87,7 @@ export class RecommendationsSimilarityService extends TenantAwareService {
       metalPurity: number | null;
       sellingPricePaise: bigint | null;
     },
-    batchProducts: Array<{
+    _batchProducts: Array<{
       id: string;
       categoryId: string | null;
       productType: string;

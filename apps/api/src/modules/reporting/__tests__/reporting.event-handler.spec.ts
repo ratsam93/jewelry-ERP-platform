@@ -5,7 +5,7 @@ import { createMockEventBus, TEST_TENANT_ID } from '../../../__tests__/setup';
 describe('ReportingEventHandler', () => {
   let handler: ReportingEventHandler;
   let mockEventBus: ReturnType<typeof createMockEventBus>;
-  let subscribedHandlers: Map<string, Function>;
+  let subscribedHandlers: Map<string, (...args: any[]) => any>;
 
   const TENANT = TEST_TENANT_ID;
 
@@ -13,7 +13,7 @@ describe('ReportingEventHandler', () => {
     mockEventBus = createMockEventBus();
     subscribedHandlers = new Map();
 
-    mockEventBus.subscribe.mockImplementation((eventType: string, fn: Function) => {
+    mockEventBus.subscribe.mockImplementation((eventType: string, fn: (...args: any[]) => any) => {
       subscribedHandlers.set(eventType, fn);
     });
 

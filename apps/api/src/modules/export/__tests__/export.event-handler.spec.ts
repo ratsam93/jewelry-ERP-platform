@@ -6,7 +6,7 @@ describe('ExportEventHandler', () => {
   let handler: ExportEventHandler;
   let mockEventBus: ReturnType<typeof createMockEventBus>;
   let mockPrisma: ReturnType<typeof createMockPrismaService>;
-  let subscribedHandlers: Map<string, Function>;
+  let subscribedHandlers: Map<string, (...args: any[]) => any>;
 
   const TENANT = TEST_TENANT_ID;
 
@@ -15,7 +15,7 @@ describe('ExportEventHandler', () => {
     mockPrisma = createMockPrismaService();
     subscribedHandlers = new Map();
 
-    mockEventBus.subscribe.mockImplementation((eventType: string, fn: Function) => {
+    mockEventBus.subscribe.mockImplementation((eventType: string, fn: (...args: any[]) => any) => {
       subscribedHandlers.set(eventType, fn);
     });
 

@@ -3,7 +3,7 @@
 // GROSS_PROFIT are derived from stock-movement cost layers (StockMovement.unitCostPaise),
 // falling back to product cost price only when no movement carries cost data.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import type { StockValuationRequest } from '@caratflow/shared-types';

@@ -15,4 +15,5 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export { PrismaClient };
-export type { Prisma } from '@prisma/client';
+// Value export: Prisma.JsonNull / Prisma.DbNull are used at runtime.
+export { Prisma } from '@prisma/client';

@@ -24,14 +24,12 @@ export function ExportInvoiceForm() {
   const [exportOrderId, setExportOrderId] = useState('');
   const [buyerId, setBuyerId] = useState('');
   const [currencyCode, setCurrencyCode] = useState('USD');
-  const [exchangeRate, setExchangeRate] = useState('83.0000');
   const [ieCode, setIeCode] = useState('');
   const [adCode, setAdCode] = useState('');
   const [useLut, setUseLut] = useState(true);
   const [lutNumber, setLutNumber] = useState('');
   const [lutDate, setLutDate] = useState('');
   const [igstPaise, setIgstPaise] = useState(0);
-  const [terms, setTerms] = useState('');
 
   // Shipping details
   const [preCarriageBy, setPreCarriageBy] = useState('');

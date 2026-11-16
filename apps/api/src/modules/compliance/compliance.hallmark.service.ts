@@ -129,8 +129,6 @@ export class ComplianceHallmarkService extends TenantAwareService {
     });
     if (!submission) throw new NotFoundException('Submission not found.');
 
-    let passedCount = 0;
-    let failedCount = 0;
 
     for (const result of input.results) {
       const item = submission.items.find((i) => i.id === result.itemId);
@@ -149,7 +147,6 @@ export class ComplianceHallmarkService extends TenantAwareService {
       });
 
       if (result.status === 'PASSED') {
-        passedCount++;
         // If HUID assigned on pass, also register it
         if (result.huidAssigned) {
           await this.eventBus.publish({
@@ -165,8 +162,6 @@ export class ComplianceHallmarkService extends TenantAwareService {
             },
           });
         }
-      } else if (result.status === 'FAILED') {
-        failedCount++;
       }
     }
 

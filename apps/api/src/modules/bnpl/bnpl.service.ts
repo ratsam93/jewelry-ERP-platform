@@ -381,7 +381,7 @@ export class BnplService extends TenantAwareService {
 
     switch (status?.toUpperCase()) {
       case 'APPROVED':
-      case 'SUCCESS':
+      case 'SUCCESS': {
         newStatus = BnplTransactionStatus.APPROVED;
         updateData.approvedAt = new Date();
         // Set the next due date from the first schedule entry
@@ -397,6 +397,7 @@ export class BnplService extends TenantAwareService {
           });
         }
         break;
+      }
 
       case 'ACTIVE':
         newStatus = BnplTransactionStatus.ACTIVE;

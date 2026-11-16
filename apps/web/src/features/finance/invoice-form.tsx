@@ -40,7 +40,7 @@ export function InvoiceForm({
   invoiceType,
   customers,
   suppliers,
-  products,
+  products: _products,
   locations,
   onSubmit,
   isLoading,

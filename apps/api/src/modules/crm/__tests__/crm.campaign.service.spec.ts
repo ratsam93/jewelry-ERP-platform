@@ -8,7 +8,6 @@ vi.mock('@caratflow/db', () => ({
   Prisma: { JsonNull: { __sentinel: 'JsonNull' }, DbNull: { __sentinel: 'DbNull' } },
 }));
 import { CrmCampaignService } from '../crm.campaign.service';
-import { CrmNotificationService } from '../crm.notification.service';
 
 describe('CrmCampaignService', () => {
   let service: CrmCampaignService; let prisma: ReturnType<typeof createMockPrismaService>;
@@ -16,7 +15,7 @@ describe('CrmCampaignService', () => {
   const { tenantId, userId } = mockTenantContext;
   beforeEach(() => {
     prisma = createMockPrismaService();
-    const eb = createMockEventBusService();
+    createMockEventBusService();
     resetMocks(prisma);
     ['campaign','notificationTemplate','notificationLog','customerOccasion'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirstOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() }; });
     prisma.customer.count = vi.fn() as any;

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Sidebar, defaultNavItems } from '../sidebar';
+import { Sidebar } from '../sidebar';
 
 describe('Sidebar', () => {
   it('renders navigation items', () => {
@@ -13,7 +13,7 @@ describe('Sidebar', () => {
   });
 
   it('highlights the active item based on currentPath', () => {
-    const { container } = render(
+    render(
       <Sidebar collapsed={false} onToggle={vi.fn()} currentPath="/dashboard" />,
     );
     // The Dashboard link should have the active styling class

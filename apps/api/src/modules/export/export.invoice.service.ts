@@ -7,7 +7,6 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import type {
   ExportInvoiceInput,
   ExportInvoiceResponse,
-  ExportInvoiceItemResponse,
 } from '@caratflow/shared-types';
 import { ExportInvoiceType } from '@caratflow/shared-types';
 import type { PaginatedResult, Pagination } from '@caratflow/shared-types';

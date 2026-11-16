@@ -12,7 +12,6 @@ import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { IndiaRatesService } from '../india/india.rates.service';
 import type {
-  RedeemGoldInput,
   RedeemGoldResponse,
   GoldRedemptionType,
   GoldRedemptionStatus,

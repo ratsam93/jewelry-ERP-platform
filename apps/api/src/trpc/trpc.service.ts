@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { initTRPC, TRPCError } from '@trpc/server';
-import { z } from 'zod';
 import { evaluateProcedureAccess, hasExactPermission } from './rbac';
 
 export { evaluateProcedureAccess, hasExactPermission } from './rbac';

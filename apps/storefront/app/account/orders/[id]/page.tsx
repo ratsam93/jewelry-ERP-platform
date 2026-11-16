@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, ApiError, getAccessToken } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 
 interface OrderItem {
   id: string;

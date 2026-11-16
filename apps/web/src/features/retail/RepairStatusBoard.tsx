@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { cn } from '@caratflow/ui';
-import { Clock, User, Wrench } from 'lucide-react';
+import { Clock, User } from 'lucide-react';
 
 interface RepairItem {
   id: string;

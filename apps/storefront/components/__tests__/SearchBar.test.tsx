@@ -3,12 +3,12 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SearchBar from "@/components/SearchBar";
 import { renderWithStore } from "./test-utils";
+import { createElement } from "react";
 
 // Mock VoiceSearch to avoid SpeechRecognition issues
 vi.mock("@/components/VoiceSearch", () => ({
   default: ({ onResult }: { onResult: (s: string) => void }) => {
-    const React = require("react");
-    return React.createElement("button", {
+    return createElement("button", {
       type: "button",
       "aria-label": "Start voice search",
       onClick: () => onResult("gold ring"),

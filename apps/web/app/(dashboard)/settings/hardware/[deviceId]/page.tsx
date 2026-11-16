@@ -7,7 +7,7 @@ import { trpc } from '@/lib/trpc';
 import { DeviceType, ConnectionType, DeviceStatus } from '@caratflow/shared-types';
 import type { UpdateDeviceConfig } from '@caratflow/shared-types';
 import { DeviceStatusIndicator } from '@/features/hardware/DeviceStatusIndicator';
-import { Save, ArrowLeft, Wifi } from 'lucide-react';
+import { Save, ArrowLeft } from 'lucide-react';
 
 const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
   [DeviceType.RFID_READER]: 'RFID Reader',

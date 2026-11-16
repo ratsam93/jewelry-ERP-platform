@@ -16,7 +16,7 @@ import type {
   ShipmentListFilter,
 } from '@caratflow/shared-types';
 import type { PaginatedResult, Pagination } from '@caratflow/shared-types';
-import { ShipmentStatus, OnlineOrderStatus } from '@caratflow/shared-types';
+import { ShipmentStatus } from '@caratflow/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
 import { DelhiveryProvider } from './ecommerce.delhivery.provider';

@@ -10,7 +10,7 @@ describe('ComplianceEventHandler', () => {
   let mockHuidService: {
     checkSaleEligibility: ReturnType<typeof vi.fn>;
   };
-  let subscribedHandlers: Map<string, Function>;
+  let subscribedHandlers: Map<string, (...args: any[]) => any>;
 
   const eligible = (productId: string) => ({ productId, eligible: true, reason: 'HUID_PRESENT', huidNumber: 'AB1234' });
   const missing = (productId: string) => ({ productId, eligible: false, reason: 'HUID_MISSING', huidNumber: null });
@@ -34,7 +34,7 @@ describe('ComplianceEventHandler', () => {
     };
 
     subscribedHandlers = new Map();
-    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: Function) => {
+    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: (...args: any[]) => any) => {
       subscribedHandlers.set(eventType, handlerFn);
     });
 

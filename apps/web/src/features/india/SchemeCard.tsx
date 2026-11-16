@@ -28,7 +28,7 @@ const typeLabels: Record<string, { label: string; color: string }> = {
 };
 
 export function SchemeCard({
-  id,
+  id: _id,
   schemeName,
   schemeType,
   monthlyAmountPaise,

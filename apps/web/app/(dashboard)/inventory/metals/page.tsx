@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { PageHeader, FormField } from '@caratflow/ui';
-import { Coins } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { MetalStockCard } from '@/features/inventory/metal-stock-card';
 import { InventoryMetalType } from '@caratflow/shared-types';

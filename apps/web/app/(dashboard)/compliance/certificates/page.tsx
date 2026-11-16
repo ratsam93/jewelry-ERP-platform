@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
-import { Award, Plus, Search } from 'lucide-react';
+import { Award, Search } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { CertificateCard } from '@/features/compliance';
 

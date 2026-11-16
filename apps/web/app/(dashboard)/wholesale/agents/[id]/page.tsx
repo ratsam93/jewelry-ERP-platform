@@ -15,8 +15,8 @@ export default function AgentDetailPage() {
   }, { enabled: Boolean(id) });
 
   if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
-  const a = data as Record<string, unknown>;
-  const commissions = ((commissionsData?.items as Array<Record<string, unknown>>) ?? []);
+  const a = data as unknown as Record<string, unknown>;
+  const commissions = ((commissionsData?.items as unknown as Array<Record<string, unknown>>) ?? []);
 
   return (
     <div className="space-y-6">

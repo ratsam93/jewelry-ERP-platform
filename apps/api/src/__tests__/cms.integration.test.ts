@@ -5,7 +5,6 @@ import type { INestApplication } from '@nestjs/common';
 import {
   createTestApp,
   type TestApp,
-  TEST_TENANT_ID,
   generateAdminToken,
 } from './test-app';
 import { resetMocks } from './mocks';
