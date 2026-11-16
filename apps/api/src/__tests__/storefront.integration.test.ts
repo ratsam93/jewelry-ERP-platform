@@ -11,7 +11,8 @@ import {
   storefrontHeaders,
   authenticatedStorefrontHeaders,
 } from './test-app';
-import { resetMocks } from './mocks';
+import { vi } from 'vitest';
+import { resetMocks, createMockProduct } from './mocks';
 
 describe('Storefront Integration Tests', () => {
   let app: INestApplication;
@@ -20,7 +21,7 @@ describe('Storefront Integration Tests', () => {
   beforeAll(async () => {
     testApp = await createTestApp();
     app = testApp.app;
-  });
+  }, 120_000); // full AppModule bootstrap can exceed the default 10s hook timeout
 
   afterAll(async () => {
     await app.close();
@@ -206,22 +207,41 @@ describe('Storefront Integration Tests', () => {
   // ═══════════════════════════════════════════════════════════════
 
   describe('POST /api/v1/store/wishlist', () => {
-    it('returns 400 without customer context (login required)', async () => {
+    it('returns 401 without customer context (login required)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/store/wishlist')
         .set(storefrontHeaders())
         .send({ productId: uuid() });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
 
     it('returns 201 with customer context', async () => {
+      const productId = uuid();
+      // Service looks the product up first (404 if missing) and checks for an existing wishlist row.
+      testApp.prisma.product.findFirst.mockResolvedValue(createMockProduct({ id: productId }));
+      const wishlistCreate = vi.fn().mockResolvedValue({});
+      (testApp.prisma as Record<string, unknown>)['wishlist'] = {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: wishlistCreate,
+      };
+
       const res = await request(app.getHttpServer())
         .post('/api/v1/store/wishlist')
         .set(authenticatedStorefrontHeaders())
-        .send({ productId: uuid() });
+        .send({ productId });
 
-      expect([201, 500]).toContain(res.status);
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(wishlistCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tenantId: TEST_TENANT_ID,
+            customerId: TEST_B2C_CUSTOMER.customerId,
+            productId,
+          }),
+        }),
+      );
     });
   });
 
@@ -231,7 +251,7 @@ describe('Storefront Integration Tests', () => {
         .get('/api/v1/store/wishlist')
         .set(storefrontHeaders());
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
 
     it('returns 200 with items for authenticated customer', async () => {
@@ -249,7 +269,7 @@ describe('Storefront Integration Tests', () => {
         .delete(`/api/v1/store/wishlist/${uuid()}`)
         .set(storefrontHeaders());
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
   });
 
@@ -273,7 +293,7 @@ describe('Storefront Integration Tests', () => {
   // ═══════════════════════════════════════════════════════════════
 
   describe('POST /api/v1/store/checkout', () => {
-    it('returns 400 without customer login', async () => {
+    it('returns 401 without customer login', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/store/checkout')
         .set(storefrontHeaders())
@@ -283,7 +303,7 @@ describe('Storefront Integration Tests', () => {
           paymentMethod: 'UPI',
         });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
 
     it('accepts checkout with authenticated customer', async () => {
@@ -310,7 +330,7 @@ describe('Storefront Integration Tests', () => {
         .get('/api/v1/store/orders')
         .set(storefrontHeaders());
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
 
     it('returns 200 for authenticated customer', async () => {
@@ -328,7 +348,7 @@ describe('Storefront Integration Tests', () => {
         .get(`/api/v1/store/orders/${uuid()}`)
         .set(storefrontHeaders());
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
   });
 
@@ -357,13 +377,20 @@ describe('Storefront Integration Tests', () => {
     });
 
     it('accepts 2-4 product IDs', async () => {
-      const ids = `${uuid()},${uuid()}`;
+      const ids = [uuid(), uuid()];
+      // Each id is loaded via product.findFirst; the mock returns a product for any id.
+      testApp.prisma.product.findFirst.mockImplementation(async ({ where }: { where: { id: string } }) =>
+        createMockProduct({ id: where.id }),
+      );
+
       const res = await request(app.getHttpServer())
         .get('/api/v1/store/compare')
-        .query({ ids })
+        .query({ ids: ids.join(',') })
         .set(storefrontHeaders());
 
-      expect([200, 500]).toContain(res.status);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.products).toHaveLength(2);
     });
   });
 
@@ -378,7 +405,7 @@ describe('Storefront Integration Tests', () => {
         .set(storefrontHeaders())
         .send({ productId: uuid(), rating: 5, title: 'Great!', body: 'Excellent product' });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
   });
 
@@ -403,7 +430,7 @@ describe('Storefront Integration Tests', () => {
         .get('/api/v1/store/addresses')
         .set(storefrontHeaders());
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
   });
 
@@ -423,7 +450,7 @@ describe('Storefront Integration Tests', () => {
           postalCode: '400001',
         });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
   });
 });

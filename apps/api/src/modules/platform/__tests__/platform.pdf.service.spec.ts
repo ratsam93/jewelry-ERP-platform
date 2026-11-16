@@ -10,10 +10,16 @@ const mockPdf = vi.fn(async () => Buffer.from('%PDF-1.4\nMOCKED'));
 const mockSetContent = vi.fn(async () => undefined);
 const mockPageClose = vi.fn(async () => undefined);
 const mockBrowserClose = vi.fn(async () => undefined);
+const mockSetRequestInterception = vi.fn(async () => undefined);
+const mockSetJavaScriptEnabled = vi.fn(async () => undefined);
+const mockPageOn = vi.fn();
 const mockNewPage = vi.fn(async () => ({
   setContent: mockSetContent,
   pdf: mockPdf,
   close: mockPageClose,
+  setRequestInterception: mockSetRequestInterception,
+  setJavaScriptEnabled: mockSetJavaScriptEnabled,
+  on: mockPageOn,
 }));
 const mockLaunch = vi.fn(async () => ({
   newPage: mockNewPage,
@@ -35,6 +41,9 @@ describe('PlatformPdfService', () => {
     mockPdf.mockClear();
     mockPageClose.mockClear();
     mockBrowserClose.mockClear();
+    mockSetRequestInterception.mockClear();
+    mockSetJavaScriptEnabled.mockClear();
+    mockPageOn.mockClear();
     service = new PlatformPdfService();
   });
 
@@ -59,6 +68,24 @@ describe('PlatformPdfService', () => {
     it('handles numeric values', () => {
       const out = service.fillTemplate('{{n}}', { n: 42 });
       expect(out).toBe('42');
+    });
+
+    it('HTML-escapes substituted values', () => {
+      const out = service.fillTemplate('<p>{{name}}</p>', {
+        name: '<img src=x onerror="alert(1)"> & \'q\'',
+      });
+      expect(out).toBe(
+        '<p>&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &#39;q&#39;</p>',
+      );
+    });
+
+    it('passes lineItemsRows through unescaped (already escaped by buildTableRows)', () => {
+      const rows = service.buildTableRows([{ a: '<b>' }], ['a']);
+      const out = service.fillTemplate('<tbody>{{lineItemsRows}}</tbody>', {
+        lineItemsRows: rows,
+      });
+      expect(out).toContain('<tr><td>1</td><td>&lt;b&gt;</td></tr>');
+      expect(out).not.toContain('&lt;tr&gt;');
     });
   });
 
@@ -103,6 +130,40 @@ describe('PlatformPdfService', () => {
       expect(pdfArgs?.printBackground).toBe(true);
       expect(buf.toString()).toContain('%PDF');
       expect(mockPageClose).toHaveBeenCalledOnce();
+    });
+
+    it('intercepts requests and aborts everything except data: URLs', async () => {
+      await service.renderHtmlToPdf('<p>x</p>');
+      expect(mockSetRequestInterception).toHaveBeenCalledWith(true);
+      expect(mockSetJavaScriptEnabled).toHaveBeenCalledWith(false);
+      const handler = mockPageOn.mock.calls.find((c) => c[0] === 'request')?.[1] as
+        | ((r: unknown) => void)
+        | undefined;
+      expect(handler).toBeTypeOf('function');
+      const cont = vi.fn();
+      const abort = vi.fn();
+      handler!({ url: () => 'http://169.254.169.254/latest', continue: cont, abort });
+      expect(abort).toHaveBeenCalledOnce();
+      expect(cont).not.toHaveBeenCalled();
+      const cont2 = vi.fn();
+      const abort2 = vi.fn();
+      handler!({ url: () => 'data:image/png;base64,AAAA', continue: cont2, abort: abort2 });
+      expect(cont2).toHaveBeenCalledOnce();
+      expect(abort2).not.toHaveBeenCalled();
+    });
+
+    it('does not disable the Chromium sandbox unless PUPPETEER_NO_SANDBOX=true', async () => {
+      const prev = process.env.PUPPETEER_NO_SANDBOX;
+      try {
+        delete process.env.PUPPETEER_NO_SANDBOX;
+        await service.renderHtmlToPdf('<p>x</p>');
+        const args = (mockLaunch.mock.calls[0] as unknown as [{ args: string[] }])[0].args;
+        expect(args).not.toContain('--no-sandbox');
+        expect(args).not.toContain('--disable-setuid-sandbox');
+      } finally {
+        if (prev === undefined) delete process.env.PUPPETEER_NO_SANDBOX;
+        else process.env.PUPPETEER_NO_SANDBOX = prev;
+      }
     });
 
     it('reuses the same browser across multiple renders', async () => {

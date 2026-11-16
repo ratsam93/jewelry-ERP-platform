@@ -26,7 +26,7 @@ export class OtpService {
 
   /**
    * Generate a 6-digit OTP, store it, and trigger delivery.
-   * Returns the OTP in development for testing; in production only sends via SMS/email.
+   * Returns the OTP only when ALLOW_DEV_OTP=true; otherwise it is only dispatched via SMS/email/WhatsApp.
    */
   async generateOtp(
     identifier: string,
@@ -61,11 +61,12 @@ export class OtpService {
     // Real provider dispatch (best-effort; never throws into the login flow)
     await this.sendOtp(identifier, otpCode, tenantId);
 
-    const isDevelopment = process.env.NODE_ENV !== 'production';
+    // The OTP is returned to the caller only when ALLOW_DEV_OTP=true (default off).
+    // This is deliberately not keyed off NODE_ENV.
+    const allowDevOtp = process.env.ALLOW_DEV_OTP === 'true';
     return {
       message: 'OTP sent successfully',
-      // Only expose the OTP in non-production environments for testing
-      ...(isDevelopment ? { otp: otpCode } : {}),
+      ...(allowDevOtp ? { otp: otpCode } : {}),
     };
   }
 

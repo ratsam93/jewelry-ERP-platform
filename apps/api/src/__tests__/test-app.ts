@@ -15,7 +15,8 @@ import { createMockPrismaService, createMockEventBusService } from './mocks';
 
 export const JWT_SECRET = 'test-jwt-secret-for-caratflow-tests';
 
-export const TEST_TENANT_ID = 'tenant-integration-test';
+// Must be a UUID: storefront controllers validate x-tenant-id as a UUID.
+export const TEST_TENANT_ID = '6f1c2a40-8d1e-4b7a-9c3e-2a5d7e9b1f00';
 export const TEST_TENANT_SLUG = 'test-jewelry-store';
 
 export const TEST_ADMIN_USER = {
@@ -125,7 +126,7 @@ export async function createTestApp(): Promise<TestApp> {
   );
 
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health', 'trpc(.*)'],
+    exclude: ['health', 'api/v1/*path'],
   });
 
   await app.init();
@@ -144,12 +145,12 @@ export function storefrontHeaders(overrides: Record<string, string> = {}): Recor
   };
 }
 
-/** Storefront headers with customer context. */
+/** Storefront headers with a verified B2C customer (Bearer token). */
 export function authenticatedStorefrontHeaders(
   customerId: string = TEST_B2C_CUSTOMER.customerId,
 ): Record<string, string> {
   return {
     ...storefrontHeaders(),
-    'x-customer-id': customerId,
+    Authorization: `Bearer ${generateB2CToken({ customerId })}`,
   };
 }

@@ -2,6 +2,8 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Logger,
   Optional,
   BadRequestException,
@@ -15,6 +17,7 @@ import { PrismaService } from '../common/prisma.service';
 import type { JwtPayload } from '../common/tenant.middleware';
 import { EmailService } from '../modules/crm/email.service';
 import { AccessTokenDenylistService } from './access-token-denylist.service';
+import { getJwtSecret } from '../common/jwt-secret';
 
 interface TokenPair {
   accessToken: string;
@@ -31,19 +34,31 @@ interface PasswordResetPreference {
 // Reset token lives for 1 hour by default
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
+// Staff login lockout: 5 failed attempts for an email -> locked for 15 minutes.
+// In-memory (single-process), reset on successful login.
+const LOGIN_MAX_FAILURES = 5;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+const LOGIN_TRACKER_SWEEP_THRESHOLD = 5000;
+
+interface LoginFailureEntry {
+  count: number;
+  lockedUntil?: number;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly jwtSecret: string;
   private readonly accessExpiry: string;
   private readonly refreshExpiry: string;
+  private readonly loginFailures = new Map<string, LoginFailureEntry>();
 
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly denylist?: AccessTokenDenylistService,
     @Optional() private readonly emailService?: EmailService,
   ) {
-    this.jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-change-me-in-production';
+    this.jwtSecret = getJwtSecret();
     this.accessExpiry = process.env.JWT_ACCESS_EXPIRY ?? '15m';
     this.refreshExpiry = process.env.JWT_REFRESH_EXPIRY ?? '7d';
   }
@@ -90,9 +105,12 @@ export class AuthService {
   }
 
   async login(email: string, password: string, tenantSlug: string): Promise<TokenPair> {
+    this.assertLoginNotLocked(email);
+
     // Find tenant by slug
     const tenant = await this.prisma.tenant.findUnique({ where: { slug: tenantSlug } });
     if (!tenant || !tenant.isActive) {
+      this.recordLoginFailure(email);
       throw new UnauthorizedException('Invalid tenant');
     }
 
@@ -102,14 +120,18 @@ export class AuthService {
       include: { role: true },
     });
     if (!user || !user.isActive) {
+      this.recordLoginFailure(email);
       throw new UnauthorizedException('Invalid email or password');
     }
 
     // Verify password
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
+      this.recordLoginFailure(email);
       throw new UnauthorizedException('Invalid email or password');
     }
+
+    this.loginFailures.delete(this.loginKey(email));
 
     // Update last login
     await this.prisma.user.update({
@@ -351,6 +373,46 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  private loginKey(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private assertLoginNotLocked(email: string): void {
+    const key = this.loginKey(email);
+    const entry = this.loginFailures.get(key);
+    if (!entry?.lockedUntil) return;
+    if (entry.lockedUntil <= Date.now()) {
+      this.loginFailures.delete(key);
+      return;
+    }
+    throw new HttpException(
+      'Too many failed login attempts. Try again later.',
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
+  private recordLoginFailure(email: string): void {
+    const now = Date.now();
+    const key = this.loginKey(email);
+    const entry = this.loginFailures.get(key) ?? { count: 0 };
+    if (entry.lockedUntil !== undefined && entry.lockedUntil <= now) {
+      entry.count = 0;
+      entry.lockedUntil = undefined;
+    }
+    entry.count += 1;
+    if (entry.count >= LOGIN_MAX_FAILURES) {
+      entry.lockedUntil = now + LOGIN_LOCKOUT_MS;
+      entry.count = 0;
+    }
+    this.loginFailures.set(key, entry);
+
+    if (this.loginFailures.size > LOGIN_TRACKER_SWEEP_THRESHOLD) {
+      for (const [k, v] of this.loginFailures) {
+        if (v.lockedUntil === undefined || v.lockedUntil <= now) this.loginFailures.delete(k);
+      }
+    }
   }
 
   private readResetPreference(preferences: unknown): PasswordResetPreference | null {

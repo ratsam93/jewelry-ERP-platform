@@ -1,18 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import { v4 as uuid } from 'uuid';
-import * as crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// Simple password hash for seeding (bcrypt would be used in production via the API)
+// bcrypt hash, matching the verification in apps/api/src/auth/auth.service.ts (bcrypt.compare)
 async function hashPassword(password: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const salt = crypto.randomBytes(16).toString('hex');
-    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
-      if (err) reject(err);
-      resolve(`${salt}:${derivedKey.toString('hex')}`);
-    });
-  });
+  return bcrypt.hash(password, 12);
 }
 
 async function main() {

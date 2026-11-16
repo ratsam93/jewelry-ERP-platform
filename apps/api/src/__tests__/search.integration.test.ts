@@ -164,7 +164,7 @@ describe('Search Integration Tests', () => {
         .get('/api/v1/store/search/recent')
         .set(storefrontHeaders());
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
 
     it('returns 200 for authenticated customer', async () => {
@@ -182,7 +182,7 @@ describe('Search Integration Tests', () => {
         .delete('/api/v1/store/search/recent')
         .set(storefrontHeaders());
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
   });
 });

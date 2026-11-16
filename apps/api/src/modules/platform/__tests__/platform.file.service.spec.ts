@@ -20,6 +20,10 @@ function extendPrisma(base: ReturnType<typeof createMockPrismaService>) {
   };
 }
 
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+const PDF_BYTES = Buffer.from('%PDF-1.4\n%fake\n');
+
 describe('PlatformFileService (Unit)', () => {
   let service: PlatformFileService;
   let mockPrisma: ReturnType<typeof extendPrisma>;
@@ -35,7 +39,7 @@ describe('PlatformFileService (Unit)', () => {
         id: 'f-1',
         fileName: 'photo.jpg',
         mimeType: 'image/jpeg',
-        sizeBytes: 1024,
+        sizeBytes: JPEG_BYTES.length,
       });
 
       const result = await service.uploadFile(TEST_TENANT_ID, {
@@ -43,11 +47,78 @@ describe('PlatformFileService (Unit)', () => {
         originalName: 'photo.jpg',
         mimeType: 'image/jpeg',
         sizeBytes: 1024,
-        buffer: Buffer.from('fake'),
+        buffer: JPEG_BYTES,
       }, TEST_USER_ID);
 
       expect(result.fileName).toBe('photo.jpg');
       expect(mockPrisma.fileUpload.create).toHaveBeenCalledOnce();
+    });
+
+    it('rejects image/svg+xml', async () => {
+      await expect(
+        service.uploadFile(TEST_TENANT_ID, {
+          fileName: 'logo.svg',
+          originalName: 'logo.svg',
+          mimeType: 'image/svg+xml',
+          sizeBytes: 10,
+          buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>'),
+        }, TEST_USER_ID),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects content whose magic bytes do not match the declared type', async () => {
+      await expect(
+        service.uploadFile(TEST_TENANT_ID, {
+          fileName: 'fake.jpg',
+          originalName: 'fake.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: PNG_BYTES.length,
+          buffer: PNG_BYTES,
+        }, TEST_USER_ID),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.fileUpload.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-sniffable types whose content has a known binary signature', async () => {
+      await expect(
+        service.uploadFile(TEST_TENANT_ID, {
+          fileName: 'data.csv',
+          originalName: 'data.csv',
+          mimeType: 'text/csv',
+          sizeBytes: PDF_BYTES.length,
+          buffer: PDF_BYTES,
+        }, TEST_USER_ID),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('uses buffer length, not client-supplied sizeBytes, for metadata', async () => {
+      mockPrisma.fileUpload.create.mockResolvedValue({ id: 'f-2' });
+      await service.uploadFile(TEST_TENANT_ID, {
+        fileName: 'doc.pdf',
+        originalName: 'doc.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1,
+        buffer: PDF_BYTES,
+      }, TEST_USER_ID);
+      const data = mockPrisma.fileUpload.create.mock.calls[0]?.[0]?.data as { sizeBytes: number };
+      expect(data.sizeBytes).toBe(PDF_BYTES.length);
+    });
+
+    it('builds a storage key from tenant, safe folder, UUID and MIME-derived extension', async () => {
+      mockPrisma.fileUpload.create.mockResolvedValue({ id: 'f-3' });
+      await service.uploadFile(TEST_TENANT_ID, {
+        fileName: 'x.png',
+        originalName: '../../evil.exe',
+        mimeType: 'image/png',
+        sizeBytes: PNG_BYTES.length,
+        buffer: PNG_BYTES,
+        folder: '../Bad Folder',
+      }, TEST_USER_ID);
+      const data = mockPrisma.fileUpload.create.mock.calls[0]?.[0]?.data as { storageKey: string };
+      expect(data.storageKey).toMatch(
+        new RegExp('^' + TEST_TENANT_ID + '/general/[0-9a-f-]{36}\\.png$'),
+      );
+      expect(data.storageKey).not.toContain('evil');
     });
 
     it('rejects disallowed MIME types', async () => {
@@ -62,14 +133,14 @@ describe('PlatformFileService (Unit)', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('rejects files exceeding max size', async () => {
+    it('rejects files exceeding max size based on the actual buffer', async () => {
       await expect(
         service.uploadFile(TEST_TENANT_ID, {
           fileName: 'huge.pdf',
           originalName: 'huge.pdf',
           mimeType: 'application/pdf',
-          sizeBytes: 100 * 1024 * 1024, // 100MB
-          buffer: Buffer.from(''),
+          sizeBytes: 1, // client-supplied value is ignored
+          buffer: Buffer.concat([PDF_BYTES, Buffer.alloc(50 * 1024 * 1024)]),
         }, TEST_USER_ID),
       ).rejects.toThrow(BadRequestException);
     });

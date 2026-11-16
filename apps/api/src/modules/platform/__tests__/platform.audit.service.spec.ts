@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// @caratflow/db only exports Prisma as a type, so provide runtime sentinels.
+vi.mock('@caratflow/db', () => ({
+  PrismaClient: class {},
+  Prisma: { JsonNull: { __json: 'JsonNull' }, DbNull: { __json: 'DbNull' } },
+}));
+
 import { Prisma } from '@caratflow/db';
 import { PlatformAuditService } from '../platform.audit.service';
 import {

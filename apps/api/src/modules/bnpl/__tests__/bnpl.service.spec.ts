@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createHmac } from 'crypto';
+import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { createMockPrismaService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
 vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid') }));
 import { BnplService } from '../bnpl.service';
@@ -55,20 +56,67 @@ describe('BnplService', () => {
   });
 
   describe('handleBnplCallback', () => {
-    it('should update transaction status on callback', async () => {
-      (prisma as any).bnplTransaction.findFirst.mockResolvedValue({ id: 'bt-1', status: 'INITIATED', externalTransactionId: 'ext-1' });
+    const storedTx = { id: 'bt-1', tenantId, orderId: 'o-1', customerId: 'c1', providerName: 'SIMPL', status: 'INITIATED', externalTransactionId: 'ext-1' };
+
+    it('should update transaction status on callback, scoped to the stored transaction tenant', async () => {
+      (prisma as any).bnplTransaction.findMany.mockResolvedValue([storedTx]);
       (prisma as any).emiSchedule.findFirst.mockResolvedValue({ id: 'es-1', dueDate: new Date() });
       (prisma as any).emiSchedule.update.mockResolvedValue({});
       (prisma as any).bnplTransaction.update.mockResolvedValue({ id: 'bt-1', tenantId, orderId: 'o-1', customerId: 'c1', providerName: 'SIMPL', planId: null, orderAmountPaise: 500000n, emiAmountPaise: 10000n, tenure: 3, interestPaise: 2000n, processingFeePaise: 0n, totalPayablePaise: 52000n, status: 'APPROVED', externalTransactionId: 'ext-1', approvedAt: new Date(), nextDueDate: new Date(), completedAt: null, createdAt: new Date(), updatedAt: new Date() });
-      const r = await service.handleBnplCallback(tenantId, 'SIMPL', { transactionId: 'ext-1', status: 'APPROVED' });
+      const r = await service.handleBnplCallback('SIMPL', { transactionId: 'ext-1', status: 'APPROVED' });
       expect(r.status).toBe('APPROVED');
+      expect((prisma as any).bnplTransaction.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { externalTransactionId: 'ext-1', providerName: 'SIMPL' },
+      }));
     });
-    it('should throw if transaction not found', async () => {
-      (prisma as any).bnplTransaction.findFirst.mockResolvedValue(null);
-      await expect(service.handleBnplCallback(tenantId, 'SIMPL', { transactionId: 'x', status: 'APPROVED' })).rejects.toThrow(NotFoundException);
+    it('should throw NotFound if no stored transaction matches', async () => {
+      (prisma as any).bnplTransaction.findMany.mockResolvedValue([]);
+      await expect(service.handleBnplCallback('SIMPL', { transactionId: 'x', status: 'APPROVED' })).rejects.toThrow(NotFoundException);
+    });
+    it('should reject an ambiguous external id instead of picking a tenant', async () => {
+      (prisma as any).bnplTransaction.findMany.mockResolvedValue([storedTx, { ...storedTx, id: 'bt-2', tenantId: 'other' }]);
+      await expect(service.handleBnplCallback('SIMPL', { transactionId: 'ext-1', status: 'APPROVED' })).rejects.toThrow(ConflictException);
+      expect((prisma as any).bnplTransaction.update).not.toHaveBeenCalled();
     });
     it('should throw if no transactionId', async () => {
-      await expect(service.handleBnplCallback(tenantId, 'SIMPL', { status: 'APPROVED' })).rejects.toThrow(BadRequestException);
+      await expect(service.handleBnplCallback('SIMPL', { status: 'APPROVED' })).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('verifyCallbackSignature', () => {
+    const body = Buffer.from('{"transactionId":"ext-1","status":"APPROVED"}', 'utf8');
+    const payload = { transactionId: 'ext-1', status: 'APPROVED' };
+    const sign = (secret: string, data: Buffer) => createHmac('sha256', secret).update(data).digest('hex');
+    const original = { secret: process.env.BNPL_WEBHOOK_SECRET, env: process.env.NODE_ENV };
+
+    afterEach(() => {
+      process.env.BNPL_WEBHOOK_SECRET = original.secret;
+      process.env.NODE_ENV = original.env;
+    });
+
+    it('accepts a correct HMAC of the raw body', () => {
+      process.env.BNPL_WEBHOOK_SECRET = 'whsec-test';
+      process.env.NODE_ENV = 'production';
+      expect(() => service.verifyCallbackSignature(body, payload, sign('whsec-test', body))).not.toThrow();
+    });
+    it('rejects a wrong signature', () => {
+      process.env.BNPL_WEBHOOK_SECRET = 'whsec-test';
+      process.env.NODE_ENV = 'production';
+      expect(() => service.verifyCallbackSignature(body, payload, sign('wrong', body))).toThrow(UnauthorizedException);
+    });
+    it('rejects a missing signature header', () => {
+      process.env.BNPL_WEBHOOK_SECRET = 'whsec-test';
+      expect(() => service.verifyCallbackSignature(body, payload, undefined)).toThrow(UnauthorizedException);
+    });
+    it('rejects in production when the secret is unset', () => {
+      delete process.env.BNPL_WEBHOOK_SECRET;
+      process.env.NODE_ENV = 'production';
+      expect(() => service.verifyCallbackSignature(body, payload, sign('x', body))).toThrow(UnauthorizedException);
+    });
+    it('rejects in production when the raw body is unavailable', () => {
+      process.env.BNPL_WEBHOOK_SECRET = 'whsec-test';
+      process.env.NODE_ENV = 'production';
+      expect(() => service.verifyCallbackSignature(undefined, payload, sign('whsec-test', body))).toThrow(UnauthorizedException);
     });
   });
 

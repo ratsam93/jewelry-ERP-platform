@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { createMockPrismaService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
 vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid') }));
+vi.mock('@caratflow/db', () => ({
+  PrismaClient: class {},
+  Prisma: { JsonNull: Symbol('Prisma.JsonNull'), DbNull: Symbol('Prisma.DbNull') },
+}));
 
 import { RetailAppraisalService } from '../retail.appraisal.service';
 describe('RetailAppraisalService', () => {

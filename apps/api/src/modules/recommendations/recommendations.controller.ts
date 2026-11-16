@@ -9,10 +9,11 @@ import {
   Body,
   Param,
   Query,
-  Headers,
+  Req,
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { ApiResponse } from '@caratflow/shared-types';
 import type {
@@ -24,33 +25,7 @@ import type {
 } from '@caratflow/shared-types';
 import { RecommendationsService } from './recommendations.service';
 import { RecommendationsBehaviorService } from './recommendations.behavior.service';
-
-interface StorefrontContext {
-  tenantId: string;
-  customerId: string | null;
-  sessionId: string;
-}
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function extractContext(headers: Record<string, string | undefined>): StorefrontContext {
-  const tenantId = headers['x-tenant-id'];
-  if (!tenantId) throw new BadRequestException('Missing x-tenant-id header');
-  if (!UUID_RE.test(tenantId)) {
-    throw new BadRequestException('x-tenant-id must be a valid UUID');
-  }
-  const customerId = headers['x-customer-id'] ?? null;
-  if (customerId && !UUID_RE.test(customerId)) {
-    throw new BadRequestException('x-customer-id must be a valid UUID');
-  }
-
-  return {
-    tenantId,
-    customerId,
-    sessionId: headers['x-session-id'] ?? `sess-${Date.now()}`,
-  };
-}
+import { extractContext, type HeaderBearingRequest } from '../../common/customer-identity';
 
 function success<T>(data: T): ApiResponse<T> {
   return { success: true, data };
@@ -67,11 +42,11 @@ export class RecommendationsController {
 
   @Get('personalized')
   async getPersonalized(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('limit') limit?: string,
   ): Promise<ApiResponse<RecommendationResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
 
     const parsedLimit = limit ? parseInt(limit, 10) : 12;
     const data = await this.recommendationsService.getPersonalizedRecommendations(
@@ -98,11 +73,11 @@ export class RecommendationsController {
 
   @Get('similar/:productId')
   async getSimilar(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('productId') productId: string,
     @Query('limit') limit?: string,
   ): Promise<ApiResponse<SimilarProductsResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const parsedLimit = limit ? parseInt(limit, 10) : 12;
     const data = await this.recommendationsService.getSimilarProducts(
       ctx.tenantId,
@@ -127,11 +102,11 @@ export class RecommendationsController {
 
   @Get('bought-together/:productId')
   async getBoughtTogether(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('productId') productId: string,
     @Query('limit') limit?: string,
   ): Promise<ApiResponse<RecommendationResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const parsedLimit = limit ? parseInt(limit, 10) : 6;
     const data = await this.recommendationsService.getBoughtTogether(
       ctx.tenantId,
@@ -156,11 +131,11 @@ export class RecommendationsController {
 
   @Get('trending')
   async getTrending(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('limit') limit?: string,
     @Query('period') period?: string,
   ): Promise<ApiResponse<TrendingProductsResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const parsedLimit = limit ? parseInt(limit, 10) : 12;
     const parsedPeriod = period ? parseInt(period, 10) : 7;
     const data = await this.recommendationsService.getTrending(
@@ -186,11 +161,11 @@ export class RecommendationsController {
 
   @Get('category/:categoryId')
   async getPopularInCategory(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('categoryId') categoryId: string,
     @Query('limit') limit?: string,
   ): Promise<ApiResponse<RecommendationResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const parsedLimit = limit ? parseInt(limit, 10) : 12;
     const data = await this.recommendationsService.getPopularInCategory(
       ctx.tenantId,
@@ -215,10 +190,10 @@ export class RecommendationsController {
 
   @Get('for-you')
   async getForYou(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<PersonalizedFeedResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
 
     const data = await this.recommendationsService.getForYou(
       ctx.tenantId,
@@ -233,10 +208,10 @@ export class RecommendationsController {
   @Post('track/view')
   @HttpCode(HttpStatus.NO_CONTENT)
   async trackView(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: { productId: string },
   ): Promise<void> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     if (!body.productId) throw new BadRequestException('productId is required');
 
     await this.behaviorService.trackProductView(
@@ -252,10 +227,10 @@ export class RecommendationsController {
   @Post('track/click')
   @HttpCode(HttpStatus.NO_CONTENT)
   async trackClick(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: { recommendationLogId: string; clickedProductId: string },
   ): Promise<void> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     if (!body.recommendationLogId || !body.clickedProductId) {
       throw new BadRequestException('recommendationLogId and clickedProductId are required');
     }

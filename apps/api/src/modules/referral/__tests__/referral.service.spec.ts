@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { UnauthorizedException } from '@nestjs/common';
 import { ReferralService } from '../referral.service';
 import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID, resetAllMocks } from '../../../__tests__/setup';
 
@@ -78,6 +79,22 @@ describe('ReferralService', () => {
       expect(result.id).toBeDefined();
     });
 
+    it('generates codes with crypto randomness from an unambiguous alphabet', async () => {
+      (mockPrisma as any).referralProgram.findFirst.mockResolvedValue(makeProgram());
+      (mockPrisma as any).referralCode.findFirst.mockResolvedValue(null);
+      (mockPrisma as any).referralCode.findUnique.mockResolvedValue(null);
+      (mockPrisma as any).referralCode.create.mockImplementation(({ data }: any) => ({
+        id: 'rc-2', code: data.code, customerId: REFERRER_ID,
+      }));
+      const mathSpy = vi.spyOn(Math, 'random');
+
+      const result = await service.generateReferralCode(TEST_TENANT_ID, REFERRER_ID);
+
+      expect(mathSpy).not.toHaveBeenCalled();
+      mathSpy.mockRestore();
+      expect(result.code).toMatch(/^CF-CUST-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/);
+    });
+
     it('returns existing code if already has one', async () => {
       (mockPrisma as any).referralProgram.findFirst.mockResolvedValue(makeProgram());
       (mockPrisma as any).referralCode.findFirst.mockResolvedValue({
@@ -86,6 +103,19 @@ describe('ReferralService', () => {
 
       const result = await service.generateReferralCode(TEST_TENANT_ID, REFERRER_ID);
       expect(result.code).toBe('CF-CUST-ABCD');
+    });
+  });
+
+  // ─── customer scoping ──────────────────────────────────────
+
+  describe('customer scoping', () => {
+    it('rejects stats lookups without a customer instead of querying all customers', async () => {
+      await expect(service.getReferralStats(TEST_TENANT_ID, undefined as unknown as string))
+        .rejects.toThrow(UnauthorizedException);
+      expect((mockPrisma as any).referralCode.findFirst).not.toHaveBeenCalled();
+    });
+    it('rejects code lookups without a tenant', async () => {
+      await expect(service.getReferralCode('', REFERRER_ID)).rejects.toThrow(UnauthorizedException);
     });
   });
 

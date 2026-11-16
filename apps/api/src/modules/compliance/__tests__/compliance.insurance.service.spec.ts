@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ComplianceInsuranceService } from '../compliance.insurance.service';
 import { createMockPrismaService, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
 
+// packages/db/src/index.ts only re-exports `Prisma` as a type, so the runtime
+// value used by the service (Prisma.JsonNull) is undefined. Provide a sentinel.
+vi.mock('@caratflow/db', () => ({
+  PrismaClient: class {},
+  Prisma: { JsonNull: Symbol('JsonNull'), DbNull: Symbol('DbNull') },
+}));
+
 describe('ComplianceInsuranceService (Unit)', () => {
   let service: ComplianceInsuranceService;
   let mockPrisma: ReturnType<typeof createMockPrismaService>;

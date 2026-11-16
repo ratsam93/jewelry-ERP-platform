@@ -16,6 +16,7 @@ import { SocialAuthService } from './auth.social.service';
 import { TwoFactorAuthService } from './auth.2fa.service';
 import { EmailService } from '../modules/crm/email.service';
 import { AccessTokenDenylistService } from './access-token-denylist.service';
+import { getJwtSecret } from '../common/jwt-secret';
 import type { SocialProvider, LoginProvider } from '@caratflow/db';
 import type { B2CJwtPayload, B2CCustomerProfile, B2CAuthResponse, B2CTokenPair } from '@caratflow/shared-types';
 
@@ -40,7 +41,7 @@ export class B2CAuthService {
     @Optional() private readonly denylist?: AccessTokenDenylistService,
     @Optional() private readonly emailService?: EmailService,
   ) {
-    this.jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-change-me-in-production';
+    this.jwtSecret = getJwtSecret();
     this.accessExpiry = process.env.JWT_B2C_ACCESS_EXPIRY ?? '30m';
     this.refreshExpiry = process.env.JWT_B2C_REFRESH_EXPIRY ?? '30d';
   }

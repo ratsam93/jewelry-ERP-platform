@@ -1,7 +1,12 @@
 // ─── BNPL REST Controller ─────────────────────────────────────
 // REST API endpoints for storefront-facing BNPL, EMI, and
 // saved payment method operations.
+//
+// Customer routes are guarded by B2CAuthGuard and scoped to the
+// customer/tenant from the verified token. The provider callback is
+// public but must carry a valid HMAC signature (x-bnpl-signature).
 
+import { UUID_RE } from '../../common/customer-identity';
 import {
   Controller,
   Get,
@@ -11,10 +16,15 @@ import {
   Body,
   Query,
   Req,
+  Headers,
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { B2CAuthGuard } from '../../auth/b2c-auth.guard';
 import { BnplService } from './bnpl.service';
 import { BnplEmiService } from './bnpl.emi.service';
 import { BnplSavedPaymentService } from './bnpl.saved-payment.service';
@@ -24,11 +34,7 @@ import type {
   EmiCalculatorInput,
 } from '@caratflow/shared-types';
 
-interface AuthenticatedRequest {
-  tenantId: string;
-  userId: string;
-  customerId?: string;
-}
+type RawBodyRequest = Request & { rawBody?: Buffer };
 
 @Controller('api/v1/store/payments')
 export class BnplController {
@@ -38,7 +44,7 @@ export class BnplController {
     private readonly savedPaymentService: BnplSavedPaymentService,
   ) {}
 
-  // ─── EMI Plans ────────────────────────────────────────────────
+  // ─── EMI Plans (public) ───────────────────────────────────────
 
   /**
    * GET /api/v1/store/payments/emi-plans?amount=50000
@@ -46,15 +52,16 @@ export class BnplController {
    */
   @Get('emi-plans')
   async getEmiPlans(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: Request,
     @Query('amount') amountStr: string,
   ) {
+    const tenantId = this.publicTenantOf(req);
     const amountPaise = parseInt(amountStr, 10);
     if (isNaN(amountPaise) || amountPaise <= 0) {
       throw new BadRequestException('amount query parameter must be a positive integer (in paise)');
     }
 
-    const plans = await this.emiService.getAvailablePlans(req.tenantId, amountPaise);
+    const plans = await this.emiService.getAvailablePlans(tenantId, amountPaise);
 
     // Enrich each plan with EMI calculation
     const enrichedPlans = plans.map((plan) => {
@@ -74,7 +81,7 @@ export class BnplController {
     };
   }
 
-  // ─── EMI Calculator ───────────────────────────────────────────
+  // ─── EMI Calculator (public) ──────────────────────────────────
 
   /**
    * POST /api/v1/store/payments/emi/calculate
@@ -107,25 +114,51 @@ export class BnplController {
     };
   }
 
-  // ─── BNPL Initiate ────────────────────────────────────────────
+  // ─── Eligibility Check (customer) ─────────────────────────────
+
+  /**
+   * GET /api/v1/store/payments/bnpl/eligibility?amount=50000
+   * Check BNPL eligibility for the authenticated customer and amount.
+   * Declared before ':transactionId' so the literal path is not captured by it.
+   */
+  @Get('bnpl/eligibility')
+  @UseGuards(B2CAuthGuard)
+  async checkEligibility(
+    @Req() req: Request,
+    @Query('amount') amountStr: string,
+  ) {
+    const { tenantId, customerId } = this.customerContext(req);
+    const amountPaise = parseInt(amountStr, 10);
+    if (isNaN(amountPaise) || amountPaise <= 0) {
+      throw new BadRequestException('amount query parameter must be a positive integer (in paise)');
+    }
+
+    const result = await this.bnplService.checkEligibility(tenantId, customerId, amountPaise);
+
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  // ─── BNPL Initiate (customer) ─────────────────────────────────
 
   /**
    * POST /api/v1/store/payments/bnpl/initiate
    * Initiate a BNPL transaction for an order.
    */
   @Post('bnpl/initiate')
+  @UseGuards(B2CAuthGuard)
   async initiateBnpl(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: Request,
     @Body() input: InitiateBnplInput,
   ) {
-    if (!req.customerId) {
-      throw new BadRequestException('Customer authentication required for BNPL');
-    }
+    const { tenantId, customerId } = this.customerContext(req);
 
     const transaction = await this.bnplService.initiateBnpl(
-      req.tenantId,
-      req.userId,
-      req.customerId,
+      tenantId,
+      req.customerAuthId ?? customerId,
+      customerId,
       input,
     );
 
@@ -135,24 +168,24 @@ export class BnplController {
     };
   }
 
-  // ─── BNPL Callback ────────────────────────────────────────────
+  // ─── BNPL Callback (provider, signed) ─────────────────────────
 
   /**
    * POST /api/v1/store/payments/bnpl/callback/:provider
-   * Handle BNPL provider webhook/callback.
+   * Handle BNPL provider webhook/callback. No tenant is taken from the
+   * request; the tenant comes from the stored transaction.
    */
   @Post('bnpl/callback/:provider')
   @HttpCode(HttpStatus.OK)
   async handleBnplCallback(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: RawBodyRequest,
     @Param('provider') provider: string,
+    @Headers('x-bnpl-signature') signature: string | undefined,
     @Body() payload: Record<string, unknown>,
   ) {
-    const transaction = await this.bnplService.handleBnplCallback(
-      req.tenantId,
-      provider,
-      payload,
-    );
+    this.bnplService.verifyCallbackSignature(req.rawBody, payload, signature);
+
+    const transaction = await this.bnplService.handleBnplCallback(provider, payload);
 
     return {
       success: true,
@@ -160,24 +193,23 @@ export class BnplController {
     };
   }
 
-  // ─── BNPL Transaction ─────────────────────────────────────────
+  // ─── BNPL Transaction (customer) ──────────────────────────────
 
   /**
    * GET /api/v1/store/payments/bnpl/:transactionId
    * Get a BNPL transaction with its EMI schedule.
    */
   @Get('bnpl/:transactionId')
+  @UseGuards(B2CAuthGuard)
   async getTransaction(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: Request,
     @Param('transactionId') transactionId: string,
   ) {
-    if (!req.customerId) {
-      throw new BadRequestException('Customer authentication required');
-    }
+    const { tenantId, customerId } = this.customerContext(req);
     const transaction = await this.bnplService.getTransaction(
-      req.tenantId,
+      tenantId,
       transactionId,
-      req.customerId,
+      customerId,
     );
 
     return {
@@ -186,49 +218,18 @@ export class BnplController {
     };
   }
 
-  // ─── Eligibility Check ────────────────────────────────────────
-
-  /**
-   * GET /api/v1/store/payments/bnpl/eligibility?customerId=xxx&amount=50000
-   * Check BNPL eligibility for a customer and amount.
-   */
-  @Get('bnpl/eligibility')
-  async checkEligibility(
-    @Req() req: AuthenticatedRequest,
-    @Query('customerId') customerId: string,
-    @Query('amount') amountStr: string,
-  ) {
-    if (!customerId) {
-      throw new BadRequestException('customerId query parameter is required');
-    }
-    const amountPaise = parseInt(amountStr, 10);
-    if (isNaN(amountPaise) || amountPaise <= 0) {
-      throw new BadRequestException('amount query parameter must be a positive integer (in paise)');
-    }
-
-    const result = await this.bnplService.checkEligibility(req.tenantId, customerId, amountPaise);
-
-    return {
-      success: true,
-      data: result,
-    };
-  }
-
-  // ─── Saved Payment Methods ────────────────────────────────────
+  // ─── Saved Payment Methods (customer) ─────────────────────────
 
   /**
    * GET /api/v1/store/payments/saved-methods
    * List saved payment methods for the current customer.
    */
   @Get('saved-methods')
-  async listSavedMethods(
-    @Req() req: AuthenticatedRequest,
-  ) {
-    if (!req.customerId) {
-      throw new BadRequestException('Customer authentication required');
-    }
+  @UseGuards(B2CAuthGuard)
+  async listSavedMethods(@Req() req: Request) {
+    const { tenantId, customerId } = this.customerContext(req);
 
-    const methods = await this.savedPaymentService.listMethods(req.tenantId, req.customerId);
+    const methods = await this.savedPaymentService.listMethods(tenantId, customerId);
 
     return {
       success: true,
@@ -241,17 +242,16 @@ export class BnplController {
    * Save a new payment method (tokenized).
    */
   @Post('saved-methods')
+  @UseGuards(B2CAuthGuard)
   async saveMethod(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: Request,
     @Body() input: SavedPaymentMethodInput,
   ) {
-    if (!req.customerId) {
-      throw new BadRequestException('Customer authentication required');
-    }
+    const { tenantId, customerId } = this.customerContext(req);
 
     const method = await this.savedPaymentService.saveMethod(
-      req.tenantId,
-      req.customerId,
+      tenantId,
+      customerId,
       input,
     );
 
@@ -267,17 +267,16 @@ export class BnplController {
    */
   @Post('saved-methods/:methodId/default')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(B2CAuthGuard)
   async setDefaultMethod(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: Request,
     @Param('methodId') methodId: string,
   ) {
-    if (!req.customerId) {
-      throw new BadRequestException('Customer authentication required');
-    }
+    const { tenantId, customerId } = this.customerContext(req);
 
     const method = await this.savedPaymentService.setDefault(
-      req.tenantId,
-      req.customerId,
+      tenantId,
+      customerId,
       methodId,
     );
 
@@ -292,19 +291,46 @@ export class BnplController {
    * Remove a saved payment method.
    */
   @Delete('saved-methods/:methodId')
+  @UseGuards(B2CAuthGuard)
   async removeMethod(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: Request,
     @Param('methodId') methodId: string,
   ) {
-    if (!req.customerId) {
-      throw new BadRequestException('Customer authentication required');
-    }
+    const { tenantId, customerId } = this.customerContext(req);
 
-    await this.savedPaymentService.removeMethod(req.tenantId, req.customerId, methodId);
+    await this.savedPaymentService.removeMethod(tenantId, customerId, methodId);
 
     return {
       success: true,
       data: null,
     };
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────
+
+  /** Tenant/customer from the B2C guard. Throws if either is missing. */
+  private customerContext(req: Request): { tenantId: string; customerId: string } {
+    const tenantId = req.b2cTenantId;
+    const customerId = req.customerId;
+    if (!tenantId || !customerId) {
+      throw new UnauthorizedException('Customer authentication required');
+    }
+    return { tenantId, customerId };
+  }
+
+  /** Tenant for public (unauthenticated) storefront routes, from TenantMiddleware. */
+  private publicTenantOf(req: Request): string {
+    // Guest storefront requests carry a UUID-validated x-tenant-id header;
+    // staff requests have the tenant set by TenantMiddleware.
+    const header = req.headers['x-tenant-id'];
+    const headerTenant = Array.isArray(header) ? header[0] : header;
+    if (headerTenant && UUID_RE.test(headerTenant)) {
+      return headerTenant;
+    }
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
+    return tenantId;
   }
 }

@@ -1,7 +1,8 @@
 // ─── CRM Module ────────────────────────────────────────────────
 // Customer interactions, loyalty, campaigns, notifications, leads, feedback.
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { AuthModule } from '../../auth/auth.module';
 import { CrmService } from './crm.service';
 import { CrmLoyaltyService } from './crm.loyalty.service';
 import { CrmNotificationService } from './crm.notification.service';
@@ -17,7 +18,10 @@ import { WhatsAppService } from './whatsapp.service';
 import { WhatsAppWebhookController } from './whatsapp.webhook.controller';
 import { CrmController } from './crm.controller';
 
+// AuthModule imports CrmModule (email/SMS services), so this side must be forwardRef
+// to avoid a circular-dependency undefined at decoration time.
 @Module({
+  imports: [forwardRef(() => AuthModule)],
   controllers: [WhatsAppWebhookController, CrmController],
   providers: [
     CrmService,

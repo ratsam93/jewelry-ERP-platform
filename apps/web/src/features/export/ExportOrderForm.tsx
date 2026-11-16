@@ -16,7 +16,7 @@ interface LineItem {
 }
 
 function formatPaise(paise: number): string {
-  return `\u20B9${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  return `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
 export function ExportOrderForm() {

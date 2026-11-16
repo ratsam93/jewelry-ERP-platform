@@ -25,6 +25,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -345,7 +346,7 @@ async function main() {
 
   // ─── Staff users (30+) ────────────────────────────────────
   rseed(42);
-  const staffPasswordHash = 'demo:' + crypto.createHash('sha256').update('demo123').digest('hex');
+  const staffPasswordHash = await bcrypt.hash('demo123', 12);
 
   type StaffDef = { first: string; last: string; roleId: string; title: string; branchKey?: string };
   const staffDefs: StaffDef[] = [

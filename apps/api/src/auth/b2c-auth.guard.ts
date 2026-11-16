@@ -9,6 +9,7 @@ import { Request } from 'express';
 import * as jwt from 'jsonwebtoken';
 import type { B2CJwtPayload } from '@caratflow/shared-types';
 import { AccessTokenDenylistService } from './access-token-denylist.service';
+import { getJwtSecret, JWT_ALGORITHMS } from '../common/jwt-secret';
 
 /**
  * Extend Express Request to include B2C customer fields.
@@ -35,11 +36,7 @@ declare global {
  */
 @Injectable()
 export class B2CAuthGuard implements CanActivate {
-  private readonly jwtSecret: string;
-
-  constructor(@Optional() private readonly denylist?: AccessTokenDenylistService) {
-    this.jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-change-me-in-production';
-  }
+  constructor(@Optional() private readonly denylist?: AccessTokenDenylistService) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
@@ -51,7 +48,9 @@ export class B2CAuthGuard implements CanActivate {
 
     try {
       const token = authHeader.slice(7);
-      const payload = jwt.verify(token, this.jwtSecret) as B2CJwtPayload & {
+      const payload = jwt.verify(token, getJwtSecret(), {
+        algorithms: JWT_ALGORITHMS,
+      }) as B2CJwtPayload & {
         jti?: string;
         exp?: number;
       };

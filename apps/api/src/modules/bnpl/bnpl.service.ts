@@ -2,7 +2,15 @@
 // Buy Now Pay Later operations: eligibility checks, transaction
 // initiation, provider callbacks, and transaction management.
 
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'crypto';
 import type {
   BnplProviderInput,
   BnplProviderResponse,
@@ -295,44 +303,75 @@ export class BnplService extends TenantAwareService {
 
   // ─── Handle Provider Callback ─────────────────────────────────
 
+  /**
+   * Verify the HMAC-SHA256 signature of a provider callback (header x-bnpl-signature,
+   * hex digest of the raw request body keyed by BNPL_WEBHOOK_SECRET).
+   * Fails closed in production: missing secret or missing raw body -> 401.
+   */
+  verifyCallbackSignature(
+    rawBody: Buffer | undefined,
+    payload: Record<string, unknown>,
+    signature: string | undefined,
+  ): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const secret = process.env.BNPL_WEBHOOK_SECRET;
+
+    if (!secret) {
+      if (isProduction) {
+        throw new UnauthorizedException('BNPL webhook secret is not configured');
+      }
+      this.logger.warn('BNPL_WEBHOOK_SECRET is not set; callback signature not verified (non-production only)');
+      return;
+    }
+
+    if (!signature) {
+      throw new UnauthorizedException('Missing BNPL webhook signature');
+    }
+
+    let body: Buffer;
+    if (rawBody && rawBody.length > 0) {
+      body = rawBody;
+    } else if (isProduction) {
+      throw new UnauthorizedException('Raw request body unavailable for signature verification');
+    } else {
+      body = Buffer.from(JSON.stringify(payload), 'utf8');
+    }
+
+    const expected = Buffer.from(createHmac('sha256', secret).update(body).digest('hex'), 'utf8');
+    const provided = Buffer.from(signature.trim().toLowerCase(), 'utf8');
+
+    if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+      throw new UnauthorizedException('Invalid BNPL webhook signature');
+    }
+  }
+
   async handleBnplCallback(
-    tenantId: string,
     providerName: string,
     payload: Record<string, unknown>,
   ): Promise<BnplTransactionResponse> {
-    // In production, verify webhook signature using the provider's webhookSecret
-    const externalTransactionId = payload.transactionId as string | undefined;
+    // Signature must already be verified by the controller (verifyCallbackSignature).
+    const externalTransactionId = payload.transactionId;
     const status = payload.status as string | undefined;
 
-    if (!externalTransactionId) {
+    if (!externalTransactionId || typeof externalTransactionId !== 'string') {
       throw new BadRequestException('Missing transactionId in callback payload');
     }
 
-    // Find the transaction by external ID or by internal matching
-    let transaction = await this.prisma.bnplTransaction.findFirst({
-      where: { tenantId, externalTransactionId },
+    // The tenant is never taken from the request. externalTransactionId is looked up
+    // across tenants for this provider and must identify exactly one stored transaction;
+    // that transaction's tenantId then scopes everything else.
+    const matches = await this.prisma.bnplTransaction.findMany({
+      where: { externalTransactionId, providerName: providerName as BnplProviderName },
+      take: 2,
     });
 
-    // If not found by external ID, try matching by provider response
-    if (!transaction) {
-      // Attempt to match by the most recent initiated transaction for this provider
-      const orderId = payload.orderId as string | undefined;
-      if (orderId) {
-        transaction = await this.prisma.bnplTransaction.findFirst({
-          where: {
-            tenantId,
-            orderId,
-            providerName: providerName as BnplProviderName,
-            status: 'INITIATED',
-          },
-          orderBy: { createdAt: 'desc' },
-        });
-      }
-    }
-
-    if (!transaction) {
+    if (matches.length === 0) {
       throw new NotFoundException('BNPL transaction not found for callback');
     }
+    if (matches.length > 1) {
+      throw new ConflictException('Ambiguous BNPL transaction reference in callback');
+    }
+    const transaction = matches[0]!;
 
     let newStatus: BnplTransactionStatus = transaction.status as BnplTransactionStatus;
     const updateData: Record<string, unknown> = {

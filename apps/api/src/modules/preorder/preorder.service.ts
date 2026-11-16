@@ -3,7 +3,7 @@
 // Auto-detect backorders when stock runs out.
 // Notify customers when stock arrives via BullMQ.
 
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, UnauthorizedException, Logger } from '@nestjs/common';
 import type {
   CreatePreOrderInput,
   PreOrderResponse,
@@ -387,6 +387,10 @@ export class PreOrderService extends TenantAwareService {
     customerId: string,
     pagination: Pagination,
   ): Promise<PaginatedResult<PreOrderResponse>> {
+    // Never pass an undefined customerId: Prisma would drop the filter and return every customer's pre-orders.
+    if (!tenantId || !customerId) {
+      throw new UnauthorizedException('Customer authentication required');
+    }
     return this.getPreOrders(tenantId, { customerId }, pagination);
   }
 

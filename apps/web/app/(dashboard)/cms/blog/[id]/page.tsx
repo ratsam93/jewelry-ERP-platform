@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { sanitizeHtml } from '@/lib/sanitize-html';
 
 export default function BlogPostDetailPage() {
   const params = useParams<{ id: string }>();
@@ -13,6 +14,7 @@ export default function BlogPostDetailPage() {
 
   if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
   const p: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
+  const safeContent = sanitizeHtml((p.content as string) ?? '');
 
   return (
     <div className="space-y-6">
@@ -33,7 +35,7 @@ export default function BlogPostDetailPage() {
       } />
       <div className="rounded-lg border p-4 text-sm prose max-w-none">
         <p className="text-muted-foreground">{(p.excerpt as string) ?? ''}</p>
-        <div dangerouslySetInnerHTML={{ __html: (p.content as string) ?? '' }} />
+        <div dangerouslySetInnerHTML={{ __html: safeContent }} />
       </div>
     </div>
   );

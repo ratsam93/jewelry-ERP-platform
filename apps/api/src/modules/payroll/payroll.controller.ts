@@ -8,9 +8,11 @@ import {
   Param,
   Req,
   Res,
-  BadRequestException,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { StaffAuthGuard } from '../../common/staff-auth.guard';
 import { PayrollPayslipService } from './payroll.payslip.service';
 
 interface AuthenticatedRequest extends Request {
@@ -18,13 +20,11 @@ interface AuthenticatedRequest extends Request {
   userId?: string;
 }
 
+// Tenant identity comes only from the verified JWT (set by TenantMiddleware).
+// Never read it from request headers.
 function getTenantId(req: AuthenticatedRequest): string {
-  const tenantId =
-    req.tenantId ??
-    (req.headers['x-tenant-id'] as string | undefined) ??
-    undefined;
-  if (!tenantId) throw new BadRequestException('Missing tenant context');
-  return tenantId;
+  if (!req.tenantId) throw new UnauthorizedException('Staff authentication required');
+  return req.tenantId;
 }
 
 @Controller('api/v1/payroll')
@@ -35,6 +35,7 @@ export class PayrollController {
    * GET /api/v1/payroll/payslips/:id/pdf
    * Stream a generated payslip PDF as application/pdf.
    */
+  @UseGuards(StaffAuthGuard)
   @Get('payslips/:id/pdf')
   async downloadPayslipPdf(
     @Req() req: AuthenticatedRequest,

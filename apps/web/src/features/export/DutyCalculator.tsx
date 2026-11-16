@@ -101,15 +101,15 @@ export function DutyCalculator() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Assessable Value</span>
-                <span className="font-medium">{`\u20B9${(result.assessableValue / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}</span>
+                <span className="font-medium">{`₹${(result.assessableValue / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Duty Amount</span>
-                <span className="font-medium">{`\u20B9${(result.dutyAmount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}</span>
+                <span className="font-medium">{`₹${(result.dutyAmount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}</span>
               </div>
               <div className="flex justify-between text-sm border-t pt-2">
                 <span className="font-semibold">Total Duty</span>
-                <span className="text-lg font-bold">{`\u20B9${(result.totalDuty / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}</span>
+                <span className="text-lg font-bold">{`₹${(result.totalDuty / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}</span>
               </div>
             </div>
           </div>

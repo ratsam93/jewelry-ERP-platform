@@ -21,7 +21,7 @@ interface OutstandingTableProps {
 
 function formatPaise(paise: number): string {
   const rupees = paise / 100;
-  return `\u20B9${rupees.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`;
+  return `₹${rupees.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`;
 }
 
 export function OutstandingTable({ balances }: OutstandingTableProps) {

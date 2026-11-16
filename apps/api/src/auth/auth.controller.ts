@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsNotEmpty, IsString, IsOptional, MinLength } from 'class-validator';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
+import { revocationClaimsFromHeader } from './access-token';
 
 class LoginDto {
   @ApiProperty({ example: 'admin@sharmajewellers.com' })
@@ -96,7 +97,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @Throttle({ long: { limit: 5, ttl: 60 * 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60 * 60_000 } })
   @ApiOperation({ summary: 'Register a new user' })
   async register(@Body() dto: RegisterDto) {
     const user = await this.authService.register(dto);
@@ -105,7 +106,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ medium: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Login and receive tokens' })
   async login(@Body() dto: LoginDto) {
     const tokens = await this.authService.login(dto.email, dto.password, dto.tenantSlug);
@@ -116,13 +117,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
   async refresh(@Req() req: Request, @Body() dto: RefreshDto) {
-    // jti/exp set by TenantMiddleware if the caller sent the old access token;
-    // forwarding them lets the service revoke that token (D-037).
-    const tokens = await this.authService.refreshTokens(
-      dto.refreshToken,
-      req.accessTokenJti,
-      req.accessTokenExp,
-    );
+    // Revocation claims come from a signature-verified (expiry-ignored) token
+    // so the presented access token can be denylisted (D-037).
+    const { jti, exp } = revocationClaimsFromHeader(req.headers.authorization);
+    const tokens = await this.authService.refreshTokens(dto.refreshToken, jti, exp);
     return { success: true, data: tokens };
   }
 
@@ -130,13 +128,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout (revoke refresh + access token)' })
   async logout(@Req() req: Request, @Body() dto: RefreshDto) {
-    await this.authService.logout(dto.refreshToken, req.accessTokenJti, req.accessTokenExp);
+    const { jti, exp } = revocationClaimsFromHeader(req.headers.authorization);
+    await this.authService.logout(dto.refreshToken, jti, exp);
     return { success: true };
   }
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 1, ttl: 30_000 }, medium: { limit: 3, ttl: 60_000 } })
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @ApiOperation({ summary: 'Request password reset' })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     const result = await this.authService.forgotPassword(dto.email, dto.tenantSlug);
@@ -145,7 +144,7 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ medium: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Reset password with token' })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto.token, dto.newPassword, dto.uid);

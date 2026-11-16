@@ -1,21 +1,17 @@
-import { Controller, All, Req, Res } from '@nestjs/common';
+import { Controller, All, Optional, Req, Res } from '@nestjs/common';
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
 import { Request, Response } from 'express';
-import * as jwt from 'jsonwebtoken';
 import { TrpcRouter } from './trpc.router';
 import type { TrpcContext } from './trpc.service';
-
-interface JwtPayload {
-  sub: string;
-  tenantId: string;
-  email: string;
-  role: string;
-  permissions: string[];
-}
+import { AccessTokenDenylistService } from '../auth/access-token-denylist.service';
+import { extractBearerToken, resolveStaffClaims } from '../auth/access-token';
 
 @Controller('trpc')
 export class TrpcController {
-  constructor(private readonly trpcRouter: TrpcRouter) {}
+  constructor(
+    private readonly trpcRouter: TrpcRouter,
+    @Optional() private readonly denylist?: AccessTokenDenylistService,
+  ) {}
 
   @All('*')
   async handleTrpc(@Req() req: Request, @Res() res: Response) {
@@ -27,17 +23,15 @@ export class TrpcController {
     let userRole = req.userRole;
     let userPermissions = req.userPermissions;
     const authHeader = req.headers.authorization;
-    if (!userId && authHeader?.startsWith('Bearer ')) {
-      try {
-        const token = authHeader.slice(7);
-        const secret = process.env.JWT_SECRET ?? 'dev-secret';
-        const payload = jwt.verify(token, secret) as JwtPayload;
-        tenantId = payload.tenantId;
-        userId = payload.sub;
-        userRole = payload.role;
-        userPermissions = payload.permissions;
-      } catch {
-        // Leave ctx unauthenticated; authedProcedure will return UNAUTHORIZED.
+    if (!userId) {
+      // Staff tokens only: B2C tokens, invalid/expired and revoked tokens leave
+      // the context unauthenticated; authedProcedure returns UNAUTHORIZED.
+      const claims = resolveStaffClaims(extractBearerToken(authHeader), this.denylist);
+      if (claims) {
+        tenantId = claims.tenantId;
+        userId = claims.sub;
+        userRole = claims.role;
+        userPermissions = claims.permissions;
       }
     }
     const context: TrpcContext = {

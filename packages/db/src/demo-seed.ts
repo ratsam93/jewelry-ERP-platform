@@ -15,6 +15,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+import * as bcrypt from 'bcryptjs';
 import * as path from 'path';
 
 // Load DATABASE_URL from repo-root .env if not already set.
@@ -187,7 +188,7 @@ async function main() {
     { first: 'Sneha',   last: 'Reddy',    role: salesRole.id,   title: 'Sales Associate' },
     { first: 'Arjun',   last: 'Mehta',    role: adminRole.id,   title: 'Operations' },
   ];
-  const staffPasswordHash = 'demo:' + crypto.createHash('sha256').update('demo123').digest('hex');
+  const staffPasswordHash = await bcrypt.hash('demo123', 12);
   const staffUserIds: string[] = [];
   for (const s of staffDefs) {
     const id = did(`user-${tenantId}-${s.first}-${s.last}`);

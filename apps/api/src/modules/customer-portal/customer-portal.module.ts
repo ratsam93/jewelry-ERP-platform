@@ -11,8 +11,10 @@ import { CustomerPortalSchemesService } from './customer-portal.schemes.service'
 import { CustomerPortalKycService } from './customer-portal.kyc.service';
 import { CustomerPortalDashboardService } from './customer-portal.dashboard.service';
 import { CustomerPortalTrpcRouter } from './customer-portal.trpc';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
+  imports: [AuthModule],
   controllers: [CustomerPortalController],
   providers: [
     CustomerPortalProfileService,

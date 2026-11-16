@@ -8,8 +8,10 @@ import { BnplSavedPaymentService } from './bnpl.saved-payment.service';
 import { PaymentGatewayService } from './payment-gateway.service';
 import { BnplController } from './bnpl.controller';
 import { BnplTrpcRouter } from './bnpl.trpc';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
+  imports: [AuthModule],
   controllers: [BnplController],
   providers: [
     BnplService,

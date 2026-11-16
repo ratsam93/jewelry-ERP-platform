@@ -1,7 +1,7 @@
 // ─── Back In Stock Alert Service ────────────────────────────────
 // Subscribe to restock notifications, notify when product is available, unsubscribe.
 
-import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
@@ -164,6 +164,9 @@ export class BackInStockService extends TenantAwareService {
   }
 
   async getSubscriptions(tenantId: string, customerId: string) {
+    if (!tenantId || !customerId) {
+      throw new UnauthorizedException('Customer authentication required');
+    }
     return this.prisma.backInStockAlert.findMany({
       where: { tenantId, customerId, status: 'ACTIVE' },
       include: {

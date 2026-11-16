@@ -2,13 +2,14 @@
 // Core referral rewards engine: program config, code generation,
 // referral tracking, reward calculation and issuance.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import type { ReferralProgramInput } from '@caratflow/shared-types';
 import { v4 as uuidv4 } from 'uuid';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class ReferralService extends TenantAwareService {
@@ -123,6 +124,7 @@ export class ReferralService extends TenantAwareService {
 
   /** Get a customer's referral code */
   async getReferralCode(tenantId: string, customerId: string) {
+    this.assertCustomerScope(tenantId, customerId);
     const code = await this.prisma.referralCode.findFirst({
       where: { tenantId, customerId, isActive: true },
       include: { program: true },
@@ -342,6 +344,7 @@ export class ReferralService extends TenantAwareService {
 
   /** Get referral stats for a customer */
   async getReferralStats(tenantId: string, customerId: string) {
+    this.assertCustomerScope(tenantId, customerId);
     const referralCode = await this.prisma.referralCode.findFirst({
       where: { tenantId, customerId, isActive: true },
     });
@@ -518,17 +521,37 @@ export class ReferralService extends TenantAwareService {
     }
   }
 
+  private assertCustomerScope(tenantId: string, customerId: string): void {
+    if (!tenantId || !customerId) {
+      throw new UnauthorizedException('Customer authentication required');
+    }
+  }
+
   private async generateUniqueCode(customerId: string): Promise<string> {
     const prefix = customerId.slice(0, 4).toUpperCase();
     let attempts = 0;
     while (attempts < 10) {
-      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const code = `CF-${prefix}-${random}`;
+      const code = `CF-${prefix}-${randomCodeSegment(4)}`;
       const existing = await this.prisma.referralCode.findUnique({ where: { code } });
       if (!existing) return code;
       attempts++;
     }
-    // Fallback to UUID-based
-    return `CF-${uuidv4().slice(0, 8).toUpperCase()}`;
+    // Fallback: longer cryptographically random suffix
+    return `CF-${randomCodeSegment(8)}`;
   }
+}
+
+/**
+ * Cryptographically random code segment. Alphabet excludes ambiguous characters
+ * (0/O, 1/I/L). 32 symbols divide 256 evenly, so byte % 32 introduces no bias.
+ */
+const REFERRAL_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+function randomCodeSegment(length: number): string {
+  const bytes = randomBytes(length);
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += REFERRAL_CODE_ALPHABET[(bytes[i] ?? 0) % REFERRAL_CODE_ALPHABET.length];
+  }
+  return out;
 }

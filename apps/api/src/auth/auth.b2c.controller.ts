@@ -12,6 +12,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -24,35 +25,13 @@ import { B2CAuthService } from './auth.b2c.service';
 import { OtpService } from './auth.otp.service';
 import { TwoFactorAuthService } from './auth.2fa.service';
 import { B2CAuthGuard } from './b2c-auth.guard';
+import { revocationClaimsFromHeader } from './access-token';
 import type { SocialProvider, OtpPurpose } from '@caratflow/db';
 
-/**
- * Extract jti/exp from an `Authorization: Bearer …` header *without verifying*
- * the signature — used only to mark the token as revoked on the path through
- * /refresh and /logout where signature verification is intentionally skipped
- * (refresh works even if the access token is expired).
- */
-function decodeAccessJtiExp(
-  authHeader: string | undefined,
-): { jti?: string; exp?: number } {
-  if (!authHeader?.startsWith('Bearer ')) return {};
-  const token = authHeader.slice(7);
-  const parts = token.split('.');
-  if (parts.length !== 3) return {};
-  try {
-    const payloadB64 = parts[1]!.replace(/-/g, '+').replace(/_/g, '/');
-    const json = Buffer.from(payloadB64, 'base64').toString('utf8');
-    const parsed = JSON.parse(json) as { jti?: unknown; exp?: unknown };
-    return {
-      jti: typeof parsed.jti === 'string' ? parsed.jti : undefined,
-      exp: typeof parsed.exp === 'number' ? parsed.exp : undefined,
-    };
-  } catch {
-    return {};
-  }
-}
-
 // ─── DTOs ─────────────────────────────────────────────────────
+
+const SOCIAL_PROVIDERS: SocialProvider[] = ['GOOGLE', 'FACEBOOK', 'APPLE'];
+const OTP_PURPOSES: OtpPurpose[] = ['LOGIN', 'REGISTRATION', 'PASSWORD_RESET', 'TRANSACTION_2FA'];
 
 // Password policy (D-043):
 //   • 10–128 chars
@@ -152,7 +131,7 @@ class LoginPhoneDto {
 }
 
 class SocialLoginDto {
-  provider!: SocialProvider;
+  @IsIn(SOCIAL_PROVIDERS) provider!: SocialProvider;
   @IsOptional() @IsString() @MaxLength(8000) idToken?: string;
   @IsOptional() @IsString() @MaxLength(8000) accessToken?: string;
   @IsString() @IsNotEmpty() @MaxLength(80) tenantSlug!: string;
@@ -160,13 +139,13 @@ class SocialLoginDto {
 
 class OtpSendDto {
   @IsString() @IsNotEmpty() @MaxLength(254) identifier!: string;
-  purpose!: OtpPurpose;
+  @IsIn(OTP_PURPOSES) purpose!: OtpPurpose;
 }
 
 class OtpVerifyDto {
   @IsString() @IsNotEmpty() @MaxLength(254) identifier!: string;
   @IsString() @Matches(/^\d{4,8}$/, { message: 'otp must be 4-8 digits' }) otp!: string;
-  purpose!: OtpPurpose;
+  @IsIn(OTP_PURPOSES) purpose!: OtpPurpose;
   @IsOptional() @IsString() @MaxLength(80) tenantSlug?: string;
 }
 
@@ -192,7 +171,7 @@ export class B2CAuthController {
   // ─── Registration ─────────────────────────────────────────
 
   @Post('register/email')
-  @Throttle({ long: { limit: 5, ttl: 60 * 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60 * 60_000 } })
   @ApiOperation({ summary: 'Register a new B2C customer with email' })
   async registerWithEmail(@Body() dto: RegisterEmailDto) {
     const result = await this.b2cAuthService.registerWithEmail(
@@ -206,7 +185,7 @@ export class B2CAuthController {
   }
 
   @Post('register/phone')
-  @Throttle({ long: { limit: 5, ttl: 60 * 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60 * 60_000 } })
   @ApiOperation({ summary: 'Register a new B2C customer with phone number' })
   async registerWithPhone(@Body() dto: RegisterPhoneDto) {
     const result = await this.b2cAuthService.registerWithPhone(
@@ -223,7 +202,7 @@ export class B2CAuthController {
 
   @Post('login/email')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ medium: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Login B2C customer with email and password' })
   async loginWithEmail(@Body() dto: LoginEmailDto) {
     const result = await this.b2cAuthService.loginWithEmail(
@@ -237,7 +216,7 @@ export class B2CAuthController {
 
   @Post('login/phone')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 1, ttl: 30_000 }, medium: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Login B2C customer with phone (sends OTP)' })
   async loginWithPhone(@Body() dto: LoginPhoneDto) {
     const result = await this.b2cAuthService.loginWithPhoneSendOtp(
@@ -249,7 +228,7 @@ export class B2CAuthController {
 
   @Post('login/social')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ medium: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Login or register B2C customer via social provider' })
   async socialLogin(@Body() dto: SocialLoginDto) {
     const result = await this.b2cAuthService.socialLogin(
@@ -265,7 +244,7 @@ export class B2CAuthController {
 
   @Post('otp/send')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 1, ttl: 30_000 }, medium: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Send OTP to phone or email' })
   async sendOtp(@Body() dto: OtpSendDto) {
     const result = await this.otpService.generateOtp(dto.identifier, dto.purpose);
@@ -297,9 +276,8 @@ export class B2CAuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh B2C access token' })
   async refresh(@Req() req: Request, @Body() dto: RefreshDto) {
-    // If the old access token was sent in Authorization, decode it once
-    // (without verifying) just to grab jti/exp so we can revoke it (D-037).
-    const { jti, exp } = decodeAccessJtiExp(req.headers.authorization);
+    // jti/exp come from a signature-verified (expiry-ignored) old access token (D-037).
+    const { jti, exp } = revocationClaimsFromHeader(req.headers.authorization);
     const tokens = await this.b2cAuthService.refreshTokens(dto.refreshToken, jti, exp);
     return { success: true, data: tokens };
   }
@@ -308,7 +286,7 @@ export class B2CAuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout (revoke refresh + access token)' })
   async logout(@Req() req: Request, @Body() dto: RefreshDto) {
-    const { jti, exp } = decodeAccessJtiExp(req.headers.authorization);
+    const { jti, exp } = revocationClaimsFromHeader(req.headers.authorization);
     await this.b2cAuthService.logout(dto.refreshToken, jti, exp);
     return { success: true };
   }

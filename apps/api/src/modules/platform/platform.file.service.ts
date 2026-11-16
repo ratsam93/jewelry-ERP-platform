@@ -21,7 +21,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import {
   S3Client,
   PutObjectCommand,
@@ -56,18 +56,61 @@ export interface UploadResult {
   size: number;
 }
 
-/** Allowed MIME types for upload. */
-const ALLOWED_MIME_TYPES = new Set([
+/**
+ * Allowed MIME types for upload -> file extension used in storage keys.
+ * image/svg+xml is intentionally excluded (can carry script).
+ */
+const MIME_EXTENSIONS: Readonly<Record<string, string>> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'application/pdf': 'pdf',
+  'text/csv': 'csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-excel': 'xls',
+};
+const ALLOWED_MIME_TYPES = new Set(Object.keys(MIME_EXTENSIONS));
+
+/** MIME types whose content is verified by magic bytes. */
+const SNIFFED_MIME_TYPES: ReadonlySet<string> = new Set([
   'image/jpeg',
   'image/png',
-  'image/webp',
   'image/gif',
-  'image/svg+xml',
+  'image/webp',
   'application/pdf',
-  'text/csv',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel',
 ]);
+
+/** Storage folder must match this (after lowercasing); otherwise 'general'. */
+const FOLDER_PATTERN = /^[a-z0-9_-]+$/;
+
+/** Detect a file type from its leading bytes. Returns null when unknown. */
+function sniffMimeType(buf: Buffer): string | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    buf.length >= 8 &&
+    buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return 'image/png';
+  }
+  if (buf.length >= 6) {
+    const head = buf.subarray(0, 6).toString('latin1');
+    if (head === 'GIF87a' || head === 'GIF89a') return 'image/gif';
+  }
+  if (
+    buf.length >= 12 &&
+    buf.subarray(0, 4).toString('latin1') === 'RIFF' &&
+    buf.subarray(8, 12).toString('latin1') === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  if (buf.length >= 5 && buf.subarray(0, 5).toString('latin1') === '%PDF-') {
+    return 'application/pdf';
+  }
+  return null;
+}
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 const DEFAULT_PRESIGN_EXPIRES_SECONDS = 3600;
@@ -103,11 +146,11 @@ export class PlatformFileService extends TenantAwareService {
   async uploadBuffer(
     tenantId: string,
     file: Buffer,
-    originalName: string,
+    _originalName: string,
     mimeType: string,
     folder?: string,
   ): Promise<UploadResult> {
-    const key = `${tenantId}/${folder ?? 'uploads'}/${uuid()}-${this.safeName(originalName)}`;
+    const key = this.buildStorageKey(tenantId, folder ?? 'uploads', mimeType);
     await this.putObject(key, file, mimeType);
     const url = this.buildPublicUrl(key);
     return {
@@ -142,19 +185,29 @@ export class PlatformFileService extends TenantAwareService {
 
   /** Upload a file to storage and create metadata record. */
   async uploadFile(tenantId: string, input: UploadFileInput, uploadedBy: string) {
-    // Validate
+    // Validate. The size and content type are derived from the actual
+    // bytes; the client-supplied sizeBytes is not trusted.
+    const size = input.buffer.length;
     if (!ALLOWED_MIME_TYPES.has(input.mimeType)) {
       throw new BadRequestException(`File type "${input.mimeType}" is not allowed`);
     }
-    if (input.sizeBytes > MAX_FILE_SIZE_BYTES) {
+    if (size > MAX_FILE_SIZE_BYTES) {
       throw new BadRequestException(`File size exceeds maximum of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB`);
     }
+    const detected = sniffMimeType(input.buffer);
+    if (SNIFFED_MIME_TYPES.has(input.mimeType)) {
+      if (detected !== input.mimeType) {
+        throw new BadRequestException(`File content does not match declared type "${input.mimeType}"`);
+      }
+    } else if (detected !== null) {
+      // e.g. a CSV/XLS payload that actually starts with a PNG/PDF signature
+      throw new BadRequestException(`File content does not match declared type "${input.mimeType}"`);
+    }
 
-    // Generate a unique storage key
-    const fileId = uuid();
-    const ext = input.originalName.split('.').pop() ?? 'bin';
+    // Generate a unique storage key (no user-supplied name or extension)
+    const fileId = randomUUID();
     const folder = input.folder ?? input.entityType ?? 'general';
-    const storageKey = `${tenantId}/${folder}/${fileId}.${ext}`;
+    const storageKey = this.buildStorageKey(tenantId, folder, input.mimeType, fileId);
 
     // Upload to storage provider
     await this.uploadToStorage(storageKey, input.buffer, input.mimeType);
@@ -167,7 +220,7 @@ export class PlatformFileService extends TenantAwareService {
         fileName: input.fileName,
         originalName: input.originalName,
         mimeType: input.mimeType,
-        sizeBytes: input.sizeBytes,
+        sizeBytes: size,
         storageProvider: this.storageProvider,
         storageKey,
         entityType: input.entityType ?? null,
@@ -358,8 +411,22 @@ export class PlatformFileService extends TenantAwareService {
     return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
   }
 
-  private safeName(name: string): string {
-    // Strip path separators, keep extension + basic chars.
-    return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+  /**
+   * Build `${tenantId}/${folder}/${uuid}.${ext}`. The folder is restricted to
+   * [a-z0-9_-] (otherwise 'general'); the extension comes only from the
+   * allowlisted MIME type (otherwise 'bin').
+   */
+  private buildStorageKey(
+    tenantId: string,
+    folder: string,
+    mimeType: string,
+    id: string = randomUUID(),
+  ): string {
+    const lowered = folder.toLowerCase();
+    const safeFolder = FOLDER_PATTERN.test(lowered) ? lowered : 'general';
+    const ext = Object.prototype.hasOwnProperty.call(MIME_EXTENSIONS, mimeType)
+      ? MIME_EXTENSIONS[mimeType]
+      : 'bin';
+    return `${tenantId}/${safeFolder}/${id}.${ext}`;
   }
 }

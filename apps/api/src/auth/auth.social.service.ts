@@ -179,9 +179,11 @@ export class SocialAuthService {
 
     try {
       const jwks = getAppleJwks();
+      // Apple id_tokens are signed with RS256 (JWKS keys), not the API's HS256 secret.
       const { payload } = await jwtVerify(idToken, jwks, {
         issuer: 'https://appleid.apple.com',
         audience: clientId,
+        algorithms: ['RS256'],
       });
 
       const sub = typeof payload.sub === 'string' ? payload.sub : undefined;

@@ -15,8 +15,11 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
+  UseGuards,
   Sse,
   MessageEvent,
+  Logger,
 } from '@nestjs/common';
 import { Observable, fromEvent, map, takeUntil, Subject, merge, of } from 'rxjs';
 import type { Request, Response } from 'express';
@@ -43,6 +46,8 @@ import type {
   BiometricWebhookPayload,
 } from '@caratflow/shared-types';
 import { z } from 'zod';
+import { createHmac, timingSafeEqual } from 'crypto';
+import { StaffAuthGuard } from '../../common/staff-auth.guard';
 
 interface AuthenticatedRequest extends Request {
   tenantId?: string;
@@ -53,13 +58,10 @@ function ok<T>(data: T): ApiResponse<T> {
   return { success: true, data };
 }
 
+// Tenant identity comes only from the verified JWT (set by TenantMiddleware).
 function getTenantId(req: AuthenticatedRequest): string {
-  const tenantId =
-    req.tenantId ??
-    (req.headers['x-tenant-id'] as string | undefined) ??
-    undefined;
-  if (!tenantId) throw new BadRequestException('Missing tenant context');
-  return tenantId;
+  if (!req.tenantId) throw new UnauthorizedException('Staff authentication required');
+  return req.tenantId;
 }
 
 const PrintLabelBodySchema = z.object({
@@ -76,6 +78,49 @@ const BarcodeLookupBodySchema = z.object({
 const RfidReadBodySchema = z.object({
   readerId: z.string().min(1).optional(),
 });
+
+const biometricLogger = new Logger('HardwareBiometricWebhook');
+
+/**
+ * Verifies `x-device-signature` (hex HMAC-SHA256 over the raw body)
+ * against HARDWARE_WEBHOOK_SECRET. Throws 401 on any failure.
+ * Outside production, a missing secret or a missing rawBody falls back
+ * to disabled verification / JSON.stringify(body) respectively, so local
+ * development and tests keep working.
+ */
+function verifyBiometricSignature(req: Request, body: unknown): void {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const secret = process.env.HARDWARE_WEBHOOK_SECRET;
+
+  if (!secret) {
+    if (isProduction) {
+      throw new UnauthorizedException('Biometric webhook secret not configured');
+    }
+    biometricLogger.warn('HARDWARE_WEBHOOK_SECRET not set; biometric signature not verified (non-production)');
+    return;
+  }
+
+  const headerValue = req.headers['x-device-signature'];
+  const provided = (Array.isArray(headerValue) ? headerValue[0] : headerValue)?.trim();
+  if (!provided) throw new UnauthorizedException('Missing device signature');
+
+  const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+  let payloadBytes: Buffer;
+  if (rawBody && rawBody.length > 0) {
+    payloadBytes = rawBody;
+  } else if (!isProduction) {
+    payloadBytes = Buffer.from(JSON.stringify(body ?? {}), 'utf8');
+  } else {
+    throw new UnauthorizedException('Raw request body unavailable for signature verification');
+  }
+
+  const expectedHex = createHmac('sha256', secret).update(payloadBytes).digest('hex');
+  const expected = Buffer.from(expectedHex, 'utf8');
+  const actual = Buffer.from(provided.replace(/^sha256=/i, '').toLowerCase(), 'utf8');
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+    throw new UnauthorizedException('Invalid device signature');
+  }
+}
 
 @Controller('api/v1/hardware')
 export class HardwareController {
@@ -97,6 +142,7 @@ export class HardwareController {
    */
   @Post('scale/read')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffAuthGuard)
   async scaleRead(
     @Req() req: AuthenticatedRequest,
     @Body() body: unknown,
@@ -118,6 +164,7 @@ export class HardwareController {
    */
   @Post('rfid/read')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffAuthGuard)
   async rfidRead(
     @Req() req: AuthenticatedRequest,
     @Body() body: unknown,
@@ -136,6 +183,7 @@ export class HardwareController {
    */
   @Post('barcode/lookup')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffAuthGuard)
   async barcodeLookup(
     @Req() req: AuthenticatedRequest,
     @Body() body: unknown,
@@ -156,6 +204,7 @@ export class HardwareController {
    */
   @Post('label/print')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffAuthGuard)
   async labelPrint(
     @Req() req: AuthenticatedRequest,
     @Body() body: unknown,
@@ -181,6 +230,7 @@ export class HardwareController {
    */
   @Post('cfd/push')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffAuthGuard)
   async cfdPush(
     @Req() req: AuthenticatedRequest,
     @Body() body: unknown,
@@ -198,6 +248,7 @@ export class HardwareController {
    * new sale state pushed by the matching POS terminal.
    */
   @Sse('cfd/stream')
+  @UseGuards(StaffAuthGuard)
   cfdStream(
     @Req() req: AuthenticatedRequest,
     @Query('terminalId') terminalId: string,
@@ -233,8 +284,9 @@ export class HardwareController {
   /**
    * POST /api/v1/hardware/biometric/webhook
    * Endpoint hit by ZKTeco / ESSL terminals when an employee
-   * checks in or out. The terminal must include `x-tenant-id` so
-   * that we can scope the event correctly.
+   * checks in or out. Authenticated by an HMAC-SHA256 signature of
+   * the raw body in the `x-device-signature` header (secret:
+   * HARDWARE_WEBHOOK_SECRET). The terminal must include `x-tenant-id`.
    */
   @Post('biometric/webhook')
   @HttpCode(HttpStatus.OK)
@@ -242,7 +294,13 @@ export class HardwareController {
     @Req() req: AuthenticatedRequest,
     @Body() body: unknown,
   ): Promise<ApiResponse<BiometricEventResponse>> {
-    const tenantId = getTenantId(req);
+    verifyBiometricSignature(req, body);
+    // Terminals have no JWT. The tenant comes from x-tenant-id; the HMAC
+    // proves the caller holds HARDWARE_WEBHOOK_SECRET. The tenant header
+    // itself is not covered by the signature (see report).
+    const headerTenant = req.headers['x-tenant-id'];
+    const tenantId = Array.isArray(headerTenant) ? headerTenant[0] : headerTenant;
+    if (!tenantId) throw new BadRequestException('Missing x-tenant-id header');
     const payload: BiometricWebhookPayload = BiometricWebhookPayloadSchema.parse(body);
     const event = await this.biometricService.processWebhook(tenantId, payload);
     return ok(event);

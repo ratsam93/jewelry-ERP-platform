@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockPrismaService, createMockEventBusService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
 vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid') }));
+// '@caratflow/db' only exports Prisma as a type at runtime, so the service's
+// Prisma.JsonNull sentinel must be provided by the mock.
+vi.mock('@caratflow/db', () => ({
+  PrismaClient: class {},
+  Prisma: { JsonNull: { __sentinel: 'JsonNull' }, DbNull: { __sentinel: 'DbNull' } },
+}));
 import { CrmCampaignService } from '../crm.campaign.service';
 import { CrmNotificationService } from '../crm.notification.service';
 
