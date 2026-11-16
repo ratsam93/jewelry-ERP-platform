@@ -8,7 +8,6 @@ import {
   KittyInstallmentInputSchema,
   GoldSavingsSchemeInputSchema,
   GoldSavingsMemberInputSchema,
-  GoldSavingsInstallmentInputSchema,
   KycVerificationInputSchema,
   KycVerifyInputSchema,
   MetalRateInputSchema,

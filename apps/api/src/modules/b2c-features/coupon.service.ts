@@ -2,7 +2,7 @@
 // Admin CRUD, coupon validation, application, usage tracking,
 // auto-apply discovery, and bulk code generation.
 
-import { Injectable, Logger, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';

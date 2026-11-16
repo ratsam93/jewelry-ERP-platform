@@ -99,7 +99,6 @@ export class RetailService extends TenantAwareService {
     const yymm = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     // Count existing sales for this tenant/location/month
-    const prefix = `%/${locCode}/${yymm}/%`;
     const count = await this.prisma.sale.count({
       where: {
         tenantId,

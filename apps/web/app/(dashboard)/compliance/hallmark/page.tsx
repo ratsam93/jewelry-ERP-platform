@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { PageHeader, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { Shield, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import Link from 'next/link';
-import { HallmarkStatusTracker } from '@/features/compliance';
 import type { ColumnDef } from '@caratflow/ui';
 
 export default function HallmarkSubmissionsPage() {

@@ -92,7 +92,7 @@ export default function ProductTraceabilityPage() {
       {/* Chain of Custody Timeline */}
       <div className="rounded-lg border p-4">
         <h3 className="text-sm font-semibold mb-4">Chain of Custody</h3>
-        <TraceabilityTimeline events={(data.events ?? []) as Array<{
+        <TraceabilityTimeline events={(data.events ?? []) as unknown as Array<{
           id: string;
           eventType: string;
           fromEntityType: string | null;

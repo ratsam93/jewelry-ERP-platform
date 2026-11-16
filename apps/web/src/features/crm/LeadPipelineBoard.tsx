@@ -1,6 +1,5 @@
 'use client';
 
-import { StatusBadge } from '@caratflow/ui';
 import Link from 'next/link';
 
 interface PipelineLead {

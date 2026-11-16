@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { Scale, Calendar, IndianRupee } from 'lucide-react';
+import { Scale, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 interface GirviLoanCardProps {

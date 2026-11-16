@@ -12,7 +12,7 @@ describe('StorefrontEventHandler', () => {
   let mockAbandonedCartService: {
     markRecovered: ReturnType<typeof vi.fn>;
   };
-  let subscribedHandlers: Map<string, Function>;
+  let subscribedHandlers: Map<string, (...args: any[]) => any>;
 
   beforeEach(() => {
     mockEventBus = createMockEventBus();
@@ -25,7 +25,7 @@ describe('StorefrontEventHandler', () => {
     };
 
     subscribedHandlers = new Map();
-    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: Function) => {
+    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: (...args: any[]) => any) => {
       subscribedHandlers.set(eventType, handlerFn);
     });
 

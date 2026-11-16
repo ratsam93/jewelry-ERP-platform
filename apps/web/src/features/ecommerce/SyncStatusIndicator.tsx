@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@caratflow/ui';
-import { CheckCircle2, AlertTriangle, Clock, XCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle, RefreshCw } from 'lucide-react';
 
 const statusConfig: Record<string, {
   icon: typeof CheckCircle2;

@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { formatMoney, formatMoneyShort } from '@/utils/money';
 
 // SearchBar uses React hooks (useState, useRef, useCallback, useEffect),
 // which cannot be called outside a React render context with our mocked RN.

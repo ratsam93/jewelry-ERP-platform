@@ -1,5 +1,5 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody, ApiProperty } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsNotEmpty, IsString, IsOptional, MinLength } from 'class-validator';
 import { Request } from 'express';

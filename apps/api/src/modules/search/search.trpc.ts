@@ -123,7 +123,7 @@ export class SearchTrpcRouter {
             isActive: z.boolean().optional(),
           }),
         )
-        .mutation(async ({ ctx, input }) => {
+        .mutation(async ({ input }) => {
           const { id, ...data } = input;
           const record = await this.prisma.searchSuggestion.update({
             where: { id },
@@ -142,7 +142,7 @@ export class SearchTrpcRouter {
 
       deleteSuggestion: this.trpc.authedProcedure
         .input(z.object({ id: z.string().uuid() }))
-        .mutation(async ({ ctx, input }) => {
+        .mutation(async ({ input }) => {
           await this.prisma.searchSuggestion.delete({
             where: { id: input.id },
           });

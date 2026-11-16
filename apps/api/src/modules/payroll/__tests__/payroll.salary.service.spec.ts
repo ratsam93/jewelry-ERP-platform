@@ -4,7 +4,7 @@ import {
   PF_EMPLOYEE_PERCENT,
   ESI_GROSS_THRESHOLD_PAISE,
 } from '../payroll.salary.service';
-import { createMockPrismaService, TEST_TENANT_ID } from '../../../__tests__/setup';
+import { createMockPrismaService } from '../../../__tests__/setup';
 
 describe('PayrollSalaryService', () => {
   let svc: PayrollSalaryService;

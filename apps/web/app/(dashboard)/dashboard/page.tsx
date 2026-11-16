@@ -9,21 +9,11 @@ import {
   Users,
   ShoppingCart,
   AlertTriangle,
-  Factory,
   TrendingUp,
   Settings2,
-  Calendar,
 } from 'lucide-react';
-import { DateRangePicker, ReportChart, KpiCard } from '@/features/reporting';
+import { DateRangePicker, ReportChart } from '@/features/reporting';
 import type { ChartTypeEnum, AlertItem } from '@caratflow/shared-types';
-
-// Default widget configuration -- in production, loaded from tRPC getDashboardLayout()
-const DEFAULT_WIDGETS = [
-  { widgetId: 'sales-today', type: 'stat', metric: 'sales_today' },
-  { widgetId: 'revenue-mtd', type: 'stat', metric: 'revenue_mtd' },
-  { widgetId: 'stock-items', type: 'stat', metric: 'stock_items' },
-  { widgetId: 'customers', type: 'stat', metric: 'customers' },
-] as const;
 
 const MOCK_REVENUE_CHART = {
   title: 'Revenue Trend (Last 7 Days)',

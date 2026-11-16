@@ -13,9 +13,9 @@ export default function CreditPage() {
     pagination: { page, limit: 20, sortOrder: 'desc' },
   });
   const { data: agingSummary } = trpc.wholesale.getAgingSummary.useQuery();
-  const limits = ((limitsData?.items as Array<Record<string, unknown>>) ?? []);
+  const limits = ((limitsData?.items as unknown as Array<Record<string, unknown>>) ?? []);
 
-  const buckets = (agingSummary as Record<string, { count: number; totalPaise: string | number }> | undefined) ?? {};
+  const buckets = (agingSummary as unknown as Record<string, { count: number; totalPaise: string | number }> | undefined) ?? {};
 
   return (
     <div className="space-y-6">

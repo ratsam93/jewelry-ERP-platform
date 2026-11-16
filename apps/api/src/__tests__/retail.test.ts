@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { RetailService } from '../modules/retail/retail.service';
 import { RetailPricingService } from '../modules/retail/retail.pricing.service';
 import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from './setup';
@@ -67,7 +67,7 @@ describe('RetailService', () => {
         roundOffPaise: BigInt(0),
       };
 
-      mockPrisma.$transaction.mockImplementation(async (fn: Function) => {
+      mockPrisma.$transaction.mockImplementation(async (fn: (...args: any[]) => any) => {
         mockPrisma.sale.create.mockResolvedValue(createdSale);
         return fn(mockPrisma);
       });
@@ -141,7 +141,7 @@ describe('RetailService', () => {
         currencyCode: 'INR',
       };
 
-      mockPrisma.$transaction.mockImplementation(async (fn: Function) => {
+      mockPrisma.$transaction.mockImplementation(async (fn: (...args: any[]) => any) => {
         mockPrisma.sale.create.mockResolvedValue(createdSale);
         return fn(mockPrisma);
       });
@@ -198,7 +198,7 @@ describe('RetailService', () => {
           updatedAt: new Date(),
         });
 
-      mockPrisma.$transaction.mockImplementation(async (fn: Function) => fn(mockPrisma));
+      mockPrisma.$transaction.mockImplementation(async (fn: (...args: any[]) => any) => fn(mockPrisma));
 
       const result = await service.voidSale(TEST_TENANT_ID, TEST_USER_ID, 'sale-1', 'Customer request');
       expect(result.status).toBe('VOIDED');

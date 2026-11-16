@@ -14,7 +14,7 @@ vi.mock('../api', () => ({
 import { storeData, getData, removeData } from '../storage';
 import { apiRequest } from '../api';
 import NetInfo from '@react-native-community/netinfo';
-import { enqueue, getQueue, syncQueue, clearQueue, getQueueSize, isOnline } from '../offline';
+import { enqueue, syncQueue, clearQueue, getQueueSize, isOnline } from '../offline';
 
 describe('isOnline', () => {
   beforeEach(() => {

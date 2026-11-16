@@ -1,7 +1,7 @@
 // ─── Compliance Document Service ──────────────────────────────
 // CRUD for compliance documents, expiry alerts, Kimberley Process certs.
 
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import type {

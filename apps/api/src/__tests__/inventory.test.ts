@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { InventoryService } from '../modules/inventory/inventory.service';
 import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from './setup';
 
@@ -90,7 +90,7 @@ describe('InventoryService', () => {
         },
       };
 
-      mockPrisma.$transaction.mockImplementation(async (operations: unknown[]) => {
+      mockPrisma.$transaction.mockImplementation(async (_operations: unknown[]) => {
         return [mockMovement, { quantityOnHand: 15 }];
       });
 

@@ -3,7 +3,6 @@ import {
   SaleInputSchema,
   SaleLineItemInputSchema,
   SaleReturnInputSchema,
-  SaleReturnItemInputSchema,
   SalePaymentInputSchema,
   RepairOrderInputSchema,
   CustomOrderInputSchema,
@@ -12,7 +11,6 @@ import {
   GiftCardInputSchema,
   DiscountInputSchema,
   SalePaymentMethod,
-  SaleDiscountType,
   RetailDiscountType,
 } from '../retail';
 

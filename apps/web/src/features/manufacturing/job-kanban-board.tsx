@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { Clock, User, ArrowRight } from 'lucide-react';
+import { StatusBadge } from '@caratflow/ui';
+import { Clock, User } from 'lucide-react';
 
 interface JobCard {
   id: string;

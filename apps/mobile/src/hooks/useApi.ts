@@ -8,7 +8,7 @@ import {
   type UseMutationOptions,
   type QueryKey,
 } from '@tanstack/react-query';
-import { api, type ApiResponse } from '@/lib/api';
+import { api } from '@/lib/api';
 import { enqueue, isOnline } from '@/lib/offline';
 import { getIfFresh, storeWithTimestamp } from '@/lib/storage';
 

@@ -47,7 +47,7 @@ export class RecommendationsEventHandler implements OnModuleInit {
     this.eventBus.subscribe('storefront.order.completed', async (event) => {
       if (event.type !== 'storefront.order.completed') return;
 
-      const { customerId, totalPaise, orderId } = event.payload;
+      const { customerId, orderId } = event.payload;
       if (!customerId) return;
 
       this.logger.log(

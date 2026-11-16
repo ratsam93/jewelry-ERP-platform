@@ -88,7 +88,7 @@ export class B2cFeaturesTrpcRouter {
           const where: Record<string, unknown> = { tenantId: ctx.tenantId };
           if (input.status) where.status = input.status;
 
-          const prisma = (this.abandonedCartService as unknown as { prisma: { abandonedCart: { findMany: Function; count: Function } } }).prisma;
+          const prisma = (this.abandonedCartService as unknown as { prisma: { abandonedCart: { findMany: (...args: any[]) => any; count: (...args: any[]) => any } } }).prisma;
 
           const [items, total] = await Promise.all([
             prisma.abandonedCart.findMany({

@@ -1,7 +1,7 @@
 // ─── Test Setup ────────────────────────────────────────────────
 // Integration test helpers: test database, Prisma client, JWT tokens, cleanup.
 
-import { vi, beforeAll, afterAll, afterEach } from 'vitest';
+import { vi } from 'vitest';
 import * as jwt from 'jsonwebtoken';
 import { v4 as uuid } from 'uuid';
 

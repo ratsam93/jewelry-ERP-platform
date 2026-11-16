@@ -2,7 +2,7 @@
 
 import { PageHeader, StatCard } from '@caratflow/ui';
 import {
-  Shield, ShieldCheck, FileText, Award, Umbrella, ClipboardList,
+  Shield, ShieldCheck, FileText, Award, Umbrella,
   Search, Plus, ArrowRight,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
@@ -104,7 +104,9 @@ export default function ComplianceDashboardPage() {
               View all <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
-          <AuditFindingsTable audits={dashboard?.upcomingAudits ?? []} />
+          <AuditFindingsTable
+            audits={(dashboard?.upcomingAudits ?? []) as unknown as Parameters<typeof AuditFindingsTable>[0]['audits']}
+          />
         </div>
       </div>
 

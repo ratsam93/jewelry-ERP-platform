@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException } from '@nestjs/common';
 import { createMockPrismaService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
 import { CustomerPortalOrdersService } from '../customer-portal.orders.service';
 

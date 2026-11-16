@@ -40,6 +40,9 @@ export default defineConfig({
     ],
     setupFiles: ['src/__tests__/setup.ts'],
     testTimeout: 30_000,
+    // Integration suites boot the full AppModule in beforeAll; allow time for it
+    // (coverage instrumentation makes startup noticeably slower).
+    hookTimeout: 120_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary', 'html', 'json-summary'],

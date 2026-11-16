@@ -1,6 +1,6 @@
 'use client';
 
-import { StatusBadge, getStatusVariant } from '@caratflow/ui';
+import { StatusBadge } from '@caratflow/ui';
 
 interface OutstandingBalance {
   id: string;

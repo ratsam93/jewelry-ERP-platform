@@ -3,7 +3,6 @@
 // hook shim for the duration of each render and mocked components.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
 
 type RenderState = { states: any[]; idx: number };
 let activeRender: RenderState | null = null;
@@ -183,7 +182,6 @@ function textContent(tree: any): string {
 // ─── Tests ──────────────────────────────────────────────────────
 // Static import is safe here — vi.mock() calls above are hoisted
 // by Vitest before any imports, so the mocked modules are in place.
-// eslint-disable-next-line import/first
 import BiometricSettingsScreen from '../(sales)/settings/biometric';
 
 beforeEach(() => {

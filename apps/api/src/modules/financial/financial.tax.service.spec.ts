@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FinancialService } from './financial.service';
-import { createMockPrismaService, TEST_TENANT_ID } from '../../__tests__/setup';
+import { createMockPrismaService } from '../../__tests__/setup';
 
 describe('FinancialService - GST/TDS/TCS Computation (Unit)', () => {
   let service: FinancialService;

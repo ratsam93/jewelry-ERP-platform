@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { PageHeader, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { ClipboardList } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import type { ColumnDef } from '@caratflow/ui';
 

@@ -94,7 +94,7 @@ export default function QuickBillScreen() {
   // ─── tRPC: product (stock-item) search ─────────────────────────
   // inventory.stockItems.list returns items keyed by stock-item id, with the
   // product nested. Map to a flat ProductSearchResult for the existing UI.
-  const { data: stockItemsData, isLoading: productLoading } =
+  const { data: stockItemsData } =
     trpc.inventory.stockItems.list.useQuery(
       {
         search: searchQuery || undefined,

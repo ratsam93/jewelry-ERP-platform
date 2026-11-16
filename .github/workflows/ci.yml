@@ -31,6 +31,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      # Packages type-check against the generated Prisma client, so generate it first.
+      - run: pnpm db:generate
       - run: pnpm lint
 
   typecheck:
@@ -203,7 +205,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - name: Generate coverage summary
-        run: npx tsx tools/coverage-report.ts
+        run: pnpm exec tsx tools/coverage-report.ts
 
   build:
     name: Build

@@ -13,7 +13,6 @@ import {
   createMockEventBus,
   TEST_TENANT_ID,
   TEST_USER_ID,
-  resetAllMocks,
 } from '../../../__tests__/setup';
 
 function extendPrisma(base: ReturnType<typeof createMockPrismaService>) {
@@ -149,7 +148,7 @@ describe('PlatformBranchService (Unit)', () => {
       mockPrisma.user.findFirst.mockResolvedValue({ id: 'u-1', preferences: { theme: 'dark' } });
       mockPrisma.user.update.mockResolvedValue({ id: 'u-1', preferences: { theme: 'dark', activeBranchId: 'b-1' } });
 
-      const result = await service.setUserActiveBranch(TEST_TENANT_ID, 'u-1', 'b-1');
+      await service.setUserActiveBranch(TEST_TENANT_ID, 'u-1', 'b-1');
       expect(mockPrisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({

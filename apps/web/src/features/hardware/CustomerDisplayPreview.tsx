@@ -18,7 +18,7 @@ export function CustomerDisplayPreview({
   locationId,
   initialMessage,
 }: CustomerDisplayPreviewProps) {
-  const [message, setMessage] = useState<CustomerDisplayMessage | null>(initialMessage ?? null);
+  const [message] = useState<CustomerDisplayMessage | null>(initialMessage ?? null);
 
   useEffect(() => {
     // In production, subscribe to WebSocket display:update events

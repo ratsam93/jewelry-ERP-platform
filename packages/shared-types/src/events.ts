@@ -215,6 +215,32 @@ export interface EcommerceOrderSyncedEvent extends DomainEventBase {
   payload: { orderId: string; externalOrderId: string; channel: string; status: string };
 }
 
+export interface EcommercePaymentCapturedEvent extends DomainEventBase {
+  type: 'ecommerce.payment.captured';
+  payload: {
+    gateway: string;
+    orderId: string | null;
+    paymentId: string;
+    externalOrderId: string | null;
+    externalPaymentId: string;
+    amountPaise: number;
+    currency: string;
+    receipt: string | null;
+  };
+}
+
+export interface EcommercePaymentFailedEvent extends DomainEventBase {
+  type: 'ecommerce.payment.failed';
+  payload: {
+    gateway: string;
+    orderId: string | null;
+    paymentId: string;
+    externalOrderId: string | null;
+    externalPaymentId: string;
+    reason: string;
+  };
+}
+
 // ─── Storefront Events ────────────────────────────────────────
 
 export interface StorefrontOrderPlacedEvent extends DomainEventBase {
@@ -401,6 +427,8 @@ export type DomainEvent =
   // E-Commerce
   | EcommerceOrderReceivedEvent
   | EcommerceOrderSyncedEvent
+  | EcommercePaymentCapturedEvent
+  | EcommercePaymentFailedEvent
   // Storefront
   | StorefrontOrderPlacedEvent
   | StorefrontOrderCompletedEvent

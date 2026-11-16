@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { PageHeader, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { ShieldCheck, Plus, Upload, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import Link from 'next/link';
-import { HuidBadge } from '@/features/compliance';
 import type { ColumnDef } from '@caratflow/ui';
 
 export default function HuidRegistryPage() {

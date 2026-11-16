@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Circle, XCircle, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle2, Circle, XCircle, Loader2 } from 'lucide-react';
 
 interface HallmarkStatusTrackerProps {
   status: string;

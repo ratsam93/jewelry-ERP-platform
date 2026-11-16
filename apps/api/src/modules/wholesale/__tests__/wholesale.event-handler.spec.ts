@@ -6,14 +6,14 @@ describe('WholesaleEventHandler', () => {
   let handler: WholesaleEventHandler;
   let mockEventBus: ReturnType<typeof createMockEventBus>;
   let mockPrisma: ReturnType<typeof createMockPrismaService>;
-  let subscribedHandlers: Map<string, Function>;
+  let subscribedHandlers: Map<string, (...args: any[]) => any>;
 
   beforeEach(() => {
     mockEventBus = createMockEventBus();
     mockPrisma = createMockPrismaService();
 
     subscribedHandlers = new Map();
-    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: Function) => {
+    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: (...args: any[]) => any) => {
       subscribedHandlers.set(eventType, handlerFn);
     });
 

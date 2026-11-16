@@ -11,7 +11,7 @@ export default function ConsignmentInDetailPage() {
   const { data, isLoading } = trpc.wholesale.getConsignmentIn.useQuery({ id }, { enabled: Boolean(id) });
   if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
 
-  const c = data as Record<string, unknown>;
+  const c = data as unknown as Record<string, unknown>;
   const items = (c.items as Array<Record<string, unknown>>) ?? [];
   const status = c.status as string;
 

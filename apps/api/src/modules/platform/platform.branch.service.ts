@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
 import { TenantAwareService } from '../../common/base.service';

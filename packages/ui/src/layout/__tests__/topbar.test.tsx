@@ -45,7 +45,7 @@ describe('Topbar', () => {
     const buttons = screen.getAllByRole('button');
     // The theme toggle button is after the notification bell
     // We look for it by its position in the button list
-    const themeButton = buttons.find(
+    const _themeButton = buttons.find(
       (btn) => !btn.textContent?.includes('Search') && !btn.textContent?.includes('Ctrl'),
     );
     // Click a button that triggers theme toggle

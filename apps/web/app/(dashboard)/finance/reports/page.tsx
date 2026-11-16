@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { PageHeader } from '@caratflow/ui';
-import { Receipt, FileText, BarChart, PieChart, Clock } from 'lucide-react';
+import { FileText, BarChart, PieChart, Clock } from 'lucide-react';
 
 export default function FinanceReportsPage() {
   const reports = [

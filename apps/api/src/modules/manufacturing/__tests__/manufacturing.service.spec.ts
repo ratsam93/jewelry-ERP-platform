@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { ManufacturingService } from '../manufacturing.service';
-import { MfgJobOrderStatus, JOB_ORDER_TRANSITIONS, JobCostType } from '@caratflow/shared-types';
+import { MfgJobOrderStatus, JOB_ORDER_TRANSITIONS } from '@caratflow/shared-types';
 import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
 
 describe('ManufacturingService (Unit)', () => {
@@ -175,7 +175,7 @@ describe('ManufacturingService (Unit)', () => {
         product: {},
       });
 
-      const result = await service.cloneBom(TEST_TENANT_ID, TEST_USER_ID, 'bom-1');
+      await service.cloneBom(TEST_TENANT_ID, TEST_USER_ID, 'bom-1');
 
       expect(mockPrisma.billOfMaterials.create).toHaveBeenCalledWith(
         expect.objectContaining({

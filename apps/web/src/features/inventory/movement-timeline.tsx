@@ -47,7 +47,7 @@ export function MovementTimeline({ movements }: MovementTimelineProps) {
       {/* Vertical line */}
       <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
 
-      {movements.map((movement, index) => (
+      {movements.map((movement, _index) => (
         <div key={movement.id} className="relative flex gap-4 py-2">
           {/* Icon circle */}
           <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-background">

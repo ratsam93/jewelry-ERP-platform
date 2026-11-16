@@ -22,9 +22,6 @@ import {
   BankAccountInputSchema,
   ImportStatementInputSchema,
   BankReconciliationInputSchema,
-  FinancialYearInputSchema,
-  CostCenterInputSchema,
-  BudgetInputSchema,
 } from '@caratflow/shared-types';
 import { DateRangeSchema, UuidSchema } from '@caratflow/shared-types';
 

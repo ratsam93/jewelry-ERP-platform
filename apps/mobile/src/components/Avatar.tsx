@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, type ImageSourcePropType } from 'react-native';
+import { View, Text, Image } from 'react-native';
 
 interface AvatarProps {
   name: string;

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { TaxBreakdownDisplay } from '@/features/finance/tax-breakdown-display';
-import { Printer, Send, Ban, CreditCard } from 'lucide-react';
+import { Printer, Send, CreditCard } from 'lucide-react';
 
 // Mock invoice detail
 const mockInvoice = {
@@ -62,7 +62,7 @@ const mockInvoice = {
 };
 
 export default function InvoiceDetailPage() {
-  const params = useParams();
+  useParams();
 
   const inv = mockInvoice; // Will use tRPC: trpc.financial.invoices.getById.useQuery({ id })
   const isInterState = inv.sourceState.toUpperCase() !== inv.destState.toUpperCase();

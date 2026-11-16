@@ -1,7 +1,7 @@
 // ─── Back In Stock Alert Service ────────────────────────────────
 // Subscribe to restock notifications, notify when product is available, unsubscribe.
 
-import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';

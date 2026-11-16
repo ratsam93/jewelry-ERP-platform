@@ -3,7 +3,6 @@ import {
   UpdateProfileInputSchema,
   ChangePasswordInputSchema,
   ReturnRequestInputSchema,
-  ReturnItemInputSchema,
   RedeemPointsInputSchema,
   EnrollSchemeInputSchema,
   PayInstallmentInputSchema,

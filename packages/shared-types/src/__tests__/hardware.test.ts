@@ -131,7 +131,7 @@ describe('DeviceConfigSchema', () => {
   });
 
   it('should reject missing name', () => {
-    const { name, ...rest } = validConfig;
+    const { name: _name, ...rest } = validConfig;
     expect(DeviceConfigSchema.safeParse(rest).success).toBe(false);
   });
 

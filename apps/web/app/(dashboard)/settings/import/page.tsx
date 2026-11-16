@@ -7,7 +7,7 @@ import { trpc } from '@/lib/trpc';
 import { formatDateTime } from '@/components/format';
 
 export default function ImportPage() {
-  const [page, setPage] = useState(1);
+  const [page, _setPage] = useState(1);
   const { data, isLoading } = trpc.platform.import.listJobs.useQuery({ page, limit: 20 } as never);
   const d = data as { items?: Array<Record<string, unknown>> } | Array<Record<string, unknown>> | undefined;
   const items = Array.isArray(d) ? d : (d?.items ?? []);
