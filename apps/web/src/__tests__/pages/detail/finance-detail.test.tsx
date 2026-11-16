@@ -1,5 +1,88 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Shared state for the tRPC mock. The invoice detail page now loads its data
+// via trpc.financial.invoices.getById, so each test sets the invoice payload here.
+const mockState = vi.hoisted(() => ({
+  invoiceData: null as unknown,
+}));
+
+// Re-mock @/lib/trpc (the global setup returns data: undefined for every query).
+vi.mock('@/lib/trpc', () => {
+  function createProxy(path: string[]): unknown {
+    return new Proxy(
+      {},
+      {
+        get(_target, prop: string) {
+          if (prop === 'useQuery') {
+            return () => {
+              if (path.join('.') === 'financial.invoices.getById') {
+                return { data: mockState.invoiceData, isLoading: false, isError: false, error: null, refetch: vi.fn() };
+              }
+              // einvoice.status: no IRN yet (no data, no error)
+              return { data: undefined, isLoading: false, isError: false, error: null, refetch: vi.fn() };
+            };
+          }
+          if (prop === 'useMutation') {
+            return () => ({ mutate: vi.fn(), isPending: false, error: null, isSuccess: false, isError: false });
+          }
+          if (prop === 'useUtils') {
+            return () => createProxy([]);
+          }
+          return createProxy([...path, prop]);
+        },
+      },
+    );
+  }
+  return { trpc: createProxy([]) };
+});
+
+beforeEach(() => {
+  mockState.invoiceData = {
+    id: 'inv-1',
+    invoiceNumber: 'INV-202604-0012',
+    invoiceType: 'SALES',
+    status: 'DRAFT',
+    dueDate: null,
+    createdAt: '2026-04-10T00:00:00.000Z',
+    customer: { firstName: 'Asha', lastName: 'Rao', gstinNumber: null },
+    supplier: null,
+    subtotalPaise: 100000,
+    taxPaise: 3000,
+    totalPaise: 103000,
+    paidPaise: 0,
+    notes: null,
+    lineItems: [
+      {
+        id: 'line-1',
+        description: '22K Gold Necklace - 25g',
+        hsnCode: '7113',
+        quantity: 1,
+        unitPricePaise: 100000,
+        taxableAmountPaise: 100000,
+        gstRate: 3,
+        cgstPaise: 1500,
+        sgstPaise: 1500,
+        igstPaise: 0,
+        totalPaise: 103000,
+      },
+      {
+        id: 'line-2',
+        description: 'Making Charges',
+        hsnCode: '7113',
+        quantity: 1,
+        unitPricePaise: 0,
+        taxableAmountPaise: 0,
+        gstRate: 3,
+        cgstPaise: 0,
+        sgstPaise: 0,
+        igstPaise: 0,
+        totalPaise: 0,
+      },
+    ],
+    payments: [],
+  };
+});
 
 // Mock feature components used by finance detail pages
 vi.mock('@/features/finance/tax-breakdown-display', () => ({

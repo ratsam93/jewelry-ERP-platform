@@ -2,6 +2,7 @@
 // Admin procedures for referral program management.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { TrpcService } from '../../trpc/trpc.service';
 import { ReferralService } from './referral.service';
 import { z } from 'zod';
@@ -30,7 +31,7 @@ export class ReferralTrpcRouter {
         }),
 
       programUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(ReferralProgramInputSchema.partial()))
+        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(ReferralProgramInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.referralService.updateProgram(ctx.tenantId, ctx.userId, id, data);

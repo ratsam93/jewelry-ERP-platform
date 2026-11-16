@@ -5,6 +5,7 @@
 // guest-cart sessions.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { TrpcService } from '../../trpc/trpc.service';
 import { StorefrontCatalogService } from './storefront.catalog.service';
@@ -191,7 +192,7 @@ export class StorefrontTrpcRouter {
           .input(z.object({
             orderId: z.string().uuid(),
             externalPaymentId: z.string().min(1),
-            gatewayResponse: z.record(z.unknown()).optional(),
+            gatewayResponse: z.record(z.string(), z.unknown()).optional(),
           }))
           .mutation(({ ctx, input }) =>
             this.checkoutService.completeCheckout(
@@ -289,7 +290,7 @@ export class StorefrontTrpcRouter {
           ),
 
         update: authed
-          .input(z.object({ id: z.string().uuid(), data: AddressInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(AddressInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.addressService.updateAddress(
               ctx.tenantId, ctx.userId, input.id, input.data as Record<string, unknown>,

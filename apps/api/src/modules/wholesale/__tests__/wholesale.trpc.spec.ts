@@ -98,7 +98,8 @@ describe('WholesaleTrpcRouter (suppliers)', () => {
 
   beforeEach(() => vi.clearAllMocks());
 
-  const SUPPLIER_ID = '11111111-1111-1111-1111-111111111111';
+  // Valid RFC 9562 v4 UUID (Zod 4 strictly validates version and variant digits)
+  const SUPPLIER_ID = '3f1e2d4c-5b6a-4789-9abc-def012345678';
 
   const validSupplier = {
     name: 'ABC Suppliers',

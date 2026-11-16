@@ -44,7 +44,7 @@ describe('Sidebar', () => {
     await user.click(inventoryButton);
 
     expect(screen.getByText('Stock Overview')).toBeInTheDocument();
-    expect(screen.getByText('Stock Transfer')).toBeInTheDocument();
+    expect(screen.getByText('Transfers')).toBeInTheDocument();
   });
 
   it('hides labels when collapsed', () => {

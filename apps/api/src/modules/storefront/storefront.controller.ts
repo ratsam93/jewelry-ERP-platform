@@ -193,7 +193,9 @@ export class StorefrontController {
     return success(data);
   }
 
-  @Get('compare')
+  // Ad-hoc comparison of specific products. GET /store/compare is the B2C
+  // comparison list (b2c-features), so this lives under /compare/products.
+  @Get('compare/products')
   async compareProducts(
     @Req() req: HeaderBearingRequest,
     @Query('ids') ids: string,

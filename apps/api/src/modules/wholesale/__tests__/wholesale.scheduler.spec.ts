@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WholesaleScheduler } from '../wholesale.scheduler';
 
 vi.mock('bullmq', () => ({
-  Queue: vi.fn().mockImplementation(() => ({ add: vi.fn(), on: vi.fn(), close: vi.fn() })),
-  Worker: vi.fn().mockImplementation(() => ({ on: vi.fn(), close: vi.fn() })),
+  Queue: vi.fn(function () { return ({ add: vi.fn(), on: vi.fn(), close: vi.fn() }); }),
+  Worker: vi.fn(function () { return ({ on: vi.fn(), close: vi.fn() }); }),
 }));
 
 function make() {

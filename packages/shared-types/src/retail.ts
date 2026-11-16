@@ -424,7 +424,7 @@ export const AppraisalInputSchema = z.object({
   metalType: z.string().optional(),
   weightMg: z.number().int().nonnegative().optional(),
   purityFineness: z.number().int().min(1).max(999).optional(),
-  stoneDetails: z.record(z.unknown()).optional(),
+  stoneDetails: z.record(z.string(), z.unknown()).optional(),
   appraisedValuePaise: z.number().int().nonnegative(),
   appraisedBy: z.string().min(1).max(100),
   validUntil: z.coerce.date().optional(),

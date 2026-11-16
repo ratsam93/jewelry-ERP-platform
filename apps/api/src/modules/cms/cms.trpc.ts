@@ -2,6 +2,7 @@
 // Admin management endpoints for all CMS entities.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { TrpcService } from '../../trpc/trpc.service';
 import { CmsService } from './cms.service';
 import { CmsBlogService } from './cms.blog.service';
@@ -69,7 +70,7 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: BannerInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(BannerInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updateBanner(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -106,7 +107,7 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: CollectionInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(CollectionInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updateCollection(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -143,7 +144,7 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: PageInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(PageInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updatePage(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -180,7 +181,7 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: BlogPostInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(BlogPostInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.blogService.updateBlogPost(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -223,7 +224,7 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: FaqInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(FaqInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updateFaq(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -259,7 +260,7 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: AnnouncementInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(AnnouncementInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updateAnnouncement(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -290,7 +291,7 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: HomepageSectionInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(HomepageSectionInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.homepageService.updateSection(ctx.tenantId, ctx.userId, input.id, input.data),
           ),

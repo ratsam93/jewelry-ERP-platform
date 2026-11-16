@@ -2,6 +2,7 @@
 // All tRPC procedures for the e-commerce module.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { Prisma } from '@caratflow/db';
 import { TrpcService } from '../../trpc/trpc.service';
@@ -159,7 +160,7 @@ export class EcommerceTrpcRouter {
       updateChannel: this.trpc.authedProcedure
         .input(z.object({
           channelId: z.string().uuid(),
-          data: SalesChannelInputSchema.partial(),
+          data: partialUpdate(SalesChannelInputSchema),
         }))
         .mutation(async ({ ctx, input }) => {
           const { settings: _settings, ...rest } = input.data;
@@ -335,7 +336,7 @@ export class EcommerceTrpcRouter {
       updateGateway: this.trpc.authedProcedure
         .input(z.object({
           gatewayId: z.string().uuid(),
-          data: PaymentGatewayInputSchema.partial(),
+          data: partialUpdate(PaymentGatewayInputSchema),
         }))
         .mutation(({ ctx, input }) =>
           this.paymentService.updateGateway(ctx.tenantId, ctx.userId, input.gatewayId, input.data),
@@ -377,7 +378,7 @@ export class EcommerceTrpcRouter {
         .input(z.object({
           source: z.string(),
           eventType: z.string(),
-          payload: z.record(z.unknown()),
+          payload: z.record(z.string(), z.unknown()),
           rawBody: z.string().min(1),
           signature: z.string().min(1),
           channelId: z.string().uuid().optional(),

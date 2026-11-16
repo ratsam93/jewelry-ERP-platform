@@ -3,6 +3,7 @@
 // and try-on session analytics.
 
 import { z } from 'zod';
+import { partialUpdate } from './zod-helpers';
 
 // ─── Enums ────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ export const Product360ConfigInputSchema = z.object({
   zoomEnabled: z.boolean().default(true),
 });
 
-export const Product360ConfigUpdateSchema = Product360ConfigInputSchema.partial().omit({ productId: true });
+export const Product360ConfigUpdateSchema = partialUpdate(Product360ConfigInputSchema).omit({ productId: true });
 
 export const ArAnalyticsFilterSchema = z.object({
   dateFrom: z.coerce.date().optional(),

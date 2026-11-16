@@ -82,14 +82,15 @@ describe('StorefrontTrpcRouter', () => {
     vi.clearAllMocks();
   });
 
-  const PRODUCT_ID = '11111111-1111-1111-1111-111111111111';
-  const PRODUCT_ID_2 = '11111111-1111-1111-1111-111111111112';
-  const ADDRESS_ID = '22222222-2222-2222-2222-222222222222';
-  const CART_ID = '33333333-3333-3333-3333-333333333333';
-  const CART_ITEM_ID = '44444444-4444-4444-4444-444444444444';
-  const ORDER_ID = '55555555-5555-5555-5555-555555555555';
-  const REVIEW_ID = '66666666-6666-6666-6666-666666666666';
-  const ORDER_ITEM_ID = '77777777-7777-7777-7777-777777777777';
+  // Valid RFC 9562 v4 UUIDs (Zod 4 strictly validates version and variant digits)
+  const PRODUCT_ID = '3f1e2d4c-5b6a-4789-9abc-def012345678';
+  const PRODUCT_ID_2 = '3f1e2d4c-5b6a-4789-9abc-def012345679';
+  const ADDRESS_ID = '7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d';
+  const CART_ID = '0b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e';
+  const CART_ITEM_ID = '1c2d3e4f-5a6b-4c7d-9e8f-0a1b2c3d4e5f';
+  const ORDER_ID = '2d3e4f5a-6b7c-4d8e-8f9a-1b2c3d4e5f6a';
+  const REVIEW_ID = '3e4f5a6b-7c8d-4e9f-9a0b-2c3d4e5f6a7b';
+  const ORDER_ITEM_ID = '4f5a6b7c-8d9e-4f0a-8b1c-3d4e5f6a7b8c';
 
   const validAddress = {
     label: 'Home',

@@ -38,11 +38,15 @@ export function WebhookLogViewer({ logs, onRetry }: WebhookLogViewerProps) {
 
         return (
           <div key={log.id} className="rounded-lg border">
-            <button
-              onClick={() => setExpandedId(isExpanded ? null : log.id)}
-              className="flex items-center justify-between w-full p-3 text-left hover:bg-accent/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
+            {/* Header row: the expand toggle and the Retry action are sibling
+                buttons (a <button> must not contain another <button>). */}
+            <div className="flex items-center justify-between w-full hover:bg-accent/50 transition-colors">
+              <button
+                type="button"
+                onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                aria-expanded={isExpanded}
+                className="flex flex-1 items-center gap-3 p-3 text-left"
+              >
                 <StatusIcon className={cn('h-4 w-4', config.className)} />
                 <div>
                   <p className="text-sm font-medium">
@@ -52,27 +56,33 @@ export function WebhookLogViewer({ logs, onRetry }: WebhookLogViewerProps) {
                     {new Date(log.createdAt).toLocaleString()}
                   </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
+              </button>
+              <div className="flex items-center gap-2 pr-3">
                 {log.status === 'FAILED' && onRetry && (
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRetry(log.id);
-                    }}
+                    type="button"
+                    onClick={() => onRetry(log.id)}
                     className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium hover:bg-accent"
                   >
                     <RotateCcw className="h-3 w-3" />
                     Retry
                   </button>
                 )}
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? 'Collapse log' : 'Expand log'}
+                  className="inline-flex items-center"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
               </div>
-            </button>
+            </div>
 
             {isExpanded && (
               <div className="border-t p-3 space-y-2">

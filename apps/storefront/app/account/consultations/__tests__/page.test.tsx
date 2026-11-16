@@ -9,6 +9,7 @@ describe("AccountConsultationsPage", () => {
       ok: true,
       status: 200,
       json: async () => ({
+        success: true,
         data: {
           items: [
             {
@@ -28,6 +29,8 @@ describe("AccountConsultationsPage", () => {
     render(<ConsultationsPage />);
     expect(screen.getByText(/My Consultations/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /New Request/i })).toBeInTheDocument();
+    // Let the initial API load settle so no state update lands outside act().
+    await screen.findByRole("link", { name: /Join Meeting/i });
   });
 
   it("loads consultations from API and shows Join Meeting button for SCHEDULED", async () => {

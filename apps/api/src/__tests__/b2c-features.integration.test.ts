@@ -176,9 +176,7 @@ describe('B2C Features Integration Tests', () => {
       expect(res.status).toBe(201);
     });
 
-    // Shadowed: the storefront controller's GET /store/compare (?ids=) is
-    // registered first, so the B2C sessionId lookup is never reached.
-    it.fails('GET /api/v1/store/compare returns the B2C session comparison list', async () => {
+    it('GET /api/v1/store/compare returns the B2C session comparison list', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/store/compare')
         .query({ sessionId: 'test-session-001' })

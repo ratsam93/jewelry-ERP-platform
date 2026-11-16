@@ -103,7 +103,7 @@ export const ChatMessageResponseSchema = z.object({
   role: ChatMessageRoleEnum,
   content: z.string(),
   messageType: ChatMessageTypeEnum,
-  metadata: z.record(z.unknown()).nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
   timestamp: z.coerce.date(),
 });
 export type ChatMessageResponse = z.infer<typeof ChatMessageResponseSchema>;

@@ -89,7 +89,7 @@ export class PlatformTrpc {
               userId: z.string().uuid(),
               firstName: z.string().min(1).max(100).optional(),
               lastName: z.string().min(1).max(100).optional(),
-              preferences: z.record(z.unknown()).optional(),
+              preferences: z.record(z.string(), z.unknown()).optional(),
             }),
           )
           .mutation(({ ctx, input }) => {
@@ -194,7 +194,7 @@ export class PlatformTrpc {
               postalCode: z.string().max(20).optional(),
               phone: z.string().max(20).optional(),
               email: z.string().email().optional(),
-              settings: z.record(z.unknown()).optional(),
+              settings: z.record(z.string(), z.unknown()).optional(),
             }),
           )
           .mutation(({ ctx, input }) =>
@@ -215,7 +215,7 @@ export class PlatformTrpc {
               phone: z.string().max(20).optional(),
               email: z.string().email().optional(),
               isActive: z.boolean().optional(),
-              settings: z.record(z.unknown()).optional(),
+              settings: z.record(z.string(), z.unknown()).optional(),
             }),
           )
           .mutation(({ ctx, input }) => {
@@ -239,7 +239,7 @@ export class PlatformTrpc {
           .input(
             z.object({
               branchId: z.string().uuid(),
-              settings: z.record(z.unknown()),
+              settings: z.record(z.string(), z.unknown()),
             }),
           )
           .mutation(({ ctx, input }) =>
@@ -296,7 +296,7 @@ export class PlatformTrpc {
               fileUrl: z.string().optional(),
               entityType: z.enum(['customer', 'product', 'supplier']),
               totalRows: z.number().int().nonnegative(),
-              columnMapping: z.record(z.string()),
+              columnMapping: z.record(z.string(), z.string()),
             }),
           )
           .mutation(({ ctx, input }) =>
@@ -307,7 +307,7 @@ export class PlatformTrpc {
           .input(
             z.object({
               importJobId: z.string().uuid(),
-              rows: z.array(z.record(z.unknown())),
+              rows: z.array(z.record(z.string(), z.unknown())),
             }),
           )
           .mutation(({ ctx, input }) =>
@@ -333,7 +333,7 @@ export class PlatformTrpc {
           .input(
             z.object({
               entityType: z.enum(['customer', 'product', 'supplier', 'invoice', 'stock']),
-              filters: z.record(z.unknown()).optional(),
+              filters: z.record(z.string(), z.unknown()).optional(),
               format: z.enum(['CSV', 'XLSX', 'PDF']),
             }),
           )
@@ -467,7 +467,7 @@ export class PlatformTrpc {
               namespace: z.string().min(1).max(50),
               key: z.string().min(1).max(200),
               defaultValue: z.string(),
-              translations: z.record(z.string()).optional(),
+              translations: z.record(z.string(), z.string()).optional(),
             }),
           )
           .mutation(({ input }) => this.i18nService.createTranslationKey(input)),
@@ -477,7 +477,7 @@ export class PlatformTrpc {
             z.object({
               id: z.string().uuid(),
               defaultValue: z.string().optional(),
-              translations: z.record(z.string()).optional(),
+              translations: z.record(z.string(), z.string()).optional(),
             }),
           )
           .mutation(({ input }) => {
@@ -494,7 +494,7 @@ export class PlatformTrpc {
             z.object({
               namespace: z.string(),
               locale: z.string(),
-              translations: z.record(z.string()),
+              translations: z.record(z.string(), z.string()),
             }),
           )
           .mutation(({ input }) =>

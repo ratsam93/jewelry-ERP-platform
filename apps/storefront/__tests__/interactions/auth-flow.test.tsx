@@ -2,12 +2,13 @@
  * Auth flow interaction tests.
  * Covers login form, registration form, social login, and OTP.
  */
-import { describe, it, expect, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "@/app/auth/login/page";
 import RegisterPage from "@/app/auth/register/page";
+import { AUTH_API } from "@/lib/constants";
 
 vi.mock("next/navigation", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("next/navigation");
@@ -100,9 +101,23 @@ describe("Auth Flow - Register", () => {
     expect(link).toHaveAttribute("href", "/auth/login");
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.localStorage.clear();
+  });
+
   it("submits registration form successfully", async () => {
     const user = userEvent.setup();
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: { accessToken: "test-access-token", refreshToken: "test-refresh-token" },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
     render(<RegisterPage />);
     await user.type(screen.getByPlaceholderText("Priya Sharma"), "Test User");
     await user.type(screen.getByPlaceholderText("you@example.com"), "test@example.com");
@@ -113,7 +128,22 @@ describe("Auth Flow - Register", () => {
     const checkbox = screen.getByRole("checkbox");
     await user.click(checkbox);
     await user.click(screen.getByRole("button", { name: /create account/i }));
-    expect(alertSpy).toHaveBeenCalledWith("Registration integration pending. This is a UI placeholder.");
-    alertSpy.mockRestore();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${AUTH_API}/register/email`,
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    expect(body).toMatchObject({
+      email: "test@example.com",
+      password: "password123",
+      firstName: "Test",
+      lastName: "User",
+    });
+    await waitFor(() => {
+      expect(window.localStorage.getItem("accessToken")).toBe("test-access-token");
+    });
   });
 });

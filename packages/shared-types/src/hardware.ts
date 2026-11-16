@@ -3,6 +3,7 @@
 // label printing, customer display, and biometric integrations.
 
 import { z } from 'zod';
+import { partialUpdate } from './zod-helpers';
 import { UuidSchema, PaginationSchema } from './common';
 
 // ─── Enums ────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ export const DeviceConfigSchema = z.object({
   tcpPort: z.number().int().min(1).max(65535).optional(),
   vendorId: z.string().max(20).optional(),
   productId: z.string().max(20).optional(),
-  settings: z.record(z.unknown()).default({}),
+  settings: z.record(z.string(), z.unknown()).default({}),
   isActive: z.boolean().default(true),
   locationId: UuidSchema,
 });
@@ -59,7 +60,7 @@ export type DeviceConfig = z.infer<typeof DeviceConfigSchema>;
 export const CreateDeviceConfigSchema = DeviceConfigSchema.omit({ id: true });
 export type CreateDeviceConfig = z.infer<typeof CreateDeviceConfigSchema>;
 
-export const UpdateDeviceConfigSchema = DeviceConfigSchema.partial().omit({ id: true });
+export const UpdateDeviceConfigSchema = partialUpdate(DeviceConfigSchema).omit({ id: true });
 export type UpdateDeviceConfig = z.infer<typeof UpdateDeviceConfigSchema>;
 
 export const DeviceConfigResponseSchema = DeviceConfigSchema.extend({
@@ -299,7 +300,7 @@ export type LabelTemplate = z.infer<typeof LabelTemplateSchema>;
 export const CreateLabelTemplateSchema = LabelTemplateSchema.omit({ id: true });
 export type CreateLabelTemplate = z.infer<typeof CreateLabelTemplateSchema>;
 
-export const UpdateLabelTemplateSchema = LabelTemplateSchema.partial().omit({ id: true });
+export const UpdateLabelTemplateSchema = partialUpdate(LabelTemplateSchema).omit({ id: true });
 export type UpdateLabelTemplate = z.infer<typeof UpdateLabelTemplateSchema>;
 
 export const LabelTemplateResponseSchema = LabelTemplateSchema.extend({
@@ -311,7 +312,7 @@ export type LabelTemplateResponse = z.infer<typeof LabelTemplateResponseSchema>;
 
 export const PrintLabelRequestSchema = z.object({
   templateId: UuidSchema,
-  data: z.record(z.string()),
+  data: z.record(z.string(), z.string()),
   copies: z.number().int().min(1).max(100).default(1),
   printerId: UuidSchema,
 });
@@ -320,7 +321,7 @@ export type PrintLabelRequest = z.infer<typeof PrintLabelRequestSchema>;
 export const PrintBulkLabelRequestSchema = z.object({
   templateId: UuidSchema,
   items: z.array(z.object({
-    data: z.record(z.string()),
+    data: z.record(z.string(), z.string()),
     copies: z.number().int().min(1).max(100).default(1),
   })).min(1).max(500),
   printerId: UuidSchema,
@@ -471,6 +472,6 @@ export const BiometricWebhookPayloadSchema = z.object({
   employeeCode: z.string().min(1),
   eventType: z.enum(['CHECK_IN', 'CHECK_OUT']).default('CHECK_IN'),
   timestamp: z.string(),
-  raw: z.record(z.unknown()).optional(),
+  raw: z.record(z.string(), z.unknown()).optional(),
 });
 export type BiometricWebhookPayload = z.infer<typeof BiometricWebhookPayloadSchema>;

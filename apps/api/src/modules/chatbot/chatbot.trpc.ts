@@ -3,6 +3,7 @@
 // active/escalated chat sessions.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { TrpcService } from '../../trpc/trpc.service';
 import { ChatbotService } from './chatbot.service';
 import { ChatbotKnowledgeService } from './chatbot.knowledge.service';
@@ -34,7 +35,7 @@ export class ChatbotTrpcRouter {
         }),
 
       faqUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(ChatFaqInputSchema.partial()))
+        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(ChatFaqInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.knowledgeService.updateFaq(ctx.tenantId, id, data);
@@ -80,7 +81,7 @@ export class ChatbotTrpcRouter {
         }),
 
       templateUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(ChatTemplateInputSchema.partial()))
+        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(ChatTemplateInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.knowledgeService.updateTemplate(ctx.tenantId, id, data);

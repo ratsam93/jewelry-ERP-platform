@@ -2,6 +2,7 @@
 // Admin procedures for AML compliance management.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { TrpcService } from '../../trpc/trpc.service';
 import { AmlService } from './aml.service';
 import { AmlAlertService } from './aml.alert.service';
@@ -50,7 +51,7 @@ export class AmlTrpcRouter {
         }),
 
       ruleUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(AmlRuleInputSchema.partial()))
+        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(AmlRuleInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.amlService.updateRule(ctx.tenantId, ctx.userId, id, data);

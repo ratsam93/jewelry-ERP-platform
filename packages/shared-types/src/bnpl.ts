@@ -63,7 +63,7 @@ export const BnplProviderInputSchema = z.object({
   maxOrderPaise: z.number().int().positive(),
   supportedTenures: z.array(z.number().int().positive()),
   processingFeePct: z.number().int().nonnegative().default(0),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 });
 export type BnplProviderInput = z.infer<typeof BnplProviderInputSchema>;
 

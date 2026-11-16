@@ -3,6 +3,7 @@
 // EMI plan CRUD, transaction management, and analytics.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { TrpcService } from '../../trpc/trpc.service';
 import { BnplService } from './bnpl.service';
@@ -55,7 +56,7 @@ export class BnplTrpcRouter {
       updateProvider: this.trpc.authedProcedure
         .input(z.object({
           providerId: z.string().uuid(),
-          data: BnplProviderInputSchema.partial(),
+          data: partialUpdate(BnplProviderInputSchema),
         }))
         .mutation(({ ctx, input }) =>
           this.bnplService.updateProvider(ctx.tenantId, ctx.userId, input.providerId, input.data),
@@ -80,7 +81,7 @@ export class BnplTrpcRouter {
       updateEmiPlan: this.trpc.authedProcedure
         .input(z.object({
           planId: z.string().uuid(),
-          data: EmiPlanInputSchema.partial(),
+          data: partialUpdate(EmiPlanInputSchema),
         }))
         .mutation(({ ctx, input }) =>
           this.emiService.updateEmiPlan(ctx.tenantId, ctx.userId, input.planId, input.data),

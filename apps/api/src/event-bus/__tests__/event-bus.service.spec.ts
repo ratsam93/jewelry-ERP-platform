@@ -8,11 +8,13 @@ const mockWorkerOn = vi.fn();
 
 vi.mock('bullmq', () => {
   return {
-    Queue: vi.fn().mockImplementation(() => ({
-      add: mockQueueAdd,
-      close: mockQueueClose,
-    })),
-    Worker: vi.fn().mockImplementation((_name: string, processor: (...args: any[]) => any, _opts: any) => {
+    Queue: vi.fn(function () {
+      return {
+        add: mockQueueAdd,
+        close: mockQueueClose,
+      };
+    }),
+    Worker: vi.fn(function (_name: string, processor: (...args: any[]) => any, _opts: any) {
       // Store processor so we can invoke it in tests
       (Worker as any).__lastProcessor = processor;
       return {

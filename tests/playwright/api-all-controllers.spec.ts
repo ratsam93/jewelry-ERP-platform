@@ -199,13 +199,13 @@ test.describe('Storefront Controller', () => {
     expect(res.status()).toBe(400);
   });
 
-  test('GET /store/compare - missing ids returns 400', async ({ request }) => {
-    const res = await request.get(`${STORE}/compare`, { headers: tenantHeaders() });
+  test('GET /store/compare/products - missing ids returns 400', async ({ request }) => {
+    const res = await request.get(`${STORE}/compare/products`, { headers: tenantHeaders() });
     expect([400, 500]).toContain(res.status());
   });
 
-  test('GET /store/compare - only 1 id returns 400', async ({ request }) => {
-    const res = await request.get(`${STORE}/compare?ids=${FAKE_PRODUCT_ID}`, {
+  test('GET /store/compare/products - only 1 id returns 400', async ({ request }) => {
+    const res = await request.get(`${STORE}/compare/products?ids=${FAKE_PRODUCT_ID}`, {
       headers: tenantHeaders(),
     });
     expect([400, 500]).toContain(res.status());

@@ -3,6 +3,7 @@
 // production planning, and manufacturing dashboard.
 
 import { z } from 'zod';
+import { partialUpdate } from './zod-helpers';
 
 // ─── Enums ──────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ export const BomInputSchema = z.object({
 });
 export type BomInput = z.infer<typeof BomInputSchema>;
 
-export const BomUpdateSchema = BomInputSchema.partial().omit({ items: true }).extend({
+export const BomUpdateSchema = partialUpdate(BomInputSchema).omit({ items: true }).extend({
   items: z.array(BomItemInputSchema).min(1).optional(),
 });
 export type BomUpdate = z.infer<typeof BomUpdateSchema>;

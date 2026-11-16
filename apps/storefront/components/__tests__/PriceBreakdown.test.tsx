@@ -6,6 +6,7 @@ import { calculateProductPrice, formatRupees } from "@/lib/utils";
 import { render } from "./test-utils";
 
 const product = mockProducts[0]!; // Has stone charges
+const productNoStone = { ...product, stoneTotalPrice: 0 };
 const price = calculateProductPrice(product);
 
 

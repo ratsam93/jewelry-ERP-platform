@@ -45,9 +45,9 @@ describe('CrmTrpcRouter (videoConsultation sub-router)', () => {
   );
   const caller = (routerInstance.router as never as ReturnType<typeof trpc.router>).createCaller(ctx);
 
-  const CONSULTATION_ID = '44444444-4444-4444-4444-444444444444';
-  const CUSTOMER_ID = '55555555-5555-5555-5555-555555555555';
-  const CONSULTANT_ID = '66666666-6666-6666-6666-666666666666';
+  const CONSULTATION_ID = '44444444-4444-4444-8444-444444444444';
+  const CUSTOMER_ID = '55555555-5555-4555-8555-555555555555';
+  const CONSULTANT_ID = '66666666-6666-4666-8666-666666666666';
 
   beforeEach(() => {
     vi.clearAllMocks();

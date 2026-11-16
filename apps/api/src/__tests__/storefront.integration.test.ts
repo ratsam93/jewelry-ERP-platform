@@ -356,10 +356,10 @@ describe('Storefront Integration Tests', () => {
   //  COMPARE
   // ═══════════════════════════════════════════════════════════════
 
-  describe('GET /api/v1/store/compare', () => {
+  describe('GET /api/v1/store/compare/products', () => {
     it('returns 400 with fewer than 2 product IDs', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/v1/store/compare')
+        .get('/api/v1/store/compare/products')
         .query({ ids: uuid() })
         .set(storefrontHeaders());
 
@@ -369,7 +369,7 @@ describe('Storefront Integration Tests', () => {
     it('returns 400 with more than 4 product IDs', async () => {
       const ids = Array.from({ length: 5 }, () => uuid()).join(',');
       const res = await request(app.getHttpServer())
-        .get('/api/v1/store/compare')
+        .get('/api/v1/store/compare/products')
         .query({ ids })
         .set(storefrontHeaders());
 
@@ -384,7 +384,7 @@ describe('Storefront Integration Tests', () => {
       );
 
       const res = await request(app.getHttpServer())
-        .get('/api/v1/store/compare')
+        .get('/api/v1/store/compare/products')
         .query({ ids: ids.join(',') })
         .set(storefrontHeaders());
 
