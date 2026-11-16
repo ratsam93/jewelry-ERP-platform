@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { EcommerceShippingService } from '../ecommerce.shipping.service';
 import { createMockPrismaService, TEST_TENANT_ID, TEST_USER_ID } from '../../../__tests__/setup';
@@ -98,14 +98,58 @@ describe('EcommerceShippingService (Unit)', () => {
   });
 
   describe('generateLabel', () => {
-    it('sets carrier and label URL', async () => {
+    const envKeys = ['SHIPROCKET_EMAIL', 'SHIPROCKET_PASSWORD', 'SHIPPING_MOCK', 'NODE_ENV', 'DELHIVERY_API_TOKEN', 'DELHIVERY_PICKUP_LOCATION'];
+    const saved: Record<string, string | undefined> = {};
+
+    beforeEach(() => {
+      for (const k of envKeys) { saved[k] = process.env[k]; delete process.env[k]; }
+    });
+    afterEach(() => {
+      for (const k of envKeys) {
+        if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
+      }
+    });
+
+    it('throws NOT_CONFIGURED for Shiprocket without credentials (no fake label)', async () => {
       mockPrisma.shipment.findFirst.mockResolvedValue({ ...shipment, order: {} });
-      mockPrisma.shipment.update.mockResolvedValue({
-        ...shipment, carrier: 'Shiprocket', labelUrl: 'https://labels.example.com/SH.pdf',
+      await expect(service.generateLabel(TEST_TENANT_ID, 'sh-1', 'Shiprocket')).rejects.toMatchObject({
+        response: { status: 'NOT_CONFIGURED' },
       });
+      expect(mockPrisma.shipment.update).not.toHaveBeenCalled();
+    });
+
+    it('throws NOT_CONFIGURED for Delhivery without token', async () => {
+      mockPrisma.shipment.findFirst.mockResolvedValue({ ...shipment, order: {} });
+      await expect(service.generateLabel(TEST_TENANT_ID, 'sh-1', 'DELHIVERY')).rejects.toMatchObject({
+        response: { status: 'NOT_CONFIGURED' },
+      });
+    });
+
+    it('throws for unknown carriers without a mock override', async () => {
+      mockPrisma.shipment.findFirst.mockResolvedValue({ ...shipment, order: {} });
+      await expect(service.generateLabel(TEST_TENANT_ID, 'sh-1', 'BLUEDART')).rejects.toMatchObject({
+        response: { status: 'NOT_CONFIGURED' },
+      });
+    });
+
+    it('returns a non-HTTP mock label only when SHIPPING_MOCK=true outside production', async () => {
+      process.env.SHIPPING_MOCK = 'true';
+      process.env.NODE_ENV = 'development';
+      mockPrisma.shipment.findFirst.mockResolvedValue({ ...shipment, order: {} });
+      mockPrisma.shipment.update.mockImplementation(async ({ data }: any) => ({ ...shipment, ...data }));
 
       const result = await service.generateLabel(TEST_TENANT_ID, 'sh-1', 'Shiprocket');
-      expect(result.labelUrl).toContain('labels.example.com');
+      expect(result.labelUrl).toBe('mock://shipping-label/SH/2604/0001');
+      expect(result.labelUrl).not.toContain('example.com');
+    });
+
+    it('ignores SHIPPING_MOCK=true in production', async () => {
+      process.env.SHIPPING_MOCK = 'true';
+      process.env.NODE_ENV = 'production';
+      mockPrisma.shipment.findFirst.mockResolvedValue({ ...shipment, order: {} });
+      await expect(service.generateLabel(TEST_TENANT_ID, 'sh-1', 'Shiprocket')).rejects.toMatchObject({
+        response: { status: 'NOT_CONFIGURED' },
+      });
     });
   });
 

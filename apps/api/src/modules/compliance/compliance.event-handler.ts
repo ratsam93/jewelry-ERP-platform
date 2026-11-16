@@ -4,7 +4,12 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import { PrismaService } from '../../common/prisma.service';
-import { ComplianceHuidService } from './compliance.huid.service';
+import {
+  ComplianceHuidService,
+  HuidSaleBlockedError,
+  getHuidEnforcementMode,
+  type HuidSaleEligibility,
+} from './compliance.huid.service';
 import type {
   RetailSaleCompletedEvent,
   InventoryItemCreatedEvent,
@@ -26,21 +31,31 @@ export class ComplianceEventHandler implements OnModuleInit {
 
   /**
    * When a retail sale is completed, verify all gold items have valid HUIDs.
-   * Logs a warning if any gold product is sold without HUID.
+   *
+   * HUID_ENFORCEMENT=warn (default): logs a warning per non-compliant item.
+   * HUID_ENFORCEMENT=block: throws HuidSaleBlockedError after checking all
+   * items. This event is delivered after the sale is recorded, so the throw
+   * surfaces as a failed compliance job. To actually stop a sale, the retail
+   * sale path must call ComplianceHuidService.assertSaleEligible() before commit.
    */
   private async handleSaleCompleted(event: DomainEvent) {
     const { tenantId, payload } = event as RetailSaleCompletedEvent;
     const { saleId, items } = payload;
+    const mode = getHuidEnforcementMode();
+    const blocked: HuidSaleEligibility[] = [];
 
     for (const item of items) {
       try {
-        const hasHuid = await this.huidService.enforceHuidOnSale(tenantId, item.productId);
-        if (!hasHuid) {
+        const result = await this.huidService.checkSaleEligibility(tenantId, item.productId);
+        if (result.eligible) continue;
+
+        if (mode === 'block') {
+          blocked.push(result);
+        } else {
           console.warn(
             `[ComplianceEventHandler] Gold product ${item.productId} sold without HUID in sale ${saleId}. ` +
             `This may violate BIS hallmarking requirements.`,
           );
-          // In production, this could create an alert or block the sale
         }
       } catch (error) {
         console.error(
@@ -48,6 +63,14 @@ export class ComplianceEventHandler implements OnModuleInit {
           error,
         );
       }
+    }
+
+    if (blocked.length > 0) {
+      console.error(
+        `[ComplianceEventHandler] HUID_ENFORCEMENT=block: sale ${saleId} has ${blocked.length} ` +
+        `item(s) without HUID.`,
+      );
+      throw new HuidSaleBlockedError(blocked);
     }
   }
 

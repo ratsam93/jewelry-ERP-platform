@@ -12,8 +12,8 @@
 //   shopify_last_order_sync_at_{channelId}   ISO string
 
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
-import { createHmac } from 'crypto';
 import type { ShopifyWebhookPayload } from '@caratflow/shared-types';
+import { verifyShopifyHmac } from './ecommerce.webhook-signature';
 import { OnlineOrderStatus } from '@caratflow/shared-types';
 import type { Prisma } from '@caratflow/db';
 import { PrismaService } from '../../common/prisma.service';
@@ -79,11 +79,8 @@ export class EcommerceShopifyService extends TenantAwareService {
   /**
    * Verify Shopify webhook HMAC-SHA256 signature.
    */
-  verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
-    const hmac = createHmac('sha256', secret)
-      .update(body, 'utf8')
-      .digest('base64');
-    return hmac === signature;
+  verifyWebhookSignature(body: string | Buffer, signature: string, secret: string): boolean {
+    return verifyShopifyHmac(body, signature, secret);
   }
 
   /**

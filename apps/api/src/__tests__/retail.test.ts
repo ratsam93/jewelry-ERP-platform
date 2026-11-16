@@ -37,7 +37,7 @@ describe('RetailService', () => {
         },
       ],
       payments: [
-        { method: 'CASH', amountPaise: 6695000 }, // total with GST
+        { method: 'CASH', amountPaise: 6701000 }, // total incl. 3% on metal + 5% on making charges
       ],
     };
 
@@ -124,7 +124,7 @@ describe('RetailService', () => {
         ...baseSaleInput,
         payments: [
           { method: 'CASH', amountPaise: 3000000 },
-          { method: 'CARD', amountPaise: 3695000 },
+          { method: 'CARD', amountPaise: 3701000 },
         ],
       };
 

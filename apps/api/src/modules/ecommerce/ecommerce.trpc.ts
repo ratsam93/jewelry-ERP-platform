@@ -10,7 +10,9 @@ import { EcommerceCatalogService } from './ecommerce.catalog.service';
 import { EcommerceShippingService } from './ecommerce.shipping.service';
 import { EcommercePaymentService } from './ecommerce.payment.service';
 import { EcommerceWebhookService } from './ecommerce.webhook.service';
+import { EcommerceShopifyService } from './ecommerce.shopify.service';
 import { EcommerceClickCollectService } from './ecommerce.click-collect.service';
+import { TRPCError } from '@trpc/server';
 import {
   SalesChannelInputSchema,
   SalesChannelListFilterSchema,
@@ -45,7 +47,19 @@ export class EcommerceTrpcRouter {
     private readonly paymentService: EcommercePaymentService,
     private readonly webhookService: EcommerceWebhookService,
     private readonly clickCollectService: EcommerceClickCollectService,
+    private readonly shopifyService: EcommerceShopifyService,
   ) {}
+
+  /** Ensure the channel belongs to the tenant and is a Shopify channel. */
+  private async assertShopifyChannel(tenantId: string, channelId: string): Promise<void> {
+    const channel = await this.prisma.salesChannel.findFirst({
+      where: { id: channelId, tenantId, channelType: 'SHOPIFY' },
+      select: { id: true },
+    });
+    if (!channel) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Shopify channel not found' });
+    }
+  }
 
   get router() {
     return this.trpc.router({
@@ -357,24 +371,56 @@ export class EcommerceTrpcRouter {
         ),
 
       // ─── Webhooks ─────────────────────────────────────────────
+      // Signed payloads only: the caller must supply the raw body and the
+      // provider signature, which is verified before anything is processed.
       handleWebhook: this.trpc.authedProcedure
         .input(z.object({
           source: z.string(),
           eventType: z.string(),
           payload: z.record(z.unknown()),
+          rawBody: z.string().min(1),
+          signature: z.string().min(1),
           channelId: z.string().uuid().optional(),
           gatewayId: z.string().uuid().optional(),
         }))
-        .mutation(({ ctx, input }) =>
-          this.webhookService.handleWebhook(
+        .mutation(async ({ ctx, input }) => {
+          const valid = await this.webhookService.verifyInboundSignature(
+            ctx.tenantId,
+            input.source,
+            input.rawBody,
+            input.signature,
+            input.channelId,
+          );
+          if (!valid) {
+            throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid or unverifiable webhook signature' });
+          }
+          return this.webhookService.handleWebhook(
             ctx.tenantId,
             input.source,
             input.eventType,
             input.payload,
             input.channelId,
             input.gatewayId,
-          ),
-        ),
+          );
+        }),
+
+      // ─── Shopify (admin-triggered) ────────────────────────────
+      syncProductToShopify: this.trpc.authedProcedure
+        .input(z.object({
+          channelId: z.string().uuid(),
+          productId: z.string().uuid(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+          await this.assertShopifyChannel(ctx.tenantId, input.channelId);
+          return this.shopifyService.syncProductToShopify(ctx.tenantId, input.channelId, input.productId);
+        }),
+
+      pullOrdersFromShopify: this.trpc.authedProcedure
+        .input(z.object({ channelId: z.string().uuid() }))
+        .mutation(async ({ ctx, input }) => {
+          await this.assertShopifyChannel(ctx.tenantId, input.channelId);
+          return this.shopifyService.pullOrdersFromShopify(ctx.tenantId, input.channelId);
+        }),
 
       retryWebhook: this.trpc.authedProcedure
         .input(z.object({ webhookLogId: z.string().uuid() }))

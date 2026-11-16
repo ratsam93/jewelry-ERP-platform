@@ -7,6 +7,7 @@ import { CrmLoyaltyService } from './crm.loyalty.service';
 import { CrmFeedbackService } from './crm.feedback.service';
 import type {
   RetailSaleCompletedEvent,
+  RetailLoyaltyRedeemedEvent,
   FinancialPaymentReceivedEvent,
 } from '@caratflow/shared-types';
 
@@ -54,6 +55,21 @@ export class CrmEventHandler implements OnModuleInit {
         });
       } catch (err) {
         this.logger.error(`Failed to process sale event for CRM: ${err}`);
+      }
+    });
+
+    // Subscribe to retail.loyalty.redeemed -> re-derive the customer's tier
+    // from the post-redemption balance. Errors are logged, never rethrown.
+    this.eventBus.subscribe('retail.loyalty.redeemed', async (event) => {
+      const e = event as RetailLoyaltyRedeemedEvent;
+      const { tenantId, userId } = e;
+      const { customerId, saleId, points } = e.payload;
+
+      try {
+        await this.loyaltyService.syncTierForCustomer(tenantId, userId, customerId);
+        this.logger.log(`Recalculated loyalty tier for customer ${customerId} after redeeming ${points} points (sale ${saleId})`);
+      } catch (err) {
+        this.logger.error(`Failed to recalculate loyalty tier for customer ${customerId}: ${err}`);
       }
     });
 

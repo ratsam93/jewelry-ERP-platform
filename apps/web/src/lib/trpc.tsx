@@ -36,7 +36,7 @@ export function createTrpcClient() {
   return trpc.createClient({
     links: [
       httpBatchLink({
-        url: `${getApiBaseUrl()}/trpc`,
+        url: `${getApiBaseUrl()}/api/v1/trpc`,
         // The server router (apps/api/src/trpc/trpc.service.ts) sets a custom
         // transformer, and tRPC v11 types require the client link to declare one.
         // Identity functions mirror the server's input/output deserialize steps,

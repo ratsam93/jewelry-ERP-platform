@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ComplianceCertificateService } from '../compliance.certificate.service';
 import { createMockPrismaService, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
 
@@ -146,21 +146,74 @@ describe('ComplianceCertificateService (Unit)', () => {
   // ─── verifyCertificate ──────────────────────────────────────────
 
   describe('verifyCertificate', () => {
-    it('marks certificate as verified', async () => {
-      (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue({ id: 'cert-1' });
+    const certRow = (lab: string, number: string) => ({
+      id: 'cert-1',
+      certificateNumber: number,
+      issuingLab: lab,
+      isVerified: false,
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+
+    it('never marks a cert verified without lab credentials (GIA)', async () => {
+      vi.stubEnv('GIA_API_URL', '');
+      vi.stubEnv('GIA_API_KEY', '');
+      (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue(certRow('GIA', 'GIA-99999999'));
+
+      const result = await service.verifyCertificate(TEST_TENANT_ID, TEST_USER_ID, 'cert-1');
+
+      expect(result.status).toBe('PENDING_VERIFICATION');
+      expect(result.verificationMode).toBe('MANUAL');
+      expect(result.isValid).toBe(false);
+      expect(result.verifiedAt).toBeNull();
+      expect((mockPrisma as any).gemstoneCertificate.update).not.toHaveBeenCalled();
+    });
+
+    it('treats HRD and SGL as manual-verification labs', async () => {
+      for (const lab of ['HRD', 'SGL']) {
+        (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue(certRow(lab, `${lab}-1`));
+        const result = await service.verifyCertificate(TEST_TENANT_ID, TEST_USER_ID, 'cert-1');
+        expect(result.status).toBe('PENDING_VERIFICATION');
+        expect(result.verificationMode).toBe('MANUAL');
+        expect(result.isValid).toBe(false);
+      }
+      expect((mockPrisma as any).gemstoneCertificate.update).not.toHaveBeenCalled();
+    });
+
+    it('marks VERIFIED via the lab API when the lab confirms the cert', async () => {
+      vi.stubEnv('IGI_API_URL', 'https://igi.example.test');
+      vi.stubEnv('IGI_API_KEY', 'test-key');
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ valid: true }) }));
+      (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue(certRow('IGI', 'IGI-1'));
       (mockPrisma as any).gemstoneCertificate.update.mockResolvedValue({
         id: 'cert-1',
-        certificateNumber: 'GIA-12345678',
-        issuingLab: 'GIA',
+        certificateNumber: 'IGI-1',
+        issuingLab: 'IGI',
         isVerified: true,
         verifiedAt: new Date(),
-        product: { id: 'prod-1', sku: 'S1', name: 'Stone' },
       });
 
       const result = await service.verifyCertificate(TEST_TENANT_ID, TEST_USER_ID, 'cert-1');
+
+      expect(result.status).toBe('VERIFIED');
+      expect(result.verificationMode).toBe('API');
       expect(result.isValid).toBe(true);
-      expect(result.lab).toBe('GIA');
-      expect(result.verifiedAt).toBeDefined();
+      expect(result.source).toBe('IGI-API');
+    });
+
+    it('rejects and leaves the record unverified when the lab does not confirm', async () => {
+      vi.stubEnv('GIA_API_URL', 'https://gia.example.test');
+      vi.stubEnv('GIA_API_KEY', 'test-key');
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ valid: false, message: 'unknown' }) }));
+      (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue(certRow('GIA', 'GIA-404'));
+
+      await expect(
+        service.verifyCertificate(TEST_TENANT_ID, TEST_USER_ID, 'cert-1'),
+      ).rejects.toThrow('could not verify');
+      expect((mockPrisma as any).gemstoneCertificate.update).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException for missing certificate', async () => {
@@ -170,47 +223,39 @@ describe('ComplianceCertificateService (Unit)', () => {
         service.verifyCertificate(TEST_TENANT_ID, TEST_USER_ID, 'nonexistent'),
       ).rejects.toThrow('not found');
     });
+  });
 
-    it('returns source=MOCK when no lab credentials configured', async () => {
-      delete process.env.GIA_API_URL;
-      delete process.env.GIA_API_KEY;
-      (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue({
-        id: 'cert-1',
-        certificateNumber: 'GIA-99999999',
-        issuingLab: 'GIA',
-      });
+  // ─── manualVerify ───────────────────────────────────────────────
+
+  describe('manualVerify', () => {
+    it('records verifier (updatedBy) and verification date', async () => {
+      (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue({ id: 'cert-1', certificateNumber: 'HRD-9' });
+      const verifiedAt = new Date('2026-11-16T10:00:00Z');
       (mockPrisma as any).gemstoneCertificate.update.mockResolvedValue({
         id: 'cert-1',
-        certificateNumber: 'GIA-99999999',
-        issuingLab: 'GIA',
+        certificateNumber: 'HRD-9',
+        issuingLab: 'HRD',
         isVerified: true,
-        verifiedAt: new Date(),
-        product: { id: 'prod-1', sku: 'S1', name: 'Stone' },
+        verifiedAt,
       });
 
-      const result = await service.verifyCertificate(TEST_TENANT_ID, TEST_USER_ID, 'cert-1');
-      expect(result.isValid).toBe(true);
-      expect(result.source).toBe('MOCK');
+      const result = await service.manualVerify(TEST_TENANT_ID, TEST_USER_ID, 'cert-1');
+
+      const call = (mockPrisma as any).gemstoneCertificate.update.mock.calls[0][0];
+      expect(call.data.isVerified).toBe(true);
+      expect(call.data.updatedBy).toBe(TEST_USER_ID);
+      expect(call.data.verifiedAt).toBeInstanceOf(Date);
+      expect(result.verificationMode).toBe('MANUAL');
+      expect(result.verifiedBy).toBe(TEST_USER_ID);
+      expect(result.verifiedAt).toEqual(verifiedAt);
     });
 
-    it('accepts certificates from labs without uppercase conversion ambiguity', async () => {
-      (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue({
-        id: 'cert-2',
-        certificateNumber: 'IGI-12345',
-        issuingLab: 'IGI',
-      });
-      (mockPrisma as any).gemstoneCertificate.update.mockResolvedValue({
-        id: 'cert-2',
-        certificateNumber: 'IGI-12345',
-        issuingLab: 'IGI',
-        isVerified: true,
-        verifiedAt: new Date(),
-        product: { id: 'prod-2', sku: 'S2', name: 'Stone' },
-      });
+    it('throws NotFoundException for missing certificate', async () => {
+      (mockPrisma as any).gemstoneCertificate.findFirst.mockResolvedValue(null);
 
-      const result = await service.verifyCertificate(TEST_TENANT_ID, TEST_USER_ID, 'cert-2');
-      expect(result.lab).toBe('IGI');
-      expect(result.source).toBeDefined();
+      await expect(
+        service.manualVerify(TEST_TENANT_ID, TEST_USER_ID, 'nonexistent'),
+      ).rejects.toThrow('not found');
     });
   });
 

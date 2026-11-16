@@ -2,7 +2,7 @@
 // Repair order lifecycle: receive, diagnose, quote, approve, work, complete, deliver.
 
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import type { RepairOrderInput, RepairOrderResponse, RepairStatusUpdate, RepairListFilter } from '@caratflow/shared-types';
+import type { RepairProfitability, RepairOrderInput, RepairOrderResponse, RepairStatusUpdate, RepairListFilter } from '@caratflow/shared-types';
 import type { PaginatedResult, Pagination } from '@caratflow/shared-types';
 import { RepairOrderStatus } from '@caratflow/shared-types';
 import { Prisma } from '@caratflow/db';
@@ -212,6 +212,49 @@ export class RetailRepairService extends TenantAwareService {
     }
 
     return queue;
+  }
+
+  /**
+   * Profitability of a single repair: revenue (final charge, else the quoted
+   * estimate) minus labor and material costs. Margin is in basis points
+   * (profit / revenue * 10000, integer). Cancelled repairs earn no revenue.
+   */
+  async computeRepairProfitability(tenantId: string, repairId: string): Promise<RepairProfitability> {
+    const repair = await this.prisma.repairOrder.findFirst({
+      where: this.tenantWhere(tenantId, { id: repairId }) as { tenantId: string; id: string },
+    });
+    if (!repair) throw new NotFoundException('Repair order not found');
+
+    const actual = repair.actualCostPaise != null ? BigInt(repair.actualCostPaise) : null;
+    const estimate = repair.estimatePaise != null ? BigInt(repair.estimatePaise) : null;
+    const isCancelled = repair.status === 'CANCELLED';
+    const revenuePaise = isCancelled ? 0n : (actual ?? estimate ?? 0n);
+    const revenueSource: RepairProfitability['revenueSource'] = isCancelled
+      ? 'NONE'
+      : actual != null
+        ? 'FINAL_CHARGE'
+        : estimate != null
+          ? 'ESTIMATE'
+          : 'NONE';
+
+    const laborPaise = BigInt(repair.laborPaise ?? 0);
+    const materialPaise = BigInt(repair.materialPaise ?? 0);
+    const totalCostPaise = laborPaise + materialPaise;
+    const profitPaise = revenuePaise - totalCostPaise;
+    const marginBps = revenuePaise > 0n ? Number((profitPaise * 10000n) / revenuePaise) : null;
+
+    return {
+      repairId: repair.id,
+      repairNumber: repair.repairNumber,
+      status: repair.status as RepairOrderStatus,
+      revenuePaise: Number(revenuePaise),
+      revenueSource,
+      laborPaise: Number(laborPaise),
+      materialPaise: Number(materialPaise),
+      totalCostPaise: Number(totalCostPaise),
+      profitPaise: Number(profitPaise),
+      marginBps,
+    };
   }
 
   private mapRepairToResponse(repair: Record<string, unknown>): RepairOrderResponse {

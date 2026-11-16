@@ -378,6 +378,19 @@ export class CrmLoyaltyService extends TenantAwareService {
     };
   }
 
+  /**
+   * Re-derive the customer's tier from their stored loyaltyPoints balance.
+   * Used by event subscribers (e.g. retail.loyalty.redeemed) that only know
+   * the customer id.
+   */
+  async syncTierForCustomer(tenantId: string, userId: string, customerId: string): Promise<void> {
+    const customer = await this.prisma.customer.findFirstOrThrow({
+      where: { id: customerId, tenantId },
+      select: { loyaltyPoints: true },
+    });
+    await this.recalculateTier(tenantId, userId, customerId, customer.loyaltyPoints);
+  }
+
   /** Recalculate customer tier based on current points */
   private async recalculateTier(tenantId: string, userId: string, customerId: string, currentPoints: number) {
     const program = await this.getActiveProgram(tenantId);

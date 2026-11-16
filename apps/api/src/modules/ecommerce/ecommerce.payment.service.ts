@@ -232,30 +232,6 @@ export class EcommercePaymentService extends TenantAwareService {
   }
 
   /**
-   * Verify Stripe webhook signature.
-   */
-  verifyStripeSignature(body: string, sigHeader: string, secret: string): boolean {
-    const parts = sigHeader.split(',');
-    let timestamp = '';
-    let signature = '';
-
-    for (const part of parts) {
-      const [key, value] = part.split('=');
-      if (key === 't') timestamp = value ?? '';
-      if (key === 'v1') signature = value ?? '';
-    }
-
-    if (!timestamp || !signature) return false;
-
-    const payload = `${timestamp}.${body}`;
-    const expected = createHmac('sha256', secret)
-      .update(payload)
-      .digest('hex');
-
-    return expected === signature;
-  }
-
-  /**
    * Process Razorpay webhook payload.
    */
   async processRazorpayWebhook(

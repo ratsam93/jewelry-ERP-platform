@@ -9,7 +9,27 @@ import Link from 'next/link';
 export default function CertificateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: cert, isLoading } = trpc.compliance.certificates.getById.useQuery({ id });
-  const verifyMutation = trpc.compliance.certificates.verify.useMutation();
+  const utils = trpc.useUtils();
+  const onDone = () => utils.compliance.certificates.getById.invalidate({ id });
+  const verifyMutation = trpc.compliance.certificates.verify.useMutation({ onSuccess: onDone });
+  const manualVerifyMutation = trpc.compliance.certificates.manualVerifyCertificate.useMutation({
+    onSuccess: onDone,
+  });
+
+  const handleManualVerify = () => {
+    if (
+      window.confirm(
+        'Confirm that you have checked this certificate against the physical report or the lab website. ' +
+          'It will be recorded as manually verified by you.',
+      )
+    ) {
+      manualVerifyMutation.mutate({ id });
+    }
+  };
+  // Result of the latest action in this session (the DB stores verified flag + date only).
+  const lastResult = (manualVerifyMutation.data ?? verifyMutation.data) as
+    | { status?: string; verificationMode?: string }
+    | undefined;
 
   if (isLoading) {
     return (
@@ -51,14 +71,24 @@ export default function CertificateDetailPage() {
         ]}
         actions={
           !cert.isVerified ? (
+            <div className="flex gap-2">
+            <button
+              onClick={handleManualVerify}
+              disabled={manualVerifyMutation.isPending}
+              className="inline-flex h-9 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:opacity-50"
+            >
+              <CheckCircle className="h-4 w-4" />
+              {manualVerifyMutation.isPending ? 'Saving...' : 'Mark as manually verified'}
+            </button>
             <button
               onClick={() => verifyMutation.mutate({ id })}
               disabled={verifyMutation.isPending}
               className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               <CheckCircle className="h-4 w-4" />
-              {verifyMutation.isPending ? 'Verifying...' : 'Verify Certificate'}
+              {verifyMutation.isPending ? 'Verifying...' : 'Verify with Lab'}
             </button>
+            </div>
           ) : undefined
         }
       />
@@ -88,19 +118,36 @@ export default function CertificateDetailPage() {
         {/* Details */}
         <div className="space-y-6">
           {/* Verification status */}
-          <div className="flex items-center gap-2">
-            {cert.isVerified ? (
-              <>
-                <CheckCircle className="h-5 w-5 text-emerald-500" />
-                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                  Verified {cert.verifiedAt ? `on ${new Date(cert.verifiedAt as unknown as string | Date).toLocaleDateString()}` : ''}
-                </span>
-              </>
-            ) : (
-              <>
-                <XCircle className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Not yet verified</span>
-              </>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              {cert.isVerified ? (
+                <>
+                  <CheckCircle className="h-5 w-5 text-emerald-500" />
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                    VERIFIED{lastResult?.verificationMode ? ` (${lastResult.verificationMode})` : ''}
+                    {cert.verifiedAt ? ` on ${new Date(cert.verifiedAt as unknown as string | Date).toLocaleDateString()}` : ''}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-5 w-5 text-amber-500" />
+                  <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                    PENDING_VERIFICATION
+                  </span>
+                </>
+              )}
+            </div>
+            {!cert.isVerified && (
+              <p className="text-xs text-muted-foreground">
+                {lastResult?.status === 'PENDING_VERIFICATION'
+                  ? 'No lab API is configured for this lab (mode: MANUAL). Check the certificate with the lab, then mark it as manually verified.'
+                  : 'Not verified yet. Verify with the lab API or mark as manually verified after checking.'}
+              </p>
+            )}
+            {(verifyMutation.error || manualVerifyMutation.error) && (
+              <p className="text-xs text-destructive">
+                {(verifyMutation.error ?? manualVerifyMutation.error)?.message}
+              </p>
             )}
           </div>
 

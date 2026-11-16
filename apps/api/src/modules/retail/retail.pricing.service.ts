@@ -12,12 +12,28 @@ interface TaxParams {
   destinationState: string;
 }
 
+export interface DiscountCartItem {
+  productId?: string | null;
+  quantity: number;
+  unitPricePaise: number;
+}
+
 interface LineItemWithTax {
   item: SaleLineItemInput;
   cgstPaise: number;
   sgstPaise: number;
   igstPaise: number;
   lineTotalPaise: number;
+}
+
+/** Jewelry (HSN 7113) metal GST: 3%, stored as percent * 100. */
+const JEWELRY_GST_RATE = 300n;
+/** GST on making charges (job work / service): 5%, stored as percent * 100. */
+const MAKING_CHARGES_GST_RATE = 500n;
+
+/** Integer division rounding half up (non-negative operands). */
+function roundDiv(numerator: bigint, denominator: bigint): bigint {
+  return (numerator + denominator / 2n) / denominator;
 }
 
 @Injectable()
@@ -64,7 +80,9 @@ export class RetailPricingService extends TenantAwareService {
   /**
    * Calculate GST for a set of line items.
    * Jewelry HSN 7113 = 3% GST.
-   * Making charges = 5% GST (computed separately if broken out).
+   * Making charges = 5% GST: when an item carries makingChargesPaise and the
+   * item rate is the 3% jewelry rate, the making portion is taxed at 5% and the
+   * rest at 3% (discount apportioned pro-rata). Integer (BigInt) math only.
    * Intra-state: CGST + SGST. Inter-state: IGST.
    */
   calculateTax(
@@ -77,28 +95,45 @@ export class RetailPricingService extends TenantAwareService {
     );
 
     return lineItems.map((item) => {
-      // Calculate taxable amount: unit price * quantity - discount
-      const baseAmount = Number(item.unitPricePaise) * item.quantity;
-      const discountAmount = Number(item.discountPaise ?? 0);
-      const taxableAmount = baseAmount - discountAmount;
+      const quantity = BigInt(item.quantity);
+      const baseAmount = BigInt(item.unitPricePaise) * quantity;
+      const discountAmount = BigInt(item.discountPaise ?? 0);
+      const taxable = baseAmount - discountAmount;
 
       // GST rate from item (stored as percent * 100, e.g. 300 = 3%)
-      const gstRatePercent = (item.gstRate ?? 300) / 100;
+      const itemRate = BigInt(item.gstRate ?? 300);
+
+      // Jewelry (3% metal rate): making charges are a service and attract 5%.
+      // The line's discount is apportioned pro-rata between metal and making.
+      let makingTaxable = 0n;
+      const makingGross = BigInt(item.makingChargesPaise ?? 0) * quantity;
+      if (itemRate === JEWELRY_GST_RATE && makingGross > 0n && baseAmount > 0n) {
+        const cappedMaking = makingGross > baseAmount ? baseAmount : makingGross;
+        makingTaxable = cappedMaking - (discountAmount * cappedMaking) / baseAmount;
+        if (makingTaxable > taxable) makingTaxable = taxable;
+        if (makingTaxable < 0n) makingTaxable = 0n;
+      }
+      const metalTaxable = taxable - makingTaxable;
+      const makingRate = makingTaxable > 0n ? MAKING_CHARGES_GST_RATE : itemRate;
+
+      // Tax numerators over a denominator of 10000 (rate is percent * 100)
+      const totalNumerator = metalTaxable * itemRate + makingTaxable * makingRate;
 
       let cgstPaise = 0;
       let sgstPaise = 0;
       let igstPaise = 0;
 
       if (isInterState) {
-        igstPaise = Math.round((taxableAmount * gstRatePercent) / 100);
+        igstPaise = Number(roundDiv(totalNumerator, 10000n));
       } else {
-        const halfRate = gstRatePercent / 2;
-        cgstPaise = Math.round((taxableAmount * halfRate) / 100);
-        sgstPaise = Math.round((taxableAmount * halfRate) / 100);
+        // each half = numerator / 2 / 10000
+        const half = Number(roundDiv(totalNumerator, 20000n));
+        cgstPaise = half;
+        sgstPaise = half;
       }
 
       const totalTax = cgstPaise + sgstPaise + igstPaise;
-      const lineTotalPaise = taxableAmount + totalTax;
+      const lineTotalPaise = Number(taxable) + totalTax;
 
       return {
         item,
@@ -118,6 +153,7 @@ export class RetailPricingService extends TenantAwareService {
     discountId: string,
     subtotalPaise: number,
     productIds: string[],
+    cartItems?: DiscountCartItem[],
   ): Promise<DiscountValidation> {
     const discount = await this.prisma.discount.findFirst({
       where: this.tenantWhere(tenantId, { id: discountId }),
@@ -157,10 +193,24 @@ export class RetailPricingService extends TenantAwareService {
       case 'FIXED':
         applicableAmount = discount.value;
         break;
-      case 'BUY_X_GET_Y':
-        // Simplified: value represents the discount amount for the deal
-        applicableAmount = discount.value;
+      case 'BUY_X_GET_Y': {
+        const rule = this.computeBuyXGetYDiscount(
+          {
+            buyQuantity: (discount as { buyQuantity?: number | null }).buyQuantity ?? null,
+            getQuantity: (discount as { getQuantity?: number | null }).getQuantity ?? null,
+            applicableProducts,
+          },
+          cartItems ?? [],
+        );
+        if (!rule.isConfigured) {
+          return { discountId, isValid: false, applicableAmount: 0, reason: 'Buy X Get Y rule is not configured' };
+        }
+        if (rule.freeUnits === 0) {
+          return { discountId, isValid: false, applicableAmount: 0, reason: 'Cart does not satisfy the Buy X Get Y quantity' };
+        }
+        applicableAmount = rule.discountPaise;
         break;
+      }
     }
 
     // Cap at maximum discount if set
@@ -169,6 +219,35 @@ export class RetailPricingService extends TenantAwareService {
     }
 
     return { discountId, isValid: true, applicableAmount };
+  }
+
+  /**
+   * Buy X Get Y: for every (X + Y) qualifying units in the cart, the Y cheapest
+   * units are free. Qualifying = in applicableProducts (or all items if unset).
+   * Pure integer math in paise.
+   */
+  computeBuyXGetYDiscount(
+    rule: { buyQuantity: number | null; getQuantity: number | null; applicableProducts: string[] | null },
+    cartItems: DiscountCartItem[],
+  ): { isConfigured: boolean; freeUnits: number; discountPaise: number } {
+    const buy = rule.buyQuantity ?? 0;
+    const get = rule.getQuantity ?? 0;
+    if (!Number.isInteger(buy) || !Number.isInteger(get) || buy < 1 || get < 1) {
+      return { isConfigured: false, freeUnits: 0, discountPaise: 0 };
+    }
+
+    const restrict = rule.applicableProducts && rule.applicableProducts.length > 0 ? rule.applicableProducts : null;
+    const unitPrices: number[] = [];
+    for (const ci of cartItems) {
+      if (restrict && (!ci.productId || !restrict.includes(ci.productId))) continue;
+      for (let i = 0; i < ci.quantity; i++) unitPrices.push(ci.unitPricePaise);
+    }
+
+    const groupSize = buy + get;
+    const freeUnits = Math.floor(unitPrices.length / groupSize) * get;
+    unitPrices.sort((a, b) => a - b);
+    const discountPaise = unitPrices.slice(0, freeUnits).reduce((sum, p) => sum + p, 0);
+    return { isConfigured: true, freeUnits, discountPaise };
   }
 
   /**

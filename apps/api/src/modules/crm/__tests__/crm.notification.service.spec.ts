@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createMockPrismaService, createMockEventBusService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
 vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid') }));
 import { CrmNotificationService } from '../crm.notification.service';
@@ -84,6 +84,105 @@ describe('CrmNotificationService', () => {
       (prisma as any).notificationTemplate.findMany.mockResolvedValue([]);
       await service.listTemplates(tenantId, 'SMS');
       expect((prisma as any).notificationTemplate.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ channel: 'SMS' }) }));
+    });
+  });
+  describe('sendOccasionReminders idempotency', () => {
+    let logStore: Array<{ id: string; tenantId: string; customerId: string; status: string; createdAt: Date; metadata: Record<string, unknown> }>;
+    let idSeq: number;
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      logStore = [];
+      idSeq = 0;
+      const n = prisma as any;
+      // Customer with a phone and email so the EMAIL dispatch path runs.
+      n.customer = {
+        findFirst: vi.fn().mockResolvedValue({ id: 'c1', phone: '9999999999', email: 'c1@example.com' }),
+      };
+      n.customerOccasion.findMany.mockResolvedValue([
+        {
+          id: 'occ-1',
+          occasionType: 'BIRTHDAY',
+          date: new Date(2026, 10, 20),
+          reminderDaysBefore: 4,
+          customer: { id: 'c1', firstName: 'Asha', lastName: 'Rao', phone: '9999999999', email: 'c1@example.com' },
+        },
+      ]);
+      n.notificationTemplate.findFirst.mockResolvedValue({ id: 't-1', channel: 'EMAIL', category: 'REMINDER' });
+      n.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1', body: 'Hi {{firstName}}', subject: 'Reminder' });
+      n.notificationLog.create.mockImplementation(async ({ data }: any) => {
+        const row = {
+          id: `nl-${++idSeq}`,
+          tenantId: data.tenantId,
+          customerId: data.customerId,
+          status: 'QUEUED',
+          createdAt: new Date(),
+          metadata: (data.metadata ?? {}) as Record<string, unknown>,
+        };
+        logStore.push(row);
+        return row;
+      });
+      n.notificationLog.findMany.mockImplementation(async ({ where }: any) =>
+        logStore.filter(
+          (l) =>
+            l.tenantId === where.tenantId &&
+            l.customerId === where.customerId &&
+            l.createdAt >= where.createdAt.gte &&
+            where.status.in.includes(l.status),
+        ),
+      );
+      n.notificationLog.findUnique = vi.fn().mockResolvedValue({ status: 'SENT' });
+      n.notificationLog.update.mockResolvedValue({});
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('sends the occasion reminder once on the reminder day', async () => {
+      vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
+      const sent = await service.sendOccasionReminders(tenantId);
+      expect(sent).toBe(1);
+      expect((prisma as any).notificationLog.create).toHaveBeenCalledTimes(1);
+      expect(logStore[0].metadata).toMatchObject({ occasionId: 'occ-1', reminderDate: '2026-11-16' });
+    });
+
+    it('skips a second run the same day (retry or manual rerun)', async () => {
+      vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
+      await service.sendOccasionReminders(tenantId);
+      const second = await service.sendOccasionReminders(tenantId);
+      expect(second).toBe(0);
+      expect((prisma as any).notificationLog.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not skip a reminder that previously failed', async () => {
+      vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
+      await service.sendOccasionReminders(tenantId);
+      logStore[0].status = 'FAILED';
+      const retry = await service.sendOccasionReminders(tenantId);
+      expect(retry).toBe(1);
+      expect((prisma as any).notificationLog.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('sends again on the next day when the reminder falls on that day', async () => {
+      vi.setSystemTime(new Date(2026, 10, 16, 9, 0, 0));
+      await service.sendOccasionReminders(tenantId);
+
+      // Same occasion, but the reminder date now matches the next calendar day.
+      (prisma as any).customerOccasion.findMany.mockResolvedValue([
+        {
+          id: 'occ-1',
+          occasionType: 'BIRTHDAY',
+          date: new Date(2026, 10, 21),
+          reminderDaysBefore: 4,
+          customer: { id: 'c1', firstName: 'Asha', lastName: 'Rao', phone: '9999999999', email: 'c1@example.com' },
+        },
+      ]);
+      vi.setSystemTime(new Date(2026, 10, 17, 9, 0, 0));
+      const sent = await service.sendOccasionReminders(tenantId);
+      expect(sent).toBe(1);
+      expect((prisma as any).notificationLog.create).toHaveBeenCalledTimes(2);
+      expect(logStore[1].metadata).toMatchObject({ occasionId: 'occ-1', reminderDate: '2026-11-17' });
     });
   });
 });

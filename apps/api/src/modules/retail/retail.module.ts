@@ -13,6 +13,7 @@ import { RetailLayawayService } from './retail.layaway.service';
 import { RetailOldGoldService } from './retail.old-gold.service';
 import { RetailAppraisalService } from './retail.appraisal.service';
 import { RetailDiscountService } from './retail.discount.service';
+import { RetailGiftCardService } from './retail.gift-card.service';
 import { RetailTrpcRouter } from './retail.trpc';
 import { RetailEventHandler } from './retail.event-handler';
 import { RetailController } from './retail.controller';
@@ -30,6 +31,7 @@ import { RetailController } from './retail.controller';
     RetailOldGoldService,
     RetailAppraisalService,
     RetailDiscountService,
+    RetailGiftCardService,
     RetailTrpcRouter,
     RetailEventHandler,
   ],
@@ -43,6 +45,7 @@ import { RetailController } from './retail.controller';
     RetailOldGoldService,
     RetailAppraisalService,
     RetailDiscountService,
+    RetailGiftCardService,
     RetailTrpcRouter,
   ],
 })

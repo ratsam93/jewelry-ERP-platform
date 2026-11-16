@@ -13,9 +13,11 @@ import { ComplianceInsuranceService } from './compliance.insurance.service';
 import { ComplianceAuditService } from './compliance.audit.service';
 import { ComplianceTrpcRouter } from './compliance.trpc';
 import { ComplianceEventHandler } from './compliance.event-handler';
+import { ComplianceScheduler } from './compliance.scheduler';
 
 @Module({
   providers: [
+    ComplianceScheduler,
     TrpcService,
     ComplianceHuidService,
     ComplianceHallmarkService,

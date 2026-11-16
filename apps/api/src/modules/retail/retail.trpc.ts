@@ -13,6 +13,7 @@ import { RetailOldGoldService } from './retail.old-gold.service';
 import { RetailAppraisalService } from './retail.appraisal.service';
 import { RetailDiscountService } from './retail.discount.service';
 import { RetailPricingService } from './retail.pricing.service';
+import { RetailGiftCardService } from './retail.gift-card.service';
 import {
   SaleInputSchema,
   SaleListFilterSchema,
@@ -26,6 +27,7 @@ import {
   OldGoldInputSchema,
   AppraisalInputSchema,
   DiscountInputSchema,
+  GiftCardInputSchema,
   PaginationSchema,
   StaffDashboardInputSchema,
 } from '@caratflow/shared-types';
@@ -43,6 +45,7 @@ export class RetailTrpcRouter {
     private readonly appraisalService: RetailAppraisalService,
     private readonly discountService: RetailDiscountService,
     private readonly pricingService: RetailPricingService,
+    private readonly giftCardService: RetailGiftCardService,
   ) {}
 
   get router() {
@@ -135,6 +138,11 @@ export class RetailTrpcRouter {
           discountId: z.string().uuid(),
           subtotalPaise: z.number().int().nonnegative(),
           productIds: z.array(z.string().uuid()),
+          cartItems: z.array(z.object({
+            productId: z.string().uuid().optional(),
+            quantity: z.number().int().positive(),
+            unitPricePaise: z.number().int().nonnegative(),
+          })).optional(),
         }))
         .query(({ ctx, input }) =>
           this.pricingService.applyDiscount(
@@ -142,6 +150,7 @@ export class RetailTrpcRouter {
             input.discountId,
             input.subtotalPaise,
             input.productIds,
+            input.cartItems,
           ),
         ),
 
@@ -219,6 +228,12 @@ export class RetailTrpcRouter {
         .input(z.object({ repairId: z.string().uuid(), update: RepairStatusUpdateSchema }))
         .mutation(({ ctx, input }) =>
           this.repairService.updateRepairStatus(ctx.tenantId, ctx.userId, input.repairId, input.update),
+        ),
+
+      getRepairProfitability: this.trpc.authedProcedure
+        .input(z.object({ repairId: z.string().uuid() }))
+        .query(({ ctx, input }) =>
+          this.repairService.computeRepairProfitability(ctx.tenantId, input.repairId),
         ),
 
       getRepairQueue: this.trpc.authedProcedure
@@ -377,6 +392,25 @@ export class RetailTrpcRouter {
             input.filters ?? {},
             input.pagination ?? { page: 1, limit: 20, sortOrder: 'desc' },
           ),
+        ),
+
+      // ─── Gift Cards ───────────────────────────────────────────
+      issueGiftCard: this.trpc.authedProcedure
+        .input(GiftCardInputSchema)
+        .mutation(({ ctx, input }) =>
+          this.giftCardService.issueGiftCard(ctx.tenantId, ctx.userId, input),
+        ),
+
+      getGiftCardBalance: this.trpc.authedProcedure
+        .input(z.object({ cardNumber: z.string().min(1).max(50) }))
+        .query(({ ctx, input }) =>
+          this.giftCardService.getBalance(ctx.tenantId, input.cardNumber),
+        ),
+
+      redeemGiftCard: this.trpc.authedProcedure
+        .input(z.object({ cardNumber: z.string().min(1).max(50), amountPaise: z.number().int().positive() }))
+        .mutation(({ ctx, input }) =>
+          this.giftCardService.redeem(ctx.tenantId, ctx.userId, input.cardNumber, input.amountPaise),
         ),
 
       // ─── Discounts ────────────────────────────────────────────

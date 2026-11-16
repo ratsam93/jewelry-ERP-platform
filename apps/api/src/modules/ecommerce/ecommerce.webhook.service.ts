@@ -8,6 +8,10 @@ import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
 import { EcommerceShopifyService } from './ecommerce.shopify.service';
 import { EcommercePaymentService } from './ecommerce.payment.service';
+import {
+  verifyShopifyHmac,
+  verifyStripeSignatureHeader,
+} from './ecommerce.webhook-signature';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -20,6 +24,37 @@ export class EcommerceWebhookService extends TenantAwareService {
     private readonly paymentService: EcommercePaymentService,
   ) {
     super(prisma);
+  }
+
+  /**
+   * Verify a signed inbound payload supplied through the tRPC path.
+   * Supports shopify (base64 HMAC, channel secret or SHOPIFY_WEBHOOK_SECRET)
+   * and stripe (Stripe-Signature header, STRIPE_WEBHOOK_SECRET). Any other
+   * source, or a missing secret, returns false.
+   */
+  async verifyInboundSignature(
+    tenantId: string,
+    source: string,
+    rawBody: string,
+    signature: string,
+    channelId?: string,
+  ): Promise<boolean> {
+    switch (source.toLowerCase()) {
+      case 'shopify': {
+        if (!channelId) return false;
+        const channel = await this.prisma.salesChannel.findFirst({
+          where: { id: channelId, tenantId, channelType: 'SHOPIFY' },
+          select: { webhookSecret: true },
+        });
+        if (!channel) return false;
+        const secret = channel.webhookSecret ?? process.env.SHOPIFY_WEBHOOK_SECRET ?? null;
+        return verifyShopifyHmac(rawBody, signature, secret);
+      }
+      case 'stripe':
+        return verifyStripeSignatureHeader(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
+      default:
+        return false;
+    }
   }
 
   /**

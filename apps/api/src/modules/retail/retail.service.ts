@@ -11,6 +11,10 @@ import { TenantAwareService } from '../../common/base.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import { RetailPricingService } from './retail.pricing.service';
 import { IndiaRatesService } from '../india/india.rates.service';
+import { RetailGiftCardService } from './retail.gift-card.service';
+import { RetailOldGoldService } from './retail.old-gold.service';
+import type { Prisma } from '@caratflow/db';
+import { assertHuidForSale } from '../../common/huid-gate';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -21,6 +25,8 @@ export class RetailService extends TenantAwareService {
     private readonly pricingService: RetailPricingService,
     private readonly ratesService: IndiaRatesService,
     @Optional() private readonly pdfService?: PlatformPdfService,
+    @Optional() private readonly giftCardService?: RetailGiftCardService,
+    @Optional() private readonly oldGoldService?: RetailOldGoldService,
   ) {
     super(prisma);
   }
@@ -151,7 +157,16 @@ export class RetailService extends TenantAwareService {
     const saleNumber = await this.generateSaleNumber(tenantId, input.locationId);
     const saleId = uuidv4();
 
+    // HUID gate: must run before the transaction (event handlers fire post-commit)
+    await assertHuidForSale(
+      this.prisma,
+      tenantId,
+      input.lineItems.map((li) => li.productId),
+    );
+
+    let loyaltyPointsRedeemed = 0;
     const sale = await this.prisma.$transaction(async (tx) => {
+      loyaltyPointsRedeemed = 0; // reset if the transaction callback is retried
       // Create sale
       const created = await tx.sale.create({
         data: {
@@ -202,8 +217,9 @@ export class RetailService extends TenantAwareService {
         });
       }
 
-      // Create payments
+      // Create payments (redeeming stored-value instruments atomically with the sale)
       for (const payment of input.payments) {
+        loyaltyPointsRedeemed += await this.redeemPaymentInstrument(tx, tenantId, userId, saleId, input.customerId, payment);
         await tx.salePayment.create({
           data: {
             id: uuidv4(),
@@ -239,7 +255,93 @@ export class RetailService extends TenantAwareService {
       },
     });
 
+    // Loyalty redemption event (points were debited inside the transaction)
+    if (input.customerId && loyaltyPointsRedeemed > 0) {
+      await this.eventBus.publish({
+        id: uuidv4(),
+        tenantId,
+        userId,
+        timestamp: new Date().toISOString(),
+        type: 'retail.loyalty.redeemed',
+        payload: { customerId: input.customerId, saleId: sale.id, points: loyaltyPointsRedeemed },
+      });
+    }
+
     return this.getSale(tenantId, sale.id);
+  }
+
+  /**
+   * Redeem the stored-value instrument behind a split payment, inside the sale
+   * transaction so a failure rolls the whole sale back.
+   *  - GIFT_CARD: `reference` = card number; balance debited.
+   *  - OLD_GOLD: `reference` = old gold purchase id; linked via linkToSale (EXCHANGED),
+   *    credit must not exceed the purchase's final amount.
+   *  - LOYALTY_POINTS: customer required; points debited at the active programme's
+   *    redemption rate and a REDEEMED ledger row written. (Tier recalculation is left
+   *    to CRM; Retail never imports CRM services.)
+   */
+  private async redeemPaymentInstrument(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    userId: string,
+    saleId: string,
+    customerId: string | undefined,
+    payment: { method: string; amountPaise: number; reference?: string },
+  ): Promise<number> {
+    switch (payment.method) {
+      case 'GIFT_CARD': {
+        if (!payment.reference) throw new BadRequestException('Gift card payment requires the card number as reference');
+        if (!this.giftCardService) throw new BadRequestException('Gift card service not available');
+        await this.giftCardService.redeem(tenantId, userId, payment.reference, payment.amountPaise, tx as never);
+        return 0;
+      }
+      case 'OLD_GOLD': {
+        if (!payment.reference) throw new BadRequestException('Old gold payment requires the old gold purchase id as reference');
+        if (!this.oldGoldService) throw new BadRequestException('Old gold service not available');
+        const purchase = await this.oldGoldService.linkToSale(tenantId, userId, payment.reference, saleId, tx);
+        if (customerId && purchase.customerId && purchase.customerId !== customerId) {
+          throw new BadRequestException('Old gold purchase belongs to a different customer');
+        }
+        if (payment.amountPaise > purchase.finalAmountPaise) {
+          throw new BadRequestException(
+            `Old gold credit (${payment.amountPaise}) exceeds purchase value (${purchase.finalAmountPaise})`,
+          );
+        }
+        return 0;
+      }
+      case 'LOYALTY_POINTS': {
+        if (!customerId) throw new BadRequestException('Loyalty points can only be redeemed by an identified customer');
+        const program = await tx.loyaltyProgram.findFirst({ where: { tenantId, isActive: true } });
+        if (!program) throw new BadRequestException('No active loyalty program configured');
+        // redemptionRate = points per 1 currency unit (100 paise); round points up so value is never under-charged
+        const points = Math.ceil((payment.amountPaise * program.redemptionRate) / 100);
+        if (points <= 0) throw new BadRequestException('Loyalty redemption amount is too small');
+        const debited = await tx.customer.updateMany({
+          where: { id: customerId, tenantId, loyaltyPoints: { gte: points } },
+          data: { loyaltyPoints: { decrement: points }, updatedBy: userId },
+        });
+        if (debited.count !== 1) throw new BadRequestException('Insufficient loyalty points');
+        const after = await tx.customer.findFirst({ where: { id: customerId, tenantId }, select: { loyaltyPoints: true } });
+        await tx.loyaltyTransaction.create({
+          data: {
+            id: uuidv4(),
+            tenantId,
+            customerId,
+            transactionType: 'REDEEMED',
+            points: -points,
+            balanceAfter: after?.loyaltyPoints ?? 0,
+            referenceType: 'SALE',
+            referenceId: saleId,
+            description: `Redeemed ${points} points on sale`,
+            createdBy: userId,
+            updatedBy: userId,
+          },
+        });
+        return points;
+      }
+      default:
+        return 0;
+    }
   }
 
   /**

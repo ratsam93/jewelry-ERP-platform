@@ -3,7 +3,7 @@ import { ReportingDashboardService } from '../reporting.dashboard.service';
 import { createMockPrismaService, TEST_TENANT_ID, TEST_USER_ID } from '../../../__tests__/setup';
 
 function extendPrisma(base: ReturnType<typeof createMockPrismaService>) {
-  return {
+  const ext: any = {
     ...base,
     saleReturn: { ...base.saleReturn, count: vi.fn() },
     dashboardLayout: {
@@ -12,6 +12,8 @@ function extendPrisma(base: ReturnType<typeof createMockPrismaService>) {
     jobOrder: { ...base.jobOrder, count: vi.fn() },
     $queryRawUnsafe: vi.fn(),
   };
+  ext.$transaction = vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn(ext));
+  return ext as typeof base & Record<string, any>;
 }
 
 describe('ReportingDashboardService (Unit)', () => {
@@ -64,6 +66,7 @@ describe('ReportingDashboardService (Unit)', () => {
 
   describe('saveDashboardLayout', () => {
     it('saves a new dashboard layout', async () => {
+      mockPrisma.dashboardLayout.findFirst.mockResolvedValue(null);
       mockPrisma.dashboardLayout.create.mockResolvedValue({
         id: 'dl-1', tenantId: TEST_TENANT_ID, userId: TEST_USER_ID,
         name: 'My Dashboard', isDefault: false, layout: [],
@@ -78,6 +81,7 @@ describe('ReportingDashboardService (Unit)', () => {
     });
 
     it('unsets other defaults when saving a default layout', async () => {
+      mockPrisma.dashboardLayout.findFirst.mockResolvedValue(null);
       mockPrisma.dashboardLayout.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.dashboardLayout.create.mockResolvedValue({
         id: 'dl-1', tenantId: TEST_TENANT_ID, userId: TEST_USER_ID,
@@ -92,6 +96,30 @@ describe('ReportingDashboardService (Unit)', () => {
       expect(mockPrisma.dashboardLayout.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ data: { isDefault: false } }),
       );
+    });
+  });
+
+  describe('saveDashboardLayout upsert', () => {
+    it('updates the existing layout with the same name instead of inserting', async () => {
+      mockPrisma.dashboardLayout.findFirst.mockResolvedValue({ id: 'dl-1' });
+      mockPrisma.dashboardLayout.update.mockResolvedValue({
+        id: 'dl-1', tenantId: TEST_TENANT_ID, userId: TEST_USER_ID,
+        name: 'Mine', isDefault: false, layout: [],
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      const result = await service.saveDashboardLayout(TEST_TENANT_ID, TEST_USER_ID, {
+        name: 'Mine', isDefault: false, layout: [],
+      } as any);
+
+      expect(result.id).toBe('dl-1');
+      expect(mockPrisma.dashboardLayout.findFirst).toHaveBeenCalledWith({
+        where: { tenantId: TEST_TENANT_ID, userId: TEST_USER_ID, name: 'Mine' },
+      });
+      expect(mockPrisma.dashboardLayout.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'dl-1' } }),
+      );
+      expect(mockPrisma.dashboardLayout.create).not.toHaveBeenCalled();
     });
   });
 

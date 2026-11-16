@@ -159,17 +159,38 @@ export class RetailOldGoldService extends TenantAwareService {
     return this.getPurchase(tenantId, purchaseId);
   }
 
+  /**
+   * Mark an old gold purchase as exchanged against a sale. When `tx` is given the
+   * update runs inside the caller's transaction (used by split-payment POS sales);
+   * the guard on status makes double-redemption impossible.
+   */
   async linkToSale(
     tenantId: string,
     userId: string,
     purchaseId: string,
     saleId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<OldGoldPurchaseResponse> {
-    const purchase = await this.prisma.oldGoldPurchase.findFirst({
+    const db = tx ?? this.prisma;
+    const purchase = await db.oldGoldPurchase.findFirst({
       where: this.tenantWhere(tenantId, { id: purchaseId }) as { tenantId: string; id: string },
     });
 
     if (!purchase) throw new NotFoundException('Old gold purchase not found');
+    if (purchase.status === 'EXCHANGED' || purchase.usedAgainstSaleId) {
+      throw new BadRequestException('Old gold purchase has already been exchanged against a sale');
+    }
+
+    if (tx) {
+      const res = await tx.oldGoldPurchase.updateMany({
+        where: { id: purchaseId, tenantId, usedAgainstSaleId: null, status: { not: 'EXCHANGED' } },
+        data: { usedAgainstSaleId: saleId, status: 'EXCHANGED', updatedBy: userId },
+      });
+      if (res.count !== 1) {
+        throw new BadRequestException('Old gold purchase has already been exchanged against a sale');
+      }
+      return this.mapPurchase({ ...purchase, usedAgainstSaleId: saleId, status: 'EXCHANGED' });
+    }
 
     await this.prisma.oldGoldPurchase.update({
       where: { id: purchaseId },
@@ -190,6 +211,10 @@ export class RetailOldGoldService extends TenantAwareService {
 
     if (!purchase) throw new NotFoundException('Old gold purchase not found');
 
+    return this.mapPurchase(purchase);
+  }
+
+  private mapPurchase(purchase: Awaited<ReturnType<PrismaService['oldGoldPurchase']['findFirstOrThrow']>>): OldGoldPurchaseResponse {
     return {
       id: purchase.id,
       tenantId: purchase.tenantId,

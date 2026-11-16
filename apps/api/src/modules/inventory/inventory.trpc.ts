@@ -20,6 +20,10 @@ import {
   MetalStockAdjustSchema,
   StoneStockInputSchema,
   StoneStockAdjustSchema,
+  StoneStockListInputSchema,
+  CreateMetalRecoverySchema,
+  CompleteMetalRecoverySchema,
+  MetalRecoveryListInputSchema,
   CreateBatchLotSchema,
   BatchLotListInputSchema,
   CreateSerialNumberSchema,
@@ -158,10 +162,11 @@ export class InventoryTrpcRouter {
 
       stoneStock: this.trpc.router({
         getByLocation: this.trpc.authedProcedure
-          .input(z.object({ locationId: z.string().uuid() }))
-          .query(({ ctx, input }) =>
-            this.inventoryService.getStoneStockByLocation(ctx.tenantId, input.locationId),
-          ),
+          .input(StoneStockListInputSchema)
+          .query(({ ctx, input }) => {
+            const { locationId, ...filters } = input;
+            return this.inventoryService.getStoneStockByLocation(ctx.tenantId, locationId, filters);
+          }),
 
         create: this.trpc.authedProcedure
           .input(StoneStockInputSchema)
@@ -173,6 +178,26 @@ export class InventoryTrpcRouter {
           .input(StoneStockAdjustSchema)
           .mutation(({ ctx, input }) =>
             this.inventoryService.adjustStoneStock(ctx.tenantId, ctx.userId, input),
+          ),
+      }),
+
+      metalRecovery: this.trpc.router({
+        list: this.trpc.authedProcedure
+          .input(MetalRecoveryListInputSchema)
+          .query(({ ctx, input }) =>
+            this.inventoryService.listMetalRecoveries(ctx.tenantId, input),
+          ),
+
+        create: this.trpc.authedProcedure
+          .input(CreateMetalRecoverySchema)
+          .mutation(({ ctx, input }) =>
+            this.inventoryService.createMetalRecovery(ctx.tenantId, ctx.userId, input),
+          ),
+
+        complete: this.trpc.authedProcedure
+          .input(CompleteMetalRecoverySchema)
+          .mutation(({ ctx, input }) =>
+            this.inventoryService.completeMetalRecovery(ctx.tenantId, ctx.userId, input),
           ),
       }),
 
@@ -207,6 +232,12 @@ export class InventoryTrpcRouter {
           .input(UpdateSerialStatusSchema)
           .mutation(({ ctx, input }) =>
             this.inventoryService.updateSerialNumberStatus(ctx.tenantId, ctx.userId, input),
+          ),
+
+        generateQr: this.trpc.authedProcedure
+          .input(z.object({ serialNumber: z.string() }))
+          .mutation(({ ctx, input }) =>
+            this.inventoryService.generateSerialQr(ctx.tenantId, ctx.userId, input.serialNumber),
           ),
 
         findBySerial: this.trpc.authedProcedure

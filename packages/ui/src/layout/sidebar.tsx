@@ -68,6 +68,8 @@ export const defaultNavItems: SidebarItem[] = [
       { label: 'Returns', href: '/retail/returns' },
       { label: 'Custom Orders', href: '/retail/custom-orders' },
       { label: 'Repairs', href: '/retail/repairs' },
+      { label: 'Gift Cards', href: '/retail/gift-cards' },
+      { label: 'Discounts', href: '/retail/discounts' },
     ],
   },
   {

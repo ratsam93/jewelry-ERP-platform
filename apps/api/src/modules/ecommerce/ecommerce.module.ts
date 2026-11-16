@@ -13,12 +13,20 @@ import { EcommerceClickCollectService } from './ecommerce.click-collect.service'
 import { EcommerceTrpcRouter } from './ecommerce.trpc';
 import { EcommerceEventHandler } from './ecommerce.event-handler';
 import { RazorpayWebhookController } from './razorpay.webhook.controller';
+import { EcommerceShopifyWebhookController } from './ecommerce.shopify.webhook.controller';
+import { EcommerceStripeWebhookController } from './ecommerce.stripe.webhook.controller';
 import { IndiaModule } from '../india/india.module';
+import { EcommerceScheduler } from './ecommerce.scheduler';
 
 @Module({
   imports: [IndiaModule],
-  controllers: [RazorpayWebhookController],
+  controllers: [
+    RazorpayWebhookController,
+    EcommerceShopifyWebhookController,
+    EcommerceStripeWebhookController,
+  ],
   providers: [
+    EcommerceScheduler,
     EcommerceService,
     EcommerceCatalogService,
     EcommerceShopifyService,

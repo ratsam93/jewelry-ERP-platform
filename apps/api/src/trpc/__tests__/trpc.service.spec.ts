@@ -51,7 +51,7 @@ describe('TrpcService', () => {
       tenantId: 'tenant-1',
       userId: 'user-1',
       userRole: 'admin',
-      userPermissions: ['inventory.read'],
+      userPermissions: ['*'],
     });
 
     const result = await caller.testQuery();
