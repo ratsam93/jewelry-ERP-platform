@@ -443,6 +443,8 @@ model Discount {
   name                   String             @db.VarChar(255)
   discountType           RetailDiscountType @map("discount_type")
   value                  Int                // percent*100 or paise depending on type
+  buyQuantity            Int?               @map("buy_quantity") // BUY_X_GET_Y: units to buy (X)
+  getQuantity            Int?               @map("get_quantity") // BUY_X_GET_Y: cheapest units free (Y)
   minPurchasePaise       BigInt?            @map("min_purchase_paise")
   maxDiscountPaise       BigInt?            @map("max_discount_paise")
   applicableCategories   Json?              @map("applicable_categories")

@@ -9,6 +9,7 @@ import { PosProductSearch } from '../../../../src/features/retail/PosProductSear
 import { PosCart, type CartItem } from '../../../../src/features/retail/PosCart';
 import { PosPaymentDialog } from '../../../../src/features/retail/PosPaymentDialog';
 import { MetalRateDisplay } from '../../../../src/features/retail/MetalRateDisplay';
+import { computeLineTax } from '../../../../src/features/retail/posTax';
 
 // ─── Hooks ────────────────────────────────────────────────────────
 function useDebouncedValue<T>(value: T, delayMs = 300): T {
@@ -63,9 +64,23 @@ interface BranchRow {
   isActive?: boolean;
 }
 
-// ─── Constants (fallback metal rates until a rate feed is wired) ──
-const GOLD_RATE_PAISE_PER_GRAM = 6500_00; // Rs 6,500/g
-const SILVER_RATE_PAISE_PER_GRAM = 82_00; // Rs 82/g
+// ─── Live metal rates ─────────────────────────────────────────────
+interface LiveRateRow {
+  metalType: string;
+  purity: number;
+  ratePerGramPaise: number;
+  changePercent: number | null;
+}
+
+/** Pick the gold (prefer 22K / 916) and silver rows from the live rate list. */
+function pickRate(rates: LiveRateRow[], metal: 'GOLD' | 'SILVER'): LiveRateRow | null {
+  const rows = rates.filter((r) => r.metalType.toUpperCase() === metal);
+  if (rows.length === 0) return null;
+  if (metal === 'GOLD') {
+    return rows.find((r) => r.purity === 916 || r.purity === 22) ?? rows[0];
+  }
+  return rows[0];
+}
 
 function mapStockItemToProduct(item: StockItemRow): PosProduct {
   const p = item.product;
@@ -83,6 +98,18 @@ function mapStockItemToProduct(item: StockItemRow): PosProduct {
 
 export default function PosPage() {
   const router = useRouter();
+
+  // ─── Live metal rates (no hardcoded fallback: priced from the rate feed) ──
+  const ratesQuery = trpc.india.rates.getAll.useQuery(undefined, {
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
+  });
+  const liveRates: LiveRateRow[] = React.useMemo(
+    () => (ratesQuery.data as LiveRateRow[] | undefined) ?? [],
+    [ratesQuery.data],
+  );
+  const goldRate = pickRate(liveRates, 'GOLD');
+  const silverRate = pickRate(liveRates, 'SILVER');
 
   // ─── Location (branch) ──────────────────────────────────────────
   const branchesQuery = trpc.platform.branches.list.useQuery({ includeInactive: false });
@@ -151,21 +178,35 @@ export default function PosPage() {
       return;
     }
 
-    // Derive unit price: prefer product.sellingPricePaise, else compute from metal
+    // Derive unit price: prefer product.sellingPricePaise, else compute from the live metal rate
     let unitPricePaise = product.sellingPricePaise ?? 0;
     const metalWeightMg = product.metalWeightMg ?? 0;
     const makingChargesPaise = product.makingCharges ?? 0;
-    const rate = product.productType === 'GOLD' ? GOLD_RATE_PAISE_PER_GRAM : SILVER_RATE_PAISE_PER_GRAM;
+    const liveRate = product.productType === 'GOLD' ? goldRate : silverRate;
+    const rate = liveRate?.ratePerGramPaise ?? 0;
     if (!unitPricePaise) {
+      if (!liveRate) {
+        setFlash({
+          kind: 'error',
+          msg: ratesQuery.isLoading
+            ? 'Metal rates are still loading; try again in a moment.'
+            : 'Live metal rate unavailable, so this item cannot be priced from weight. Set a selling price or record a rate.',
+        });
+        return;
+      }
       const metalValuePaise = Math.round((metalWeightMg / 1000) * rate);
       unitPricePaise = metalValuePaise + makingChargesPaise;
     }
 
-    const taxableAmount = unitPricePaise;
-    // 3% GST intra-state: 1.5% CGST + 1.5% SGST
-    const cgstPaise = Math.round((taxableAmount * 1.5) / 100);
-    const sgstPaise = Math.round((taxableAmount * 1.5) / 100);
-    const lineTotalPaise = taxableAmount + cgstPaise + sgstPaise;
+    // Per-item GST rate (percent * 100). Jewelry defaults to 3%; making charges are taxed at 5% inside computeLineTax.
+    const gstRate = 300;
+    const tax = computeLineTax({
+      unitPricePaise,
+      quantity: 1,
+      discountPaise: 0,
+      makingChargesPaise,
+      gstRate,
+    });
 
     const newItem: CartItem = {
       id: `cart-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -179,11 +220,11 @@ export default function PosPage() {
       wastageChargesPaise: 0,
       discountPaise: 0,
       hsnCode: '7113',
-      gstRate: 300,
-      cgstPaise,
-      sgstPaise,
-      igstPaise: 0,
-      lineTotalPaise,
+      gstRate,
+      cgstPaise: tax.cgstPaise,
+      sgstPaise: tax.sgstPaise,
+      igstPaise: tax.igstPaise,
+      lineTotalPaise: tax.lineTotalPaise,
     };
 
     setCartItems((prev) => [...prev, newItem]);
@@ -193,15 +234,14 @@ export default function PosPage() {
     setCartItems((prev) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
-        const taxableAmount = item.unitPricePaise * quantity - item.discountPaise;
-        const cgstPaise = Math.round((taxableAmount * 1.5) / 100);
-        const sgstPaise = Math.round((taxableAmount * 1.5) / 100);
+        const tax = computeLineTax({ ...item, quantity });
         return {
           ...item,
           quantity,
-          cgstPaise,
-          sgstPaise,
-          lineTotalPaise: taxableAmount + cgstPaise + sgstPaise,
+          cgstPaise: tax.cgstPaise,
+          sgstPaise: tax.sgstPaise,
+          igstPaise: tax.igstPaise,
+          lineTotalPaise: tax.lineTotalPaise,
         };
       }),
     );
@@ -285,16 +325,39 @@ export default function PosPage() {
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-bold">POS</h1>
-          <MetalRateDisplay
-            metalType="Gold 22K"
-            ratePaisePerGram={GOLD_RATE_PAISE_PER_GRAM}
-            className="hidden sm:block"
-          />
-          <MetalRateDisplay
-            metalType="Silver"
-            ratePaisePerGram={SILVER_RATE_PAISE_PER_GRAM}
-            className="hidden sm:block"
-          />
+          {ratesQuery.isLoading ? (
+            <span className="hidden text-xs text-muted-foreground sm:block" role="status">
+              Loading metal rates...
+            </span>
+          ) : ratesQuery.isError ? (
+            <span className="hidden text-xs text-destructive sm:block" role="alert">
+              Metal rates unavailable
+              <button type="button" onClick={() => ratesQuery.refetch()} className="ml-2 underline">
+                Retry
+              </button>
+            </span>
+          ) : (
+            <>
+              {goldRate ? (
+                <MetalRateDisplay
+                  metalType="Gold 22K"
+                  ratePaisePerGram={goldRate.ratePerGramPaise}
+                  className="hidden sm:block"
+                />
+              ) : (
+                <span className="hidden text-xs text-muted-foreground sm:block">No gold rate</span>
+              )}
+              {silverRate ? (
+                <MetalRateDisplay
+                  metalType="Silver"
+                  ratePaisePerGram={silverRate.ratePerGramPaise}
+                  className="hidden sm:block"
+                />
+              ) : (
+                <span className="hidden text-xs text-muted-foreground sm:block">No silver rate</span>
+              )}
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* Location selector */}
@@ -556,6 +619,8 @@ export default function PosPage() {
         totalPaise={totalPaise}
         onConfirm={handleCompleteSale}
         isProcessing={createSale.isPending}
+        customerId={selectedCustomer?.id ?? null}
+        errorMessage={createSale.isError ? createSale.error.message || 'Failed to create sale' : null}
       />
     </div>
   );

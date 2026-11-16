@@ -131,6 +131,7 @@ export class CrmNotificationService extends TenantAwareService {
         body,
         tenantId,
         logId: log.id,
+        metadata: input.variables,
       });
 
       // Providers (WhatsApp/SMS/Email) update the log themselves with
@@ -213,6 +214,8 @@ export class CrmNotificationService extends TenantAwareService {
   /** Check and send occasion reminders (BullMQ cron job) */
   async sendOccasionReminders(tenantId: string): Promise<number> {
     const now = new Date();
+    const dateKey = this.toDateKey(now);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let sentCount = 0;
 
     // Find occasions where (date - reminderDaysBefore) is today
@@ -241,6 +244,22 @@ export class CrmNotificationService extends TenantAwareService {
           });
 
           if (template && occasion.customer.phone) {
+            // Idempotency: a reminder for this occasion on this calendar day
+            // is recorded in the NotificationLog (metadata.occasionId +
+            // metadata.reminderDate). Skip if one already exists so a retry
+            // or manual rerun the same day does not message the customer twice.
+            const alreadySent = await this.hasOccasionReminderOn(
+              tenantId,
+              occasion.customer.id,
+              occasion.id,
+              dateKey,
+              startOfToday,
+            );
+            if (alreadySent) {
+              this.logger.log(`Skipping duplicate occasion reminder for ${occasion.id} on ${dateKey}`);
+              continue;
+            }
+
             await this.sendNotification(tenantId, 'SYSTEM', {
               customerId: occasion.customer.id,
               channel: template.channel,
@@ -250,6 +269,8 @@ export class CrmNotificationService extends TenantAwareService {
                 lastName: occasion.customer.lastName,
                 occasionType: occasion.occasionType,
                 date: occasion.date.toLocaleDateString('en-IN'),
+                occasionId: occasion.id,
+                reminderDate: dateKey,
               },
             });
             sentCount++;
@@ -261,6 +282,45 @@ export class CrmNotificationService extends TenantAwareService {
     }
 
     return sentCount;
+  }
+
+  /**
+   * True when a live (not FAILED) reminder for this occasion was already
+   * logged for the given calendar day. Matches on metadata.occasionId and
+   * metadata.reminderDate, restricted to logs created since start of day.
+   */
+  private async hasOccasionReminderOn(
+    tenantId: string,
+    customerId: string,
+    occasionId: string,
+    dateKey: string,
+    startOfToday: Date,
+  ): Promise<boolean> {
+    const logs = await this.prisma.notificationLog.findMany({
+      where: {
+        tenantId,
+        customerId,
+        createdAt: { gte: startOfToday },
+        status: { in: ['QUEUED', 'SENT', 'DELIVERED'] },
+      },
+      select: { metadata: true },
+    });
+    return logs.some((log) => {
+      const m = log.metadata as Record<string, unknown> | null;
+      return (
+        !!m &&
+        typeof m === 'object' &&
+        m.occasionId === occasionId &&
+        m.reminderDate === dateKey
+      );
+    });
+  }
+
+  /** Local calendar date as YYYY-MM-DD. */
+  private toDateKey(d: Date): string {
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
   /** Get notification logs for a customer */
@@ -319,6 +379,7 @@ export class CrmNotificationService extends TenantAwareService {
       body: string;
       tenantId: string;
       logId: string;
+      metadata?: Record<string, unknown>;
     },
   ): Promise<void> {
     switch (channel) {
@@ -366,6 +427,7 @@ export class CrmNotificationService extends TenantAwareService {
             status: 'SENT',
             sentAt: new Date(),
             metadata: {
+              ...payload.metadata,
               externalId: result.externalId,
               provider: result.provider,
             } as Prisma.InputJsonValue,
@@ -392,6 +454,7 @@ export class CrmNotificationService extends TenantAwareService {
             status: 'SENT',
             sentAt: new Date(),
             metadata: {
+              ...payload.metadata,
               externalId: result.externalId,
               provider: 'SENDGRID',
             } as Prisma.InputJsonValue,

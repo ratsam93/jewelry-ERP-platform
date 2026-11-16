@@ -2,7 +2,13 @@
 // Create shipment, generate label (placeholder for Shiprocket/
 // Delhivery API), track shipment, update delivery status.
 
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ServiceUnavailableException,
+  Logger,
+} from '@nestjs/common';
 import type {
   ShipmentInput,
   ShipmentResponse,
@@ -13,11 +19,22 @@ import type { PaginatedResult, Pagination } from '@caratflow/shared-types';
 import { ShipmentStatus, OnlineOrderStatus } from '@caratflow/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
+import { DelhiveryProvider } from './ecommerce.delhivery.provider';
 import { v4 as uuidv4 } from 'uuid';
+
+/** Error surfaced when a carrier has no credentials configured. */
+function notConfigured(carrier: string, hint: string): ServiceUnavailableException {
+  return new ServiceUnavailableException({
+    status: 'NOT_CONFIGURED',
+    carrier,
+    message: `Shipping carrier ${carrier} is not configured: ${hint}`,
+  });
+}
 
 @Injectable()
 export class EcommerceShippingService extends TenantAwareService {
   private readonly logger = new Logger(EcommerceShippingService.name);
+  private readonly delhivery = new DelhiveryProvider();
 
   constructor(prisma: PrismaService) {
     super(prisma);
@@ -216,14 +233,15 @@ export class EcommerceShippingService extends TenantAwareService {
   /**
    * Generate a shipping label via carrier API.
    *
-   * Real integration path: `carrier === 'SHIPROCKET'` and
-   * SHIPROCKET_EMAIL + SHIPROCKET_PASSWORD env vars are set. We obtain
-   * a JWT, create an ad-hoc order, and request AWB assignment. When
-   * any of those are missing we fall back to a local mock label URL
-   * so the demo flow still completes end-to-end.
+   * Carriers:
+   *   SHIPROCKET  requires SHIPROCKET_EMAIL + SHIPROCKET_PASSWORD
+   *   DELHIVERY   requires DELHIVERY_API_TOKEN + DELHIVERY_PICKUP_LOCATION
    *
-   * Extension point: add new carriers (Delhivery, BlueDart) by adding
-   * branches to `callShiprocket` / adding sibling helpers.
+   * When credentials are missing the call throws a 503 with
+   * `{ status: 'NOT_CONFIGURED' }`. No fake label is ever returned, except
+   * when SHIPPING_MOCK=true is set explicitly and NODE_ENV is not
+   * production; the mock URL uses a non-HTTP scheme so it cannot be
+   * mistaken for a real label.
    */
   async generateLabel(
     tenantId: string,
@@ -238,32 +256,65 @@ export class EcommerceShippingService extends TenantAwareService {
       throw new NotFoundException('Shipment not found');
     }
 
-    let labelUrl = `https://labels.example.com/${shipment.shipmentNumber}.pdf`;
+    let labelUrl: string | null = null;
     let trackingNumber: string | null = shipment.trackingNumber ?? null;
     let trackingUrl: string | null = shipment.trackingUrl ?? null;
 
-    const wantsShiprocket = carrier.toUpperCase() === 'SHIPROCKET';
-    const hasShiprocketCreds =
-      !!process.env.SHIPROCKET_EMAIL && !!process.env.SHIPROCKET_PASSWORD;
+    const carrierKey = carrier.toUpperCase();
+    const mockAllowed =
+      process.env.SHIPPING_MOCK === 'true' && process.env.NODE_ENV !== 'production';
 
-    if (wantsShiprocket && hasShiprocketCreds) {
-      try {
-        const real = await this.callShiprocket(shipment.shipmentNumber);
-        if (real.labelUrl) labelUrl = real.labelUrl;
-        if (real.awbCode) trackingNumber = real.awbCode;
-        if (real.trackingUrl) trackingUrl = real.trackingUrl;
-        this.logger.log(
-          `[SHIPROCKET] Label for ${shipment.shipmentNumber}: awb=${real.awbCode}`,
-        );
-      } catch (err) {
-        this.logger.warn(
-          `[SHIPROCKET] Label generation failed, falling back to mock: ${(err as Error).message}`,
-        );
-      }
-    } else {
-      this.logger.log(
-        `[${carrier}] Generating mock label for shipment ${shipment.shipmentNumber} (set SHIPROCKET_EMAIL/PASSWORD for real AWB)`,
+    if (mockAllowed) {
+      this.logger.warn(
+        `SHIPPING_MOCK=true: mock (non-printable) label for ${shipment.shipmentNumber} carrier=${carrier}`,
       );
+      labelUrl = `mock://shipping-label/${shipment.shipmentNumber}`;
+    } else if (carrierKey === 'SHIPROCKET') {
+      if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
+        throw notConfigured('SHIPROCKET', 'set SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD');
+      }
+      const real = await this.callShiprocket(shipment.shipmentNumber);
+      labelUrl = real.labelUrl ?? null;
+      if (real.awbCode) trackingNumber = real.awbCode;
+      if (real.trackingUrl) trackingUrl = real.trackingUrl;
+      this.logger.log(`[SHIPROCKET] Label for ${shipment.shipmentNumber}: awb=${real.awbCode}`);
+    } else if (carrierKey === 'DELHIVERY') {
+      if (!this.delhivery.isConfigured()) {
+        throw notConfigured('DELHIVERY', 'set DELHIVERY_API_TOKEN and DELHIVERY_PICKUP_LOCATION');
+      }
+      const order = shipment.order as unknown as {
+        orderNumber?: string;
+        customerName?: string | null;
+        customerPhone?: string | null;
+        totalPaise?: bigint | number;
+        shippingAddress?: Record<string, unknown> | null;
+      } | null;
+      const addr = order?.shippingAddress ?? null;
+      if (!addr) {
+        throw new BadRequestException('Order has no shipping address; required for Delhivery');
+      }
+      const real = await this.delhivery.createShipment({
+        shipmentNumber: shipment.shipmentNumber,
+        orderNumber: order?.orderNumber ?? shipment.shipmentNumber,
+        consignee: {
+          name: String(addr.name ?? order?.customerName ?? ''),
+          phone: (addr.phone as string | undefined) ?? order?.customerPhone ?? undefined,
+          line1: String(addr.line1 ?? ''),
+          line2: (addr.line2 as string | undefined) ?? undefined,
+          city: String(addr.city ?? ''),
+          state: String(addr.state ?? ''),
+          postalCode: String(addr.postalCode ?? ''),
+          country: String(addr.country ?? 'IN'),
+        },
+        amountPaise: Number(order?.totalPaise ?? 0),
+        weightGrams: shipment.weightGrams ?? null,
+      });
+      labelUrl = real.labelUrl;
+      if (real.awbCode) trackingNumber = real.awbCode;
+      if (real.trackingUrl) trackingUrl = real.trackingUrl;
+      this.logger.log(`[DELHIVERY] Shipment for ${shipment.shipmentNumber}: awb=${real.awbCode}`);
+    } else {
+      throw notConfigured(carrier, 'no label integration for this carrier');
     }
 
     const updated = await this.prisma.shipment.update({

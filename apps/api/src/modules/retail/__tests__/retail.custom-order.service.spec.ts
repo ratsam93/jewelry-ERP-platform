@@ -47,6 +47,22 @@ describe('RetailCustomOrderService', () => {
     });
   });
 
+  describe('createCustomOrder event payload', () => {
+    it('carries productId, locationId, targetWeightMg, metalPurity', async () => {
+      prisma.location.findFirst.mockResolvedValue({ city: 'Mumbai' } as any);
+      (prisma as any).customOrder.count.mockResolvedValue(0);
+      (prisma as any).customOrder.create.mockResolvedValue(mk());
+      await service.createCustomOrder(tenantId, userId, {
+        customerId: 'c1', locationId: 'l1', description: 'x',
+        productId: 'p1', targetWeightMg: 5000, metalPurity: 916,
+      } as any);
+      expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'retail.custom_order.created',
+        payload: expect.objectContaining({ productId: 'p1', locationId: 'l1', targetWeightMg: 5000, metalPurity: 916 }),
+      }));
+    });
+  });
+
   describe('updateStatus', () => {
     it('should allow INQUIRY -> DESIGNED', async () => {
       (prisma as any).customOrder.findFirst.mockResolvedValue(mk({ status: 'INQUIRY' }));

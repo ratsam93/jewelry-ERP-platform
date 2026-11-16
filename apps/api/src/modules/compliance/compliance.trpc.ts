@@ -189,6 +189,12 @@ export class ComplianceTrpcRouter {
           .mutation(({ ctx, input }) =>
             this.certificateService.verifyCertificate(ctx.tenantId, ctx.userId, input.id),
           ),
+
+        manualVerifyCertificate: this.trpc.authedProcedure
+          .input(z.object({ id: z.string().uuid() }))
+          .mutation(({ ctx, input }) =>
+            this.certificateService.manualVerify(ctx.tenantId, ctx.userId, input.id),
+          ),
       }),
 
       // ─── Traceability ─────────────────────────────────────

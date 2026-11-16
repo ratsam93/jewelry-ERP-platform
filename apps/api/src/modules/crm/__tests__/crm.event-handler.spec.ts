@@ -8,6 +8,7 @@ describe('CrmEventHandler', () => {
   let mockLoyaltyService: {
     calculatePointsForSale: ReturnType<typeof vi.fn>;
     earnPoints: ReturnType<typeof vi.fn>;
+    syncTierForCustomer: ReturnType<typeof vi.fn>;
   };
   let mockFeedbackService: {
     createFeedback: ReturnType<typeof vi.fn>;
@@ -19,6 +20,7 @@ describe('CrmEventHandler', () => {
     mockLoyaltyService = {
       calculatePointsForSale: vi.fn().mockResolvedValue(50),
       earnPoints: vi.fn().mockResolvedValue({ id: 'lt-1', points: 50 }),
+      syncTierForCustomer: vi.fn().mockResolvedValue(undefined),
     };
     mockFeedbackService = {
       createFeedback: vi.fn().mockResolvedValue({ id: 'fb-1' }),
@@ -38,9 +40,42 @@ describe('CrmEventHandler', () => {
   });
 
   it('subscribes to the correct event types', () => {
-    expect(mockEventBus.subscribe).toHaveBeenCalledTimes(2);
+    expect(mockEventBus.subscribe).toHaveBeenCalledTimes(3);
     expect(subscribedHandlers.has('retail.sale.completed')).toBe(true);
+    expect(subscribedHandlers.has('retail.loyalty.redeemed')).toBe(true);
     expect(subscribedHandlers.has('financial.payment.received')).toBe(true);
+  });
+
+  it('handles retail.loyalty.redeemed by recalculating the customer tier', async () => {
+    const event = {
+      type: 'retail.loyalty.redeemed',
+      tenantId: TEST_TENANT_ID,
+      userId: TEST_USER_ID,
+      payload: { customerId: 'cust-9', saleId: 'sale-9', points: 300 },
+    };
+
+    await subscribedHandlers.get('retail.loyalty.redeemed')!(event);
+
+    expect(mockLoyaltyService.syncTierForCustomer).toHaveBeenCalledWith(
+      TEST_TENANT_ID,
+      TEST_USER_ID,
+      'cust-9',
+    );
+  });
+
+  it('swallows tier recalculation errors on redeem', async () => {
+    mockLoyaltyService.syncTierForCustomer.mockRejectedValue(new Error('db down'));
+
+    const event = {
+      type: 'retail.loyalty.redeemed',
+      tenantId: TEST_TENANT_ID,
+      userId: TEST_USER_ID,
+      payload: { customerId: 'cust-9', saleId: 'sale-9', points: 300 },
+    };
+
+    await expect(
+      subscribedHandlers.get('retail.loyalty.redeemed')!(event),
+    ).resolves.toBeUndefined();
   });
 
   it('handles retail.sale.completed by awarding loyalty points', async () => {

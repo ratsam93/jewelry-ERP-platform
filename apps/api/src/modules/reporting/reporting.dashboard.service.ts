@@ -285,23 +285,34 @@ export class ReportingDashboardService extends TenantAwareService {
     userId: string,
     input: DashboardLayoutInput,
   ): Promise<DashboardLayoutResponse> {
-    // If setting as default, unset other defaults for this user
-    if (input.isDefault) {
-      await this.prisma.dashboardLayout.updateMany({
-        where: { tenantId, userId, isDefault: true },
-        data: { isDefault: false },
+    const layoutJson = input.layout as unknown as Prisma.InputJsonValue;
+    const layout = await this.prisma.$transaction(async (tx) => {
+      // If setting as default, unset other defaults for this user
+      if (input.isDefault) {
+        await tx.dashboardLayout.updateMany({
+          where: { tenantId, userId, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
+      const existing = await tx.dashboardLayout.findFirst({
+        where: { tenantId, userId, name: input.name },
       });
-    }
-
-    const layout = await this.prisma.dashboardLayout.create({
-      data: {
-        tenantId,
-        userId,
-        name: input.name,
-        isDefault: input.isDefault,
-        layout: input.layout as unknown as Prisma.InputJsonValue,
-        createdBy: userId,
-      },
+      if (existing) {
+        return tx.dashboardLayout.update({
+          where: { id: existing.id },
+          data: { isDefault: input.isDefault, layout: layoutJson, updatedBy: userId },
+        });
+      }
+      return tx.dashboardLayout.create({
+        data: {
+          tenantId,
+          userId,
+          name: input.name,
+          isDefault: input.isDefault,
+          layout: layoutJson,
+          createdBy: userId,
+        },
+      });
     });
 
     return {

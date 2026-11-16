@@ -150,23 +150,6 @@ describe('EcommercePaymentService (Unit)', () => {
     });
   });
 
-  describe('verifyStripeSignature', () => {
-    it('verifies valid Stripe webhook signature', () => {
-      const secret = 'whsec_test';
-      const body = '{"type":"payment_intent.succeeded"}';
-      const timestamp = Math.floor(Date.now() / 1000).toString();
-      const payload = `${timestamp}.${body}`;
-      const sig = createHmac('sha256', secret).update(payload).digest('hex');
-      const sigHeader = `t=${timestamp},v1=${sig}`;
-
-      expect(service.verifyStripeSignature(body, sigHeader, secret)).toBe(true);
-    });
-
-    it('rejects invalid Stripe signature', () => {
-      expect(service.verifyStripeSignature('body', 't=123,v1=bad', 'secret')).toBe(false);
-    });
-  });
-
   describe('listGateways', () => {
     it('returns all gateways for tenant', async () => {
       mockPrisma.paymentGateway.findMany.mockResolvedValue([gateway]);

@@ -14,6 +14,45 @@ import type { PaginatedResult } from '@caratflow/shared-types';
 import { isValidHuid } from '@caratflow/utils';
 import { v4 as uuid } from 'uuid';
 
+export type HuidEnforcementMode = 'block' | 'warn';
+
+export type HuidSaleEligibilityReason =
+  | 'PRODUCT_NOT_FOUND'
+  | 'NOT_GOLD'
+  | 'HUID_PRESENT'
+  | 'HUID_MISSING';
+
+export interface HuidSaleEligibility {
+  productId: string;
+  eligible: boolean;
+  reason: HuidSaleEligibilityReason;
+  huidNumber: string | null;
+}
+
+/**
+ * Domain error raised when a sale must be stopped because gold items lack a
+ * registered HUID. Callers on the sale path should let it propagate.
+ */
+export class HuidSaleBlockedError extends Error {
+  readonly code = 'HUID_SALE_BLOCKED';
+  readonly blockedItems: HuidSaleEligibility[];
+
+  constructor(blockedItems: HuidSaleEligibility[]) {
+    const ids = blockedItems.map((b) => b.productId).join(', ');
+    super(`Sale blocked: gold product(s) without an active HUID: ${ids}`);
+    this.name = 'HuidSaleBlockedError';
+    this.blockedItems = blockedItems;
+  }
+}
+
+/**
+ * HUID_ENFORCEMENT env: 'block' stops gold sales without HUID; anything else
+ * (including unset) is 'warn', which only logs.
+ */
+export function getHuidEnforcementMode(): HuidEnforcementMode {
+  return process.env.HUID_ENFORCEMENT?.trim().toLowerCase() === 'block' ? 'block' : 'warn';
+}
+
 @Injectable()
 export class ComplianceHuidService extends TenantAwareService {
   constructor(
@@ -182,22 +221,53 @@ export class ComplianceHuidService extends TenantAwareService {
   }
 
   /**
-   * Check whether a product has a valid HUID before allowing a sale.
-   * Returns true if the product has an ACTIVE HUID.
+   * Structured HUID eligibility check for a single product sale.
+   * eligible=true when the product is not gold, or is gold with an ACTIVE HUID.
    */
-  async enforceHuidOnSale(tenantId: string, productId: string): Promise<boolean> {
+  async checkSaleEligibility(tenantId: string, productId: string): Promise<HuidSaleEligibility> {
     const product = await this.prisma.product.findFirst({
       where: this.tenantWhere(tenantId, { id: productId }),
     });
-    if (!product) return false;
+    if (!product) {
+      return { productId, eligible: false, reason: 'PRODUCT_NOT_FOUND', huidNumber: null };
+    }
 
     // Only gold products require HUID
-    if (product.productType !== 'GOLD') return true;
+    if (product.productType !== 'GOLD') {
+      return { productId, eligible: true, reason: 'NOT_GOLD', huidNumber: null };
+    }
 
     const huid = await this.prisma.huidRecord.findFirst({
       where: this.tenantWhere(tenantId, { productId, status: 'ACTIVE' }),
     });
-    return huid !== null;
+    if (!huid) {
+      return { productId, eligible: false, reason: 'HUID_MISSING', huidNumber: null };
+    }
+    return {
+      productId,
+      eligible: true,
+      reason: 'HUID_PRESENT',
+      huidNumber: huid.huidNumber,
+    };
+  }
+
+  /**
+   * Throws HuidSaleBlockedError when the product cannot be sold under HUID rules.
+   * Intended for the synchronous sale path (call before the sale is committed).
+   */
+  async assertSaleEligible(tenantId: string, productId: string): Promise<void> {
+    const result = await this.checkSaleEligibility(tenantId, productId);
+    if (!result.eligible) {
+      throw new HuidSaleBlockedError([result]);
+    }
+  }
+
+  /**
+   * Boolean wrapper kept for existing callers. True when the product is sellable.
+   */
+  async enforceHuidOnSale(tenantId: string, productId: string): Promise<boolean> {
+    const result = await this.checkSaleEligibility(tenantId, productId);
+    return result.eligible;
   }
 
   async getCoverageReport(tenantId: string) {

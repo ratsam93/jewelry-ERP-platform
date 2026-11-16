@@ -36,6 +36,55 @@ export enum InventoryMetalType {
   PLATINUM = 'PLATINUM',
 }
 
+export enum StoneOrigin {
+  NATURAL = 'NATURAL',
+  LAB_GROWN = 'LAB_GROWN',
+}
+
+export enum StoneGrowthMethod {
+  NONE = 'NONE',
+  HPHT = 'HPHT',
+  CVD = 'CVD',
+}
+
+export enum StoneTreatment {
+  NONE = 'NONE',
+  HPHT_TREATED = 'HPHT_TREATED',
+  IRRADIATED = 'IRRADIATED',
+  LASER_DRILLED = 'LASER_DRILLED',
+  FRACTURE_FILLED = 'FRACTURE_FILLED',
+  HEATED = 'HEATED',
+  OILED = 'OILED',
+  OTHER = 'OTHER',
+}
+
+export enum MetalRecoverySource {
+  SCRAP = 'SCRAP',
+  FILINGS = 'FILINGS',
+  POLISH_DUST = 'POLISH_DUST',
+  OLD_GOLD = 'OLD_GOLD',
+}
+
+export enum MetalRecoveryStatus {
+  PENDING = 'PENDING',
+  SENT_TO_REFINER = 'SENT_TO_REFINER',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+/** 1 metric carat = 200 milligrams. Stone weights are stored in integer mg. */
+export const MG_PER_CARAT = 200;
+
+/** Convert a decimal carat value (e.g. 0.37) to integer milligrams (74n). */
+export function caratsToMg(carats: number): bigint {
+  return BigInt(Math.round(carats * MG_PER_CARAT));
+}
+
+/** Convert integer milligrams to decimal carats (e.g. 74n -> 0.37). */
+export function mgToCarats(mg: bigint | number): number {
+  return Number(mg) / MG_PER_CARAT;
+}
+
 export enum BatchSourceType {
   PURCHASE = 'PURCHASE',
   PRODUCTION = 'PRODUCTION',
@@ -128,6 +177,8 @@ export const CreateStockMovementSchema = z.object({
   stockItemId: UuidSchema,
   movementType: z.nativeEnum(MovementType),
   quantityChange: z.number().int(),
+  /** Per-unit cost in paise for receipts; used by FIFO/AVG/LAST_PURCHASE valuation. */
+  unitCostPaise: z.bigint().nonnegative().optional(),
   referenceType: z.string().max(100).optional(),
   referenceId: z.string().uuid().optional(),
   notes: z.string().optional(),
@@ -313,16 +364,32 @@ export const StoneStockInputSchema = z.object({
   color: z.string().max(50).optional(),
   clarity: z.string().max(50).optional(),
   cutGrade: z.string().max(50).optional(),
-  totalWeightCt: z.number().int().nonnegative(),
+  polish: z.string().max(50).optional(),
+  symmetry: z.string().max(50).optional(),
+  fluorescence: z.string().max(50).optional(),
+  origin: z.nativeEnum(StoneOrigin).default(StoneOrigin.NATURAL),
+  growthMethod: z.nativeEnum(StoneGrowthMethod).default(StoneGrowthMethod.NONE),
+  treatment: z.nativeEnum(StoneTreatment).default(StoneTreatment.NONE),
+  reportLab: z.string().max(100).optional(),
+  /** Total weight in integer milligrams (1 ct = 200 mg). */
+  totalWeightMg: z.bigint().nonnegative(),
   totalPieces: z.number().int().nonnegative(),
   valuePaise: z.bigint().nonnegative(),
   certificationNumber: z.string().max(100).optional(),
+}).superRefine((v, ctx) => {
+  if (v.origin === StoneOrigin.NATURAL && v.growthMethod !== StoneGrowthMethod.NONE) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['growthMethod'], message: 'Natural stones cannot have a growth method' });
+  }
+  if (v.origin === StoneOrigin.LAB_GROWN && v.growthMethod === StoneGrowthMethod.NONE) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['growthMethod'], message: 'Lab-grown stones require HPHT or CVD growth method' });
+  }
 });
 export type StoneStockInput = z.infer<typeof StoneStockInputSchema>;
 
 export const StoneStockAdjustSchema = z.object({
   id: UuidSchema,
-  weightChangeCt: z.number().int(),
+  /** Weight delta in integer milligrams (1 ct = 200 mg). */
+  weightChangeMg: z.bigint(),
   piecesChange: z.number().int(),
   valueChangePaise: z.bigint(),
   notes: z.string().optional(),
@@ -339,6 +406,15 @@ export const StoneStockResponseSchema = z.object({
   color: z.string().nullable(),
   clarity: z.string().nullable(),
   cutGrade: z.string().nullable(),
+  polish: z.string().nullable(),
+  symmetry: z.string().nullable(),
+  fluorescence: z.string().nullable(),
+  origin: z.nativeEnum(StoneOrigin),
+  growthMethod: z.nativeEnum(StoneGrowthMethod),
+  treatment: z.nativeEnum(StoneTreatment),
+  reportLab: z.string().nullable(),
+  totalWeightMg: z.bigint(),
+  /** @deprecated whole carats, lossy. Use totalWeightMg. */
   totalWeightCt: z.number().int(),
   totalPieces: z.number().int(),
   valuePaise: z.bigint(),
@@ -348,6 +424,15 @@ export const StoneStockResponseSchema = z.object({
   location: z.object({ id: UuidSchema, name: z.string() }).optional(),
 });
 export type StoneStockResponse = z.infer<typeof StoneStockResponseSchema>;
+
+export const StoneStockListInputSchema = z.object({
+  locationId: UuidSchema,
+  origin: z.nativeEnum(StoneOrigin).optional(),
+  growthMethod: z.nativeEnum(StoneGrowthMethod).optional(),
+  treatment: z.nativeEnum(StoneTreatment).optional(),
+  stoneType: z.string().max(100).optional(),
+});
+export type StoneStockListInput = z.infer<typeof StoneStockListInputSchema>;
 
 // ─── BatchLot Schemas ─────────────────────────────────────────
 
@@ -395,6 +480,7 @@ export const CreateSerialNumberSchema = z.object({
   locationId: z.string().uuid().optional(),
   rfidTag: z.string().max(200).optional(),
   barcodeData: z.string().max(200).optional(),
+  qrData: z.string().max(500).optional(),
 });
 export type CreateSerialNumber = z.infer<typeof CreateSerialNumberSchema>;
 
@@ -415,6 +501,7 @@ export const SerialNumberResponseSchema = z.object({
   status: z.nativeEnum(SerialStatus),
   rfidTag: z.string().nullable(),
   barcodeData: z.string().nullable(),
+  qrData: z.string().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   product: z.object({ id: UuidSchema, sku: z.string(), name: z.string() }).optional(),
@@ -486,7 +573,7 @@ export const InventoryDashboardResponseSchema = z.object({
   })),
   stoneBreakdown: z.array(z.object({
     stoneType: z.string(),
-    totalWeightCt: z.number().int(),
+    totalWeightMg: z.bigint(),
     totalPieces: z.number().int(),
     totalValuePaise: z.bigint(),
   })),
@@ -530,3 +617,40 @@ export const ProductWithStockSchema = z.object({
   ),
 });
 export type ProductWithStockResponse = z.infer<typeof ProductWithStockSchema>;
+
+// ─── Metal Recovery Schemas ───────────────────────────────────
+// Recovery of fine metal from scrap / filings / polish dust / old gold.
+
+export const CreateMetalRecoverySchema = z.object({
+  locationId: UuidSchema,
+  sourceType: z.nativeEnum(MetalRecoverySource),
+  metalType: z.nativeEnum(InventoryMetalType).default(InventoryMetalType.GOLD),
+  grossWeightMg: z.bigint().positive(),
+  /** Fineness out of 1000 (e.g. 916 for 22K). */
+  purityFineness: z.number().int().min(1).max(999),
+  refinerName: z.string().max(255).optional(),
+  karigarId: z.string().uuid().optional(),
+  sentAt: z.coerce.date().optional(),
+  notes: z.string().optional(),
+});
+export type CreateMetalRecovery = z.infer<typeof CreateMetalRecoverySchema>;
+
+export const CompleteMetalRecoverySchema = z.object({
+  id: UuidSchema,
+  /** Fine (pure) metal actually recovered, in mg. */
+  recoveredFineMg: z.bigint().nonnegative(),
+  /** Fineness of the recovered metal (refined bar, default 999). */
+  recoveredPurityFineness: z.number().int().min(1).max(999).default(999),
+  /** Value to post against MetalStock for the recovered metal. */
+  valuePaise: z.bigint().nonnegative().default(0n),
+  completedAt: z.coerce.date().optional(),
+  notes: z.string().optional(),
+});
+export type CompleteMetalRecovery = z.infer<typeof CompleteMetalRecoverySchema>;
+
+export const MetalRecoveryListInputSchema = PaginationSchema.extend({
+  status: z.nativeEnum(MetalRecoveryStatus).optional(),
+  sourceType: z.nativeEnum(MetalRecoverySource).optional(),
+  locationId: UuidSchema.optional(),
+});
+export type MetalRecoveryListInput = z.infer<typeof MetalRecoveryListInputSchema>;

@@ -82,7 +82,7 @@ describe('WholesaleTrpcRouter (suppliers)', () => {
     tenantId: 'tenant-1',
     userId: 'user-1',
     userRole: 'admin',
-    userPermissions: [],
+    userPermissions: ['*'],
   };
 
   const routerInstance = new WholesaleTrpcRouter(

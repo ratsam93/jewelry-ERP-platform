@@ -27,7 +27,7 @@ describe('CrmTrpcRouter (videoConsultation sub-router)', () => {
     tenantId: 'tenant-1',
     userId: 'user-1',
     userRole: 'customer',
-    userPermissions: [],
+    userPermissions: ['*'],
   };
 
   const routerInstance = new CrmTrpcRouter(

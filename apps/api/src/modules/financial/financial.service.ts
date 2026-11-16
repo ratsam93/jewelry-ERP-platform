@@ -2,7 +2,7 @@
 // Core accounting operations: journal entries, invoices, payments.
 // All money values in paise (BigInt). Double-entry must always balance.
 
-import { Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, NotFoundException, Optional } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { PlatformPdfService } from '../platform/platform.pdf.service';
@@ -18,6 +18,8 @@ import type {
   GstComputationInput,
   GstComputationResult,
 } from '@caratflow/shared-types';
+
+type AccountTypeValue = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
 
 @Injectable()
 export class FinancialService extends TenantAwareService {
@@ -162,6 +164,86 @@ export class FinancialService extends TenantAwareService {
       igstPaise,
       totalTaxPaise,
       isInterState,
+    };
+  }
+
+  // ─── Chart of Accounts ────────────────────────────────────────
+
+  async listAccounts(
+    tenantId: string,
+    input: { type?: AccountTypeValue; search?: string; includeInactive?: boolean } = {},
+  ) {
+    const where: Prisma.AccountWhereInput = { tenantId };
+    if (input.type) where.accountType = input.type;
+    if (!input.includeInactive) where.isActive = true;
+    if (input.search?.trim()) {
+      const q = input.search.trim();
+      where.OR = [{ accountCode: { contains: q } }, { name: { contains: q } }];
+    }
+    const rows = await this.prisma.account.findMany({
+      where,
+      orderBy: { accountCode: 'asc' },
+      include: { parent: { select: { id: true, accountCode: true, name: true } } },
+    });
+    return rows.map((a) => ({
+      id: a.id,
+      code: a.accountCode,
+      name: a.name,
+      type: a.accountType,
+      isActive: a.isActive,
+      parentId: a.parentId,
+      parent: a.parent
+        ? { id: a.parent.id, code: a.parent.accountCode, name: a.parent.name }
+        : null,
+    }));
+  }
+
+  async createAccount(
+    tenantId: string,
+    userId: string,
+    input: {
+      code: string;
+      name: string;
+      type: AccountTypeValue;
+      parentId?: string;
+      description?: string;
+      currencyCode?: string;
+    },
+  ) {
+    const existing = await this.prisma.account.findFirst({
+      where: { tenantId, accountCode: input.code },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException(`Account code ${input.code} already exists`);
+    }
+    if (input.parentId) {
+      const parent = await this.prisma.account.findFirst({
+        where: { id: input.parentId, tenantId },
+        select: { id: true },
+      });
+      if (!parent) throw new NotFoundException('Parent account not found');
+    }
+    const a = await this.prisma.account.create({
+      data: {
+        tenantId,
+        accountCode: input.code,
+        name: input.name,
+        accountType: input.type,
+        parentId: input.parentId ?? null,
+        description: input.description ?? null,
+        currencyCode: input.currencyCode ?? 'INR',
+        createdBy: userId,
+        updatedBy: userId,
+      },
+    });
+    return {
+      id: a.id,
+      code: a.accountCode,
+      name: a.name,
+      type: a.accountType,
+      isActive: a.isActive,
+      parentId: a.parentId,
     };
   }
 

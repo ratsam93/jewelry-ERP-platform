@@ -11,10 +11,12 @@ import { WholesaleRateContractService } from './wholesale.rate-contract.service'
 import { WholesaleSupplierService } from './wholesale.supplier.service';
 import { WholesaleTrpcRouter } from './wholesale.trpc';
 import { WholesaleEventHandler } from './wholesale.event-handler';
+import { WholesaleScheduler } from './wholesale.scheduler';
 
 @Module({
   controllers: [],
   providers: [
+    WholesaleScheduler,
     WholesaleService,
     WholesaleConsignmentService,
     WholesaleAgentService,

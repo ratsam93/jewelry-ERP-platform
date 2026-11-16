@@ -47,6 +47,42 @@ enum SerialStatus {
   IN_TRANSIT
 }
 
+enum StoneOrigin {
+  NATURAL
+  LAB_GROWN
+}
+
+enum StoneGrowthMethod {
+  NONE
+  HPHT
+  CVD
+}
+
+enum StoneTreatment {
+  NONE
+  HPHT_TREATED
+  IRRADIATED
+  LASER_DRILLED
+  FRACTURE_FILLED
+  HEATED
+  OILED
+  OTHER
+}
+
+enum MetalRecoverySource {
+  SCRAP
+  FILINGS
+  POLISH_DUST
+  OLD_GOLD
+}
+
+enum MetalRecoveryStatus {
+  PENDING
+  SENT_TO_REFINER
+  COMPLETED
+  CANCELLED
+}
+
 // ─── StockItem ────────────────────────────────────────────────
 
 model StockItem {
@@ -85,6 +121,8 @@ model StockMovement {
   stockItemId    String       @map("stock_item_id") @db.VarChar(36)
   movementType   MovementType @map("movement_type")
   quantityChange Int          @map("quantity_change")
+  // Per-unit cost in paise for receipts (IN/RETURN/PRODUCTION); drives FIFO/AVG/LAST_PURCHASE valuation.
+  unitCostPaise  BigInt?      @map("unit_cost_paise")
   referenceType  String?      @map("reference_type") @db.VarChar(100)
   referenceId    String?      @map("reference_id") @db.VarChar(36)
   notes          String?      @db.Text
@@ -237,7 +275,16 @@ model StoneStock {
   color               String?  @db.VarChar(50)
   clarity             String?  @db.VarChar(50)
   cutGrade            String?  @map("cut_grade") @db.VarChar(50)
-  totalWeightCt       Int      @map("total_weight_ct")
+  polish              String?  @db.VarChar(50)
+  symmetry            String?  @db.VarChar(50)
+  fluorescence        String?  @db.VarChar(50)
+  origin              StoneOrigin       @default(NATURAL)
+  growthMethod        StoneGrowthMethod @default(NONE) @map("growth_method")
+  treatment           StoneTreatment    @default(NONE)
+  reportLab           String?  @map("report_lab") @db.VarChar(100)
+  // DEPRECATED: whole carats (lossy). Use totalWeightMg (1 ct = 200 mg). Kept so existing rows/seeds still load.
+  totalWeightCt       Int      @default(0) @map("total_weight_ct")
+  totalWeightMg       BigInt   @default(0) @map("total_weight_mg")
   totalPieces         Int      @map("total_pieces")
   valuePaise          BigInt   @map("value_paise")
   certificationNumber String?  @map("certification_number") @db.VarChar(100)
@@ -251,6 +298,7 @@ model StoneStock {
   @@index([tenantId])
   @@index([tenantId, locationId])
   @@index([tenantId, stoneType])
+  @@index([tenantId, origin])
   @@map("stone_stocks")
 }
 
@@ -294,6 +342,7 @@ model SerialNumber {
   status       SerialStatus @default(AVAILABLE)
   rfidTag      String?      @map("rfid_tag") @db.VarChar(200)
   barcodeData  String?      @map("barcode_data") @db.VarChar(200)
+  qrData       String?      @map("qr_data") @db.VarChar(500)
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   createdBy    String?      @map("created_by") @db.VarChar(36)
@@ -308,4 +357,39 @@ model SerialNumber {
   @@index([tenantId, productId])
   @@index([tenantId, status])
   @@map("serial_numbers")
+}
+
+// ─── MetalRecovery ────────────────────────────────────────────
+// Tracks recovery of fine metal from scrap, filings, polish dust and old gold
+// via a refiner/karigar. Completion posts the recovered fine weight to MetalStock.
+
+model MetalRecovery {
+  id               String              @id @default(uuid()) @db.VarChar(36)
+  tenantId         String              @map("tenant_id") @db.VarChar(36)
+  locationId       String              @map("location_id") @db.VarChar(36)
+  recoveryNumber   String              @map("recovery_number") @db.VarChar(50)
+  sourceType       MetalRecoverySource @map("source_type")
+  metalType        InventoryMetalType  @default(GOLD) @map("metal_type")
+  grossWeightMg    BigInt              @map("gross_weight_mg")
+  purityFineness   Int                 @map("purity_fineness")
+  expectedFineMg   BigInt              @map("expected_fine_mg")
+  recoveredFineMg  BigInt?             @map("recovered_fine_mg")
+  lossMg           BigInt?             @map("loss_mg")
+  recoveredPurityFineness Int?         @map("recovered_purity_fineness")
+  refinerName      String?             @map("refiner_name") @db.VarChar(255)
+  karigarId        String?             @map("karigar_id") @db.VarChar(36)
+  status           MetalRecoveryStatus @default(PENDING)
+  sentAt           DateTime?           @map("sent_at")
+  completedAt      DateTime?           @map("completed_at")
+  notes            String?             @db.Text
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  createdBy        String?             @map("created_by") @db.VarChar(36)
+  updatedBy        String?             @map("updated_by") @db.VarChar(36)
+
+  @@unique([tenantId, recoveryNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, sourceType])
+  @@map("metal_recoveries")
 }

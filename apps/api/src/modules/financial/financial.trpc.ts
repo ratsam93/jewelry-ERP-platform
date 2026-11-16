@@ -28,6 +28,8 @@ import {
 } from '@caratflow/shared-types';
 import { DateRangeSchema, UuidSchema } from '@caratflow/shared-types';
 
+const AccountTypeSchema = z.enum(['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']);
+
 @Injectable()
 export class FinancialTrpcRouter {
   constructor(
@@ -44,6 +46,38 @@ export class FinancialTrpcRouter {
       // ─── Dashboard ──────────────────────────────────────────
       dashboard: this.trpc.authedProcedure.query(async ({ ctx }) => {
         return this.reportingService.getDashboard(ctx.tenantId);
+      }),
+
+      // ─── Chart of Accounts ──────────────────────────────────
+      accounts: this.trpc.router({
+        list: this.trpc.authedProcedure
+          .input(
+            z
+              .object({
+                type: AccountTypeSchema.optional(),
+                search: z.string().max(100).optional(),
+                includeInactive: z.boolean().optional(),
+              })
+              .optional(),
+          )
+          .query(async ({ ctx, input }) => {
+            return this.financialService.listAccounts(ctx.tenantId, input ?? {});
+          }),
+
+        create: this.trpc.authedProcedure
+          .input(
+            z.object({
+              code: z.string().trim().min(1).max(20),
+              name: z.string().trim().min(1).max(255),
+              type: AccountTypeSchema,
+              parentId: UuidSchema.optional(),
+              description: z.string().max(500).optional(),
+              currencyCode: z.string().length(3).optional(),
+            }),
+          )
+          .mutation(async ({ ctx, input }) => {
+            return this.financialService.createAccount(ctx.tenantId, ctx.userId, input);
+          }),
       }),
 
       // ─── Journal Entries ────────────────────────────────────

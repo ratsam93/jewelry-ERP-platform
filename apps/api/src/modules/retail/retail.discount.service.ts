@@ -24,6 +24,8 @@ export class RetailDiscountService extends TenantAwareService {
         name: input.name,
         discountType: input.discountType,
         value: input.value,
+        buyQuantity: input.buyQuantity ?? null,
+        getQuantity: input.getQuantity ?? null,
         minPurchasePaise: input.minPurchasePaise ? BigInt(input.minPurchasePaise) : null,
         maxDiscountPaise: input.maxDiscountPaise ? BigInt(input.maxDiscountPaise) : null,
         applicableCategories: (input.applicableCategories ?? Prisma.JsonNull) as Prisma.InputJsonValue,
@@ -57,6 +59,8 @@ export class RetailDiscountService extends TenantAwareService {
     if (input.name !== undefined) updateData.name = input.name;
     if (input.discountType !== undefined) updateData.discountType = input.discountType;
     if (input.value !== undefined) updateData.value = input.value;
+    if (input.buyQuantity !== undefined) updateData.buyQuantity = input.buyQuantity;
+    if (input.getQuantity !== undefined) updateData.getQuantity = input.getQuantity;
     if (input.minPurchasePaise !== undefined) updateData.minPurchasePaise = input.minPurchasePaise ? BigInt(input.minPurchasePaise) : null;
     if (input.maxDiscountPaise !== undefined) updateData.maxDiscountPaise = input.maxDiscountPaise ? BigInt(input.maxDiscountPaise) : null;
     if (input.applicableCategories !== undefined) updateData.applicableCategories = input.applicableCategories;
@@ -162,6 +166,8 @@ export class RetailDiscountService extends TenantAwareService {
       name: discount.name as string,
       discountType: discount.discountType as RetailDiscountType,
       value: discount.value as number,
+      buyQuantity: (discount.buyQuantity as number | null | undefined) ?? null,
+      getQuantity: (discount.getQuantity as number | null | undefined) ?? null,
       minPurchasePaise: discount.minPurchasePaise ? Number(discount.minPurchasePaise) : null,
       maxDiscountPaise: discount.maxDiscountPaise ? Number(discount.maxDiscountPaise) : null,
       applicableCategories: discount.applicableCategories ?? null,

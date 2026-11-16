@@ -11,6 +11,15 @@ import type {
 import type { PaginatedResult } from '@caratflow/shared-types';
 import { v4 as uuid } from 'uuid';
 
+export type CertificateVerificationStatus = 'VERIFIED' | 'PENDING_VERIFICATION';
+export type CertificateVerificationMode = 'API' | 'MANUAL';
+
+interface LabApiConfig {
+  lab: 'GIA' | 'IGI';
+  baseUrl: string;
+  apiKey: string;
+}
+
 @Injectable()
 export class ComplianceCertificateService extends TenantAwareService {
   private readonly logger = new Logger(ComplianceCertificateService.name);
@@ -129,17 +138,18 @@ export class ComplianceCertificateService extends TenantAwareService {
   }
 
   /**
-   * Verify a certificate against the issuing lab's public lookup
-   * service.
+   * Verify a certificate against the issuing lab's public lookup service.
    *
-   * Real lab-API path activates when credentials are configured:
+   * API path (GIA, IGI only) activates when credentials are configured:
    *   GIA_API_URL + GIA_API_KEY for GIA
    *   IGI_API_URL + IGI_API_KEY for IGI
-   * When no creds are set, we fall back to a deterministic 250 ms
-   * mock-delay and mark the cert as verified (demo mode). When creds
-   * are set, we call the lab endpoint and only mark VERIFIED if the
-   * lab responds with a matching stone; otherwise we raise a
-   * BadRequestException and leave the record unverified.
+   * The cert is marked VERIFIED only if the lab confirms it; a lab that
+   * rejects it raises BadRequestException and the record is left unverified.
+   *
+   * Without credentials (or for labs with no API integration such as HRD
+   * and SGL) nothing is marked verified. The result is
+   * PENDING_VERIFICATION with verificationMode 'MANUAL'; a person must
+   * confirm the certificate and call manualVerify().
    */
   async verifyCertificate(tenantId: string, userId: string, id: string) {
     const cert = await this.prisma.gemstoneCertificate.findFirst({
@@ -148,9 +158,27 @@ export class ComplianceCertificateService extends TenantAwareService {
     if (!cert) throw new NotFoundException('Certificate not found.');
 
     const lab = cert.issuingLab?.toUpperCase() ?? '';
-    const labResult = await this.callLabApi(lab, cert.certificateNumber);
+    const apiConfig = this.getLabApiConfig(lab);
 
-    if (labResult.mode === 'REAL' && !labResult.valid) {
+    if (!apiConfig) {
+      this.logger.warn(
+        `[lab-manual] ${lab || 'UNKNOWN'} cert ${cert.certificateNumber} requires manual verification ` +
+          `(no lab API configured for ${lab || 'this lab'}).`,
+      );
+      return {
+        certificateNumber: cert.certificateNumber,
+        status: 'PENDING_VERIFICATION' as CertificateVerificationStatus,
+        verificationMode: 'MANUAL' as CertificateVerificationMode,
+        isValid: false,
+        lab: cert.issuingLab,
+        verifiedAt: null,
+        verifiedBy: null,
+        source: 'MANUAL_REQUIRED',
+      };
+    }
+
+    const labResult = await this.callLabApi(apiConfig, cert.certificateNumber);
+    if (!labResult.valid) {
       throw new BadRequestException(
         `Lab ${lab} could not verify certificate ${cert.certificateNumber}: ${labResult.reason ?? 'not found'}`,
       );
@@ -168,49 +196,94 @@ export class ComplianceCertificateService extends TenantAwareService {
 
     return {
       certificateNumber: updated.certificateNumber,
+      status: 'VERIFIED' as CertificateVerificationStatus,
+      verificationMode: 'API' as CertificateVerificationMode,
       isValid: true,
       lab: updated.issuingLab,
       verifiedAt: updated.verifiedAt,
-      source: labResult.mode === 'REAL' ? `${lab}-API` : 'MOCK',
+      verifiedBy: userId,
+      source: `${lab}-API`,
     };
   }
 
   /**
-   * Call the lab's public cert-lookup endpoint when creds are set.
-   * Falls back to a 250 ms mock delay (demo mode) when not set.
+   * Record a manual verification of a certificate (checked by a person
+   * against the physical report or the lab's website). Stores the verifier
+   * (updatedBy) and the verification date (verifiedAt).
+   */
+  async manualVerify(tenantId: string, userId: string, id: string) {
+    const cert = await this.prisma.gemstoneCertificate.findFirst({
+      where: this.tenantWhere(tenantId, { id }),
+    });
+    if (!cert) throw new NotFoundException('Certificate not found.');
+
+    const updated = await this.prisma.gemstoneCertificate.update({
+      where: { id },
+      data: {
+        isVerified: true,
+        verifiedAt: new Date(),
+        updatedBy: userId,
+      },
+      include: { product: { select: { id: true, sku: true, name: true } } },
+    });
+
+    this.logger.log(
+      `[lab-manual] cert ${updated.certificateNumber} manually verified by user ${userId}`,
+    );
+
+    return {
+      certificateNumber: updated.certificateNumber,
+      status: 'VERIFIED' as CertificateVerificationStatus,
+      verificationMode: 'MANUAL' as CertificateVerificationMode,
+      isValid: true,
+      lab: updated.issuingLab,
+      verifiedAt: updated.verifiedAt,
+      verifiedBy: userId,
+      source: 'MANUAL',
+    };
+  }
+
+  /**
+   * Returns the API configuration for a lab, or null when the lab has no
+   * integration or credentials are not set.
+   */
+  private getLabApiConfig(lab: string): LabApiConfig | null {
+    if (lab === 'GIA') {
+      const baseUrl = process.env.GIA_API_URL;
+      const apiKey = process.env.GIA_API_KEY;
+      return baseUrl && apiKey ? { lab: 'GIA', baseUrl, apiKey } : null;
+    }
+    if (lab === 'IGI') {
+      const baseUrl = process.env.IGI_API_URL;
+      const apiKey = process.env.IGI_API_KEY;
+      return baseUrl && apiKey ? { lab: 'IGI', baseUrl, apiKey } : null;
+    }
+    return null;
+  }
+
+  /**
+   * Call the lab's public cert-lookup endpoint.
    */
   private async callLabApi(
-    lab: string,
+    config: LabApiConfig,
     certificateNumber: string,
-  ): Promise<{ mode: 'REAL' | 'MOCK'; valid: boolean; reason?: string }> {
-    const envBase = lab === 'GIA' ? process.env.GIA_API_URL : lab === 'IGI' ? process.env.IGI_API_URL : undefined;
-    const envKey = lab === 'GIA' ? process.env.GIA_API_KEY : lab === 'IGI' ? process.env.IGI_API_KEY : undefined;
-
-    if (!envBase || !envKey) {
-      // Demo mode: mock with a small artificial delay so UI spinners render.
-      await new Promise<void>((resolve) => setTimeout(resolve, 250));
-      this.logger.log(
-        `[lab-mock] ${lab || 'UNKNOWN'} cert ${certificateNumber} accepted (set ${lab}_API_URL + ${lab}_API_KEY for real lookup)`,
-      );
-      return { mode: 'MOCK', valid: true };
-    }
-
+  ): Promise<{ valid: boolean; reason?: string }> {
     try {
-      const url = `${envBase.replace(/\/$/, '')}/verify/${encodeURIComponent(certificateNumber)}`;
+      const url = `${config.baseUrl.replace(/\/$/, '')}/verify/${encodeURIComponent(certificateNumber)}`;
       const res = await fetch(url, {
         method: 'GET',
-        headers: { 'x-api-key': envKey, Accept: 'application/json' },
+        headers: { 'x-api-key': config.apiKey, Accept: 'application/json' },
       });
       if (!res.ok) {
-        this.logger.warn(`[${lab}] lookup HTTP ${res.status} for ${certificateNumber}`);
-        return { mode: 'REAL', valid: false, reason: `HTTP ${res.status}` };
+        this.logger.warn(`[${config.lab}] lookup HTTP ${res.status} for ${certificateNumber}`);
+        return { valid: false, reason: `HTTP ${res.status}` };
       }
       const body = (await res.json()) as { valid?: boolean; status?: string; message?: string };
       const valid = body.valid === true || body.status === 'VALID';
-      return { mode: 'REAL', valid, reason: valid ? undefined : (body.message ?? 'not found') };
+      return { valid, reason: valid ? undefined : (body.message ?? 'not found') };
     } catch (err) {
-      this.logger.error(`[${lab}] lookup failed: ${(err as Error).message}`);
-      return { mode: 'REAL', valid: false, reason: (err as Error).message };
+      this.logger.error(`[${config.lab}] lookup failed: ${(err as Error).message}`);
+      return { valid: false, reason: (err as Error).message };
     }
   }
 

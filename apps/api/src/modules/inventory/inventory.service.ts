@@ -19,6 +19,10 @@ import type {
   MetalStockAdjust,
   StoneStockInput,
   StoneStockAdjust,
+  StoneStockListInput,
+  CreateMetalRecovery,
+  CompleteMetalRecovery,
+  MetalRecoveryListInput,
   CreateBatchLot,
   CreateSerialNumber,
   UpdateSerialStatus,
@@ -26,7 +30,7 @@ import type {
   BatchLotListInput,
 } from '@caratflow/shared-types';
 import type { PaginatedResult } from '@caratflow/shared-types';
-import { MovementType } from '@caratflow/shared-types';
+import { MovementType, MG_PER_CARAT } from '@caratflow/shared-types';
 import { v4 as uuid } from 'uuid';
 
 @Injectable()
@@ -216,6 +220,7 @@ export class InventoryService extends TenantAwareService {
           stockItemId: input.stockItemId,
           movementType: input.movementType,
           quantityChange: input.quantityChange,
+          unitCostPaise: input.unitCostPaise ?? null,
           referenceType: input.referenceType ?? null,
           referenceId: input.referenceId ?? null,
           notes: input.notes ?? null,
@@ -805,9 +810,21 @@ export class InventoryService extends TenantAwareService {
 
   // ─── Stone Stock ──────────────────────────────────────────────
 
-  async getStoneStockByLocation(tenantId: string, locationId: string) {
+  /** Effective stone weight in mg; falls back to legacy whole-carat column for un-migrated rows. */
+  private stoneWeightMg(stone: { totalWeightMg?: bigint | null; totalWeightCt: number }): bigint {
+    const mg = BigInt(stone.totalWeightMg ?? 0n);
+    if (mg > 0n) return mg;
+    return BigInt(stone.totalWeightCt ?? 0) * BigInt(MG_PER_CARAT);
+  }
+
+  async getStoneStockByLocation(tenantId: string, locationId: string, filters: Omit<StoneStockListInput, 'locationId'> = {}) {
+    const extra: Record<string, unknown> = { locationId };
+    if (filters.origin) extra.origin = filters.origin;
+    if (filters.growthMethod) extra.growthMethod = filters.growthMethod;
+    if (filters.treatment) extra.treatment = filters.treatment;
+    if (filters.stoneType) extra.stoneType = filters.stoneType;
     return this.prisma.stoneStock.findMany({
-      where: this.tenantWhere(tenantId, { locationId }),
+      where: this.tenantWhere(tenantId, extra),
       include: { location: { select: { id: true, name: true } } },
       orderBy: { stoneType: 'asc' },
     });
@@ -825,7 +842,16 @@ export class InventoryService extends TenantAwareService {
         color: input.color ?? null,
         clarity: input.clarity ?? null,
         cutGrade: input.cutGrade ?? null,
-        totalWeightCt: input.totalWeightCt,
+        polish: input.polish ?? null,
+        symmetry: input.symmetry ?? null,
+        fluorescence: input.fluorescence ?? null,
+        origin: input.origin ?? 'NATURAL',
+        growthMethod: input.growthMethod ?? 'NONE',
+        treatment: input.treatment ?? 'NONE',
+        reportLab: input.reportLab ?? null,
+        totalWeightMg: input.totalWeightMg,
+        // Deprecated whole-carat column kept in sync (floored) for legacy readers.
+        totalWeightCt: Number(input.totalWeightMg / BigInt(MG_PER_CARAT)),
         totalPieces: input.totalPieces,
         valuePaise: input.valuePaise,
         certificationNumber: input.certificationNumber ?? null,
@@ -842,24 +868,121 @@ export class InventoryService extends TenantAwareService {
     });
     if (!stone) throw new NotFoundException('Stone stock not found');
 
-    const newWeight = stone.totalWeightCt + input.weightChangeCt;
+    const newWeightMg = this.stoneWeightMg(stone) + input.weightChangeMg;
     const newPieces = stone.totalPieces + input.piecesChange;
     const newValue = BigInt(stone.valuePaise) + input.valueChangePaise;
 
-    if (newWeight < 0 || newPieces < 0) {
+    if (newWeightMg < 0n || newPieces < 0) {
       throw new BadRequestException('Stone stock weight/pieces cannot go below zero');
     }
 
     return this.prisma.stoneStock.update({
       where: { id: input.id },
       data: {
-        totalWeightCt: newWeight,
+        totalWeightMg: newWeightMg,
+        totalWeightCt: Number(newWeightMg / BigInt(MG_PER_CARAT)),
         totalPieces: newPieces,
         valuePaise: newValue < 0n ? 0n : newValue,
         updatedBy: userId,
       },
       include: { location: { select: { id: true, name: true } } },
     });
+  }
+
+  // ─── Metal Recovery ───────────────────────────────────────────
+
+  /** Expected fine metal = gross weight * fineness / 1000 (integer mg, floored). */
+  static expectedFineMg(grossWeightMg: bigint, purityFineness: number): bigint {
+    return (grossWeightMg * BigInt(purityFineness)) / 1000n;
+  }
+
+  async createMetalRecovery(tenantId: string, userId: string, input: CreateMetalRecovery) {
+    const count = await this.prisma.metalRecovery.count({ where: { tenantId } });
+    const recoveryNumber = `REC-${String(count + 1).padStart(6, '0')}`;
+    const status = input.sentAt ? 'SENT_TO_REFINER' : 'PENDING';
+
+    return this.prisma.metalRecovery.create({
+      data: {
+        id: uuid(),
+        tenantId,
+        locationId: input.locationId,
+        recoveryNumber,
+        sourceType: input.sourceType,
+        metalType: input.metalType ?? 'GOLD',
+        grossWeightMg: input.grossWeightMg,
+        purityFineness: input.purityFineness,
+        expectedFineMg: InventoryService.expectedFineMg(input.grossWeightMg, input.purityFineness),
+        refinerName: input.refinerName ?? null,
+        karigarId: input.karigarId ?? null,
+        status,
+        sentAt: input.sentAt ?? null,
+        notes: input.notes ?? null,
+        createdBy: userId,
+        updatedBy: userId,
+      },
+    });
+  }
+
+  async listMetalRecoveries(tenantId: string, input: MetalRecoveryListInput): Promise<PaginatedResult<unknown>> {
+    const { page, limit, sortBy, sortOrder, status, sourceType, locationId } = input;
+    const skip = (page - 1) * limit;
+    const where: Record<string, unknown> = { tenantId };
+    if (status) where.status = status;
+    if (sourceType) where.sourceType = sourceType;
+    if (locationId) where.locationId = locationId;
+    const orderBy = sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const };
+
+    const [items, total] = await Promise.all([
+      this.prisma.metalRecovery.findMany({ where, orderBy, skip, take: limit }),
+      this.prisma.metalRecovery.count({ where }),
+    ]);
+    const totalPages = Math.ceil(total / limit);
+    return { items, total, page, limit, totalPages, hasNext: page < totalPages, hasPrevious: page > 1 };
+  }
+
+  /**
+   * Complete a recovery: computes loss (expected - recovered; negative = gain)
+   * and posts the recovered fine metal into MetalStock at the recovered fineness.
+   */
+  async completeMetalRecovery(tenantId: string, userId: string, input: CompleteMetalRecovery) {
+    const rec = await this.prisma.metalRecovery.findFirst({
+      where: this.tenantWhere(tenantId, { id: input.id }),
+    });
+    if (!rec) throw new NotFoundException('Metal recovery not found');
+    if (rec.status === 'COMPLETED' || rec.status === 'CANCELLED') {
+      throw new BadRequestException(`Cannot complete recovery in status: ${rec.status}`);
+    }
+
+    const recoveredFineMg = input.recoveredFineMg;
+    const lossMg = BigInt(rec.expectedFineMg) - recoveredFineMg;
+    const recoveredPurity = input.recoveredPurityFineness ?? 999;
+    // MetalStock is held by fineness: convert fine mg to gross mg at that fineness.
+    const stockWeightMg = (recoveredFineMg * 1000n) / BigInt(recoveredPurity);
+
+    const updated = await this.prisma.metalRecovery.update({
+      where: { id: rec.id },
+      data: {
+        status: 'COMPLETED',
+        recoveredFineMg,
+        lossMg,
+        recoveredPurityFineness: recoveredPurity,
+        completedAt: input.completedAt ?? new Date(),
+        notes: input.notes ?? rec.notes,
+        updatedBy: userId,
+      },
+    });
+
+    if (stockWeightMg > 0n) {
+      await this.adjustMetalStock(tenantId, userId, {
+        locationId: rec.locationId,
+        metalType: rec.metalType,
+        purityFineness: recoveredPurity,
+        weightChangeMg: stockWeightMg,
+        valueChangePaise: input.valuePaise ?? 0n,
+      } as MetalStockAdjust);
+    }
+
+    return updated;
   }
 
   // ─── Batch/Lot ────────────────────────────────────────────────
@@ -944,6 +1067,7 @@ export class InventoryService extends TenantAwareService {
         status: 'AVAILABLE',
         rfidTag: input.rfidTag ?? null,
         barcodeData: input.barcodeData ?? null,
+        qrData: input.qrData ?? null,
         createdBy: userId,
         updatedBy: userId,
       },
@@ -972,6 +1096,30 @@ export class InventoryService extends TenantAwareService {
         location: { select: { id: true, name: true } },
       },
     });
+  }
+
+  /**
+   * Deterministic QR payload for a serial number. Pure string (no hardware).
+   * Format: CF1|<tenantId>|<serialNumber>|<productId>
+   */
+  buildSerialQrPayload(tenantId: string, serial: { serialNumber: string; productId: string }): string {
+    return `CF1|${tenantId}|${serial.serialNumber}|${serial.productId}`;
+  }
+
+  /** Generate (and persist) the QR payload for a serial number. */
+  async generateSerialQr(tenantId: string, userId: string, serialNumber: string) {
+    const serial = await this.prisma.serialNumber.findFirst({
+      where: this.tenantWhere(tenantId, { serialNumber }),
+    });
+    if (!serial) throw new NotFoundException('Serial number not found');
+    const qrData = this.buildSerialQrPayload(tenantId, serial);
+    if (serial.qrData !== qrData) {
+      await this.prisma.serialNumber.update({
+        where: { id: serial.id },
+        data: { qrData, updatedBy: userId },
+      });
+    }
+    return { serialNumber: serial.serialNumber, qrData };
   }
 
   async findSerialByNumber(tenantId: string, serialNumber: string) {
@@ -1101,10 +1249,10 @@ export class InventoryService extends TenantAwareService {
     }));
 
     // Stone breakdown (group by type)
-    const stoneMap = new Map<string, { totalWeightCt: number; totalPieces: number; totalValuePaise: bigint }>();
+    const stoneMap = new Map<string, { totalWeightMg: bigint; totalPieces: number; totalValuePaise: bigint }>();
     for (const ss of stoneStocks) {
-      const existing = stoneMap.get(ss.stoneType) ?? { totalWeightCt: 0, totalPieces: 0, totalValuePaise: 0n };
-      existing.totalWeightCt += ss.totalWeightCt;
+      const existing = stoneMap.get(ss.stoneType) ?? { totalWeightMg: 0n, totalPieces: 0, totalValuePaise: 0n };
+      existing.totalWeightMg += this.stoneWeightMg(ss);
       existing.totalPieces += ss.totalPieces;
       existing.totalValuePaise += BigInt(ss.valuePaise);
       stoneMap.set(ss.stoneType, existing);

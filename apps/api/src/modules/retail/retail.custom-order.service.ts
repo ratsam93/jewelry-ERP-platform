@@ -11,6 +11,13 @@ import { TenantAwareService } from '../../common/base.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import { v4 as uuidv4 } from 'uuid';
 
+/** Extra production hints; not yet in CustomOrderInputSchema (shared-types). */
+export type CustomOrderProductionHints = {
+  productId?: string;
+  targetWeightMg?: number;
+  metalPurity?: number;
+};
+
 const CUSTOM_ORDER_TRANSITIONS: Record<string, string[]> = {
   INQUIRY: ['DESIGNED', 'CANCELLED'],
   DESIGNED: ['QUOTED', 'CANCELLED'],
@@ -53,7 +60,11 @@ export class RetailCustomOrderService extends TenantAwareService {
     return `CO/${locCode}/${yymm}/${seq}`;
   }
 
-  async createCustomOrder(tenantId: string, userId: string, input: CustomOrderInput): Promise<CustomOrderResponse> {
+  async createCustomOrder(
+    tenantId: string,
+    userId: string,
+    input: CustomOrderInput & CustomOrderProductionHints,
+  ): Promise<CustomOrderResponse> {
     const orderNumber = await this.generateOrderNumber(tenantId, input.locationId);
 
     const order = await this.prisma.customOrder.create({
@@ -85,6 +96,10 @@ export class RetailCustomOrderService extends TenantAwareService {
         customerId: input.customerId,
         description: input.description,
         estimatePaise: input.estimatePaise ?? 0,
+        ...(input.productId ? { productId: input.productId } : {}),
+        locationId: order.locationId ?? input.locationId,
+        ...(input.targetWeightMg !== undefined ? { targetWeightMg: input.targetWeightMg } : {}),
+        ...(input.metalPurity !== undefined ? { metalPurity: input.metalPurity } : {}),
       },
     });
 

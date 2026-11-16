@@ -68,7 +68,22 @@ export interface RetailReturnProcessedEvent extends DomainEventBase {
 
 export interface RetailCustomOrderCreatedEvent extends DomainEventBase {
   type: 'retail.custom_order.created';
-  payload: { orderId: string; customerId: string; description: string; estimatePaise: number };
+  payload: {
+    orderId: string;
+    customerId: string;
+    description: string;
+    estimatePaise: number;
+    /** Needed to create the linked manufacturing job order. */
+    productId?: string;
+    locationId?: string;
+    targetWeightMg?: number;
+    metalPurity?: number;
+  };
+}
+
+export interface RetailLoyaltyRedeemedEvent extends DomainEventBase {
+  type: 'retail.loyalty.redeemed';
+  payload: { customerId: string; saleId: string; points: number };
 }
 
 export interface RetailRepairCreatedEvent extends DomainEventBase {
@@ -368,6 +383,7 @@ export type DomainEvent =
   | RetailSaleCompletedEvent
   | RetailReturnProcessedEvent
   | RetailCustomOrderCreatedEvent
+  | RetailLoyaltyRedeemedEvent
   | RetailRepairCreatedEvent
   // Financial
   | FinancialPaymentReceivedEvent

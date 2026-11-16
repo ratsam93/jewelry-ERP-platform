@@ -298,6 +298,10 @@ export const CustomOrderInputSchema = z.object({
   designImages: z.array(z.string()).optional(),
   estimatePaise: z.number().int().nonnegative().optional(),
   expectedDate: z.coerce.date().optional(),
+  // Needed to create the linked manufacturing job order.
+  productId: z.string().uuid().optional(),
+  targetWeightMg: z.number().int().positive().optional(),
+  metalPurity: z.number().int().positive().optional(),
 });
 export type CustomOrderInput = z.infer<typeof CustomOrderInputSchema>;
 
@@ -451,12 +455,32 @@ export const AppraisalResponseSchema = z.object({
 });
 export type AppraisalResponse = z.infer<typeof AppraisalResponseSchema>;
 
+// ─── Repair Profitability ─────────────────────────────────────────
+
+export const RepairProfitabilitySchema = z.object({
+  repairId: z.string().uuid(),
+  repairNumber: z.string(),
+  status: z.nativeEnum(RepairOrderStatus),
+  revenuePaise: z.number().int(),
+  revenueSource: z.enum(['FINAL_CHARGE', 'ESTIMATE', 'NONE']),
+  laborPaise: z.number().int(),
+  materialPaise: z.number().int(),
+  totalCostPaise: z.number().int(),
+  profitPaise: z.number().int(),
+  /** profit / revenue in basis points (10000 = 100%); null when revenue is zero */
+  marginBps: z.number().int().nullable(),
+});
+export type RepairProfitability = z.infer<typeof RepairProfitabilitySchema>;
+
 // ─── Discount ─────────────────────────────────────────────────────
 
 export const DiscountInputSchema = z.object({
   name: z.string().min(1).max(255),
   discountType: z.nativeEnum(RetailDiscountType),
   value: z.number().int().positive(),
+  /** BUY_X_GET_Y: buy `buyQuantity` qualifying units, get `getQuantity` cheapest free */
+  buyQuantity: z.number().int().positive().optional(),
+  getQuantity: z.number().int().positive().optional(),
   minPurchasePaise: z.number().int().nonnegative().optional(),
   maxDiscountPaise: z.number().int().nonnegative().optional(),
   applicableCategories: z.array(z.string().uuid()).optional(),
@@ -482,6 +506,8 @@ export const DiscountResponseSchema = z.object({
   name: z.string(),
   discountType: z.nativeEnum(RetailDiscountType),
   value: z.number().int(),
+  buyQuantity: z.number().int().nullable(),
+  getQuantity: z.number().int().nullable(),
   minPurchasePaise: z.number().int().nullable(),
   maxDiscountPaise: z.number().int().nullable(),
   applicableCategories: z.unknown().nullable(),

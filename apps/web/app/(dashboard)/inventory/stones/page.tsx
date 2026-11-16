@@ -5,10 +5,13 @@ import { PageHeader, FormField } from '@caratflow/ui';
 import { Diamond, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { StoneStockCard } from '@/features/inventory/stone-stock-card';
+import { caratsToMg } from '@caratflow/shared-types';
+import type { StoneOrigin } from '@caratflow/shared-types';
 
 export default function StonesPage() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [originFilter, setOriginFilter] = useState<'' | 'NATURAL' | 'LAB_GROWN'>('');
   const [formData, setFormData] = useState({
     stoneType: '',
     shape: '',
@@ -16,14 +19,21 @@ export default function StonesPage() {
     color: '',
     clarity: '',
     cutGrade: '',
-    totalWeightCt: 0,
+    polish: '',
+    symmetry: '',
+    fluorescence: '',
+    origin: 'NATURAL' as 'NATURAL' | 'LAB_GROWN',
+    growthMethod: 'NONE' as 'NONE' | 'HPHT' | 'CVD',
+    treatment: 'NONE',
+    reportLab: '',
+    weightCarats: '',
     totalPieces: 0,
     valuePaise: '',
     certificationNumber: '',
   });
 
   const { data: stoneStocks, isLoading, refetch } = trpc.inventory.stoneStock.getByLocation.useQuery(
-    { locationId: selectedLocationId },
+    { locationId: selectedLocationId, origin: (originFilter || undefined) as StoneOrigin | undefined },
     { enabled: !!selectedLocationId },
   );
 
@@ -41,7 +51,14 @@ export default function StonesPage() {
       color: formData.color || undefined,
       clarity: formData.clarity || undefined,
       cutGrade: formData.cutGrade || undefined,
-      totalWeightCt: formData.totalWeightCt,
+      polish: formData.polish || undefined,
+      symmetry: formData.symmetry || undefined,
+      fluorescence: formData.fluorescence || undefined,
+      origin: formData.origin as never,
+      growthMethod: (formData.origin === 'LAB_GROWN' ? formData.growthMethod : 'NONE') as never,
+      treatment: formData.treatment as never,
+      reportLab: formData.reportLab || undefined,
+      totalWeightMg: caratsToMg(parseFloat(formData.weightCarats) || 0),
       totalPieces: formData.totalPieces,
       valuePaise: BigInt(formData.valuePaise || '0'),
       certificationNumber: formData.certificationNumber || undefined,
@@ -85,6 +102,21 @@ export default function StonesPage() {
         </FormField>
       </div>
 
+      <div className="flex items-center gap-3">
+        <FormField label="Origin" htmlFor="stone-origin-filter">
+          <select
+            id="stone-origin-filter"
+            value={originFilter}
+            onChange={(e) => setOriginFilter(e.target.value as '' | 'NATURAL' | 'LAB_GROWN')}
+            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+          >
+            <option value="">All</option>
+            <option value="NATURAL">Natural</option>
+            <option value="LAB_GROWN">Lab-grown</option>
+          </select>
+        </FormField>
+      </div>
+
       {/* Stone Stock Cards */}
       {selectedLocationId && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -100,7 +132,15 @@ export default function StonesPage() {
               color: string | null;
               clarity: string | null;
               cutGrade: string | null;
+              polish: string | null;
+              symmetry: string | null;
+              fluorescence: string | null;
+              origin: 'NATURAL' | 'LAB_GROWN';
+              growthMethod: 'NONE' | 'HPHT' | 'CVD';
+              treatment: string | null;
+              reportLab: string | null;
               sizeRange: string | null;
+              totalWeightMg: bigint;
               totalWeightCt: number;
               totalPieces: number;
               valuePaise: bigint;
@@ -114,6 +154,14 @@ export default function StonesPage() {
                 clarity={stone.clarity}
                 cutGrade={stone.cutGrade}
                 sizeRange={stone.sizeRange}
+                polish={stone.polish}
+                symmetry={stone.symmetry}
+                fluorescence={stone.fluorescence}
+                origin={stone.origin}
+                growthMethod={stone.growthMethod}
+                treatment={stone.treatment}
+                reportLab={stone.reportLab}
+                totalWeightMg={stone.totalWeightMg}
                 totalWeightCt={stone.totalWeightCt}
                 totalPieces={stone.totalPieces}
                 valuePaise={Number(stone.valuePaise)}
@@ -187,14 +235,72 @@ export default function StonesPage() {
                 placeholder="e.g. Excellent, Very Good"
               />
             </FormField>
-            <FormField label="Total Weight (centesimal carats)" required>
+            <FormField label="Total Weight (carats, e.g. 0.37)" required>
               <input
                 type="number"
-                value={formData.totalWeightCt}
-                onChange={(e) => setFormData({ ...formData, totalWeightCt: parseInt(e.target.value) || 0 })}
+                step="0.005"
+                value={formData.weightCarats}
+                onChange={(e) => setFormData({ ...formData, weightCarats: e.target.value })}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                 min={0}
               />
+            </FormField>
+            <FormField label="Origin">
+              <select
+                value={formData.origin}
+                onChange={(e) => {
+                  const origin = e.target.value as 'NATURAL' | 'LAB_GROWN';
+                  const growthMethod = origin === 'NATURAL' ? 'NONE' : formData.growthMethod === 'NONE' ? 'CVD' : formData.growthMethod;
+                  setFormData({ ...formData, origin, growthMethod });
+                }}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="NATURAL">Natural</option>
+                <option value="LAB_GROWN">Lab-grown</option>
+              </select>
+            </FormField>
+            <FormField label="Growth Method">
+              <select
+                value={formData.growthMethod}
+                disabled={formData.origin !== 'LAB_GROWN'}
+                onChange={(e) => setFormData({ ...formData, growthMethod: e.target.value as 'NONE' | 'HPHT' | 'CVD' })}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
+              >
+                <option value="NONE">None</option>
+                <option value="HPHT">HPHT</option>
+                <option value="CVD">CVD</option>
+              </select>
+            </FormField>
+            <FormField label="Treatment">
+              <select
+                value={formData.treatment}
+                onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              >
+                {['NONE', 'HPHT_TREATED', 'IRRADIATED', 'LASER_DRILLED', 'FRACTURE_FILLED', 'HEATED', 'OILED', 'OTHER'].map((t) => (
+                  <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Polish">
+              <input type="text" value={formData.polish}
+                onChange={(e) => setFormData({ ...formData, polish: e.target.value })}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm" placeholder="e.g. Excellent" />
+            </FormField>
+            <FormField label="Symmetry">
+              <input type="text" value={formData.symmetry}
+                onChange={(e) => setFormData({ ...formData, symmetry: e.target.value })}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm" placeholder="e.g. Very Good" />
+            </FormField>
+            <FormField label="Fluorescence">
+              <input type="text" value={formData.fluorescence}
+                onChange={(e) => setFormData({ ...formData, fluorescence: e.target.value })}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm" placeholder="e.g. None, Faint" />
+            </FormField>
+            <FormField label="Report Lab">
+              <input type="text" value={formData.reportLab}
+                onChange={(e) => setFormData({ ...formData, reportLab: e.target.value })}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm" placeholder="e.g. IGI, GIA, SGL" />
             </FormField>
             <FormField label="Total Pieces" required>
               <input

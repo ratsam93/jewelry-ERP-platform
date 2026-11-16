@@ -36,7 +36,7 @@ export function createTrpcClient() {
   return trpc.createClient({
     links: [
       httpBatchLink({
-        url: `${getApiBaseUrl()}/trpc`,
+        url: `${getApiBaseUrl()}/api/v1/trpc`,
         headers() {
           const token = getAuthToken();
           return token ? { Authorization: `Bearer ${token}` } : {};
