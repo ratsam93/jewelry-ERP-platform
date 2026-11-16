@@ -33,7 +33,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      // Never leak raw Prisma/SQL messages, and never leak internals in production.
+      const isPrismaError = exception.name.startsWith('Prisma');
+      const isProd = process.env.NODE_ENV === 'production';
+      if (!isPrismaError && !isProd) {
+        message = exception.message;
+      }
     }
 
     // Map HTTP status to error codes
@@ -45,6 +50,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (status === 429) code = 'RATE_LIMITED';
 
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+      // Full details stay server-side only.
       console.error('Unhandled exception:', exception);
     }
 

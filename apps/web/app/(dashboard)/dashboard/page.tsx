@@ -102,13 +102,13 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Today's Sales"
-          value="\u20B94,52,300"
+          value="₹4,52,300"
           icon={<ShoppingCart className="h-5 w-5" />}
           trend={{ value: 12.5, label: 'vs yesterday' }}
         />
         <StatCard
           title="Revenue (MTD)"
-          value="\u20B938,45,000"
+          value="₹38,45,000"
           icon={<IndianRupee className="h-5 w-5" />}
           trend={{ value: 8.2, label: 'vs last month' }}
         />
@@ -190,9 +190,9 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-3">
             {[
-              { num: 'S-2026-0127', customer: 'Priya Mehta', amount: '\u20B91,25,400', time: '2h ago' },
-              { num: 'S-2026-0126', customer: 'Walk-in', amount: '\u20B945,000', time: '3h ago' },
-              { num: 'S-2026-0125', customer: 'Rajesh Kapoor', amount: '\u20B92,80,000', time: '5h ago' },
+              { num: 'S-2026-0127', customer: 'Priya Mehta', amount: '₹1,25,400', time: '2h ago' },
+              { num: 'S-2026-0126', customer: 'Walk-in', amount: '₹45,000', time: '3h ago' },
+              { num: 'S-2026-0125', customer: 'Rajesh Kapoor', amount: '₹2,80,000', time: '5h ago' },
             ].map((sale) => (
               <div
                 key={sale.num}
@@ -218,11 +218,11 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-3">
             {[
-              { metal: 'Gold 24K', rate: '\u20B97,200/g', change: '+0.5%' },
-              { metal: 'Gold 22K', rate: '\u20B96,600/g', change: '+0.5%' },
-              { metal: 'Gold 18K', rate: '\u20B95,400/g', change: '+0.4%' },
-              { metal: 'Silver 999', rate: '\u20B990/g', change: '-0.3%' },
-              { metal: 'Platinum 950', rate: '\u20B93,100/g', change: '+0.1%' },
+              { metal: 'Gold 24K', rate: '₹7,200/g', change: '+0.5%' },
+              { metal: 'Gold 22K', rate: '₹6,600/g', change: '+0.5%' },
+              { metal: 'Gold 18K', rate: '₹5,400/g', change: '+0.4%' },
+              { metal: 'Silver 999', rate: '₹90/g', change: '-0.3%' },
+              { metal: 'Platinum 950', rate: '₹3,100/g', change: '+0.1%' },
             ].map((rate) => (
               <div
                 key={rate.metal}

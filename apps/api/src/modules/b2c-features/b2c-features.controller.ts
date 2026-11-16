@@ -1,7 +1,13 @@
 // ─── B2C Features REST Controller ───────────────────────────────
 // Storefront-facing REST endpoints for wishlist, compare, coupon validation,
 // and back-in-stock subscriptions.
+//
+// Customer-only routes use B2CAuthGuard (method level) and take tenant and
+// customer from the verified token. Compare and anonymous back-in-stock
+// subscriptions stay public and rely on tenantId from TenantMiddleware plus
+// an optional sessionId.
 
+import { UUID_RE } from '../../common/customer-identity';
 import {
   Controller,
   Get,
@@ -14,21 +20,15 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { B2CAuthGuard } from '../../auth/b2c-auth.guard';
 import { WishlistService } from './wishlist.service';
 import { CompareService } from './compare.service';
 import { CouponService } from './coupon.service';
 import { BackInStockService } from './back-in-stock.service';
-
-/**
- * Request with tenant and customer context from middleware.
- * In production, these are populated by TenantMiddleware + CustomerAuthGuard.
- */
-interface StoreRequest {
-  tenantId: string;
-  customerId?: string;
-  headers: Record<string, string | undefined>;
-}
 
 @Controller('api/v1/store')
 export class B2cFeaturesController {
@@ -39,57 +39,58 @@ export class B2cFeaturesController {
     private readonly backInStockService: BackInStockService,
   ) {}
 
-  // ─── Wishlist ─────────────────────────────────────────────────
+  // ─── Wishlist (customer) ──────────────────────────────────────
 
   @Get('wishlist')
-  async getWishlist(@Req() req: StoreRequest) {
-    this.requireCustomer(req);
-    const items = await this.wishlistService.getWishlist(req.tenantId, req.customerId!);
+  @UseGuards(B2CAuthGuard)
+  async getWishlist(@Req() req: Request) {
+    const { tenantId, customerId } = this.customerContext(req);
+    const items = await this.wishlistService.getWishlist(tenantId, customerId);
     return { success: true, data: items };
   }
 
   @Get('wishlist/count')
-  async getWishlistCount(@Req() req: StoreRequest) {
-    this.requireCustomer(req);
-    const count = await this.wishlistService.getWishlistCount(req.tenantId, req.customerId!);
+  @UseGuards(B2CAuthGuard)
+  async getWishlistCount(@Req() req: Request) {
+    const { tenantId, customerId } = this.customerContext(req);
+    const count = await this.wishlistService.getWishlistCount(tenantId, customerId);
     return { success: true, data: { count } };
   }
 
   @Post('wishlist')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(B2CAuthGuard)
   async addToWishlist(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Body() body: { productId: string },
   ) {
-    this.requireCustomer(req);
-    const item = await this.wishlistService.addToWishlist(
-      req.tenantId,
-      req.customerId!,
-      body.productId,
-    );
+    const { tenantId, customerId } = this.customerContext(req);
+    const item = await this.wishlistService.addToWishlist(tenantId, customerId, body.productId);
     return { success: true, data: item };
   }
 
   @Delete('wishlist/:productId')
+  @UseGuards(B2CAuthGuard)
   async removeFromWishlist(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Param('productId') productId: string,
   ) {
-    this.requireCustomer(req);
-    await this.wishlistService.removeFromWishlist(req.tenantId, req.customerId!, productId);
+    const { tenantId, customerId } = this.customerContext(req);
+    await this.wishlistService.removeFromWishlist(tenantId, customerId, productId);
     return { success: true };
   }
 
   @Post('wishlist/:productId/price-alert')
+  @UseGuards(B2CAuthGuard)
   async enablePriceAlert(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Param('productId') productId: string,
     @Body() body: { thresholdPaise: number },
   ) {
-    this.requireCustomer(req);
+    const { tenantId, customerId } = this.customerContext(req);
     const result = await this.wishlistService.enablePriceAlert(
-      req.tenantId,
-      req.customerId!,
+      tenantId,
+      customerId,
       productId,
       body.thresholdPaise,
     );
@@ -97,24 +98,25 @@ export class B2cFeaturesController {
   }
 
   @Delete('wishlist/:productId/price-alert')
+  @UseGuards(B2CAuthGuard)
   async disablePriceAlert(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Param('productId') productId: string,
   ) {
-    this.requireCustomer(req);
-    await this.wishlistService.disablePriceAlert(req.tenantId, req.customerId!, productId);
+    const { tenantId, customerId } = this.customerContext(req);
+    await this.wishlistService.disablePriceAlert(tenantId, customerId, productId);
     return { success: true };
   }
 
-  // ─── Compare ──────────────────────────────────────────────────
+  // ─── Compare (guest or customer; sessionId identifies guests) ──
 
   @Get('compare')
   async getCompareList(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Query('sessionId') sessionId?: string,
   ) {
     const list = await this.compareService.getCompareList(
-      req.tenantId,
+      this.publicTenantOf(req),
       req.customerId,
       sessionId,
     );
@@ -124,11 +126,11 @@ export class B2cFeaturesController {
   @Post('compare')
   @HttpCode(HttpStatus.CREATED)
   async addToCompare(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Body() body: { productId: string; sessionId?: string },
   ) {
     const result = await this.compareService.addToCompare(
-      req.tenantId,
+      this.publicTenantOf(req),
       body.productId,
       req.customerId,
       body.sessionId,
@@ -138,12 +140,12 @@ export class B2cFeaturesController {
 
   @Delete('compare/:productId')
   async removeFromCompare(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Param('productId') productId: string,
     @Query('sessionId') sessionId?: string,
   ) {
     const result = await this.compareService.removeFromCompare(
-      req.tenantId,
+      this.publicTenantOf(req),
       productId,
       req.customerId,
       sessionId,
@@ -153,18 +155,19 @@ export class B2cFeaturesController {
 
   @Delete('compare')
   async clearCompare(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Query('sessionId') sessionId?: string,
   ) {
-    await this.compareService.clearCompare(req.tenantId, req.customerId, sessionId);
+    await this.compareService.clearCompare(this.publicTenantOf(req), req.customerId, sessionId);
     return { success: true };
   }
 
-  // ─── Coupons ──────────────────────────────────────────────────
+  // ─── Coupons (customer) ───────────────────────────────────────
 
   @Post('coupons/validate')
+  @UseGuards(B2CAuthGuard)
   async validateCoupon(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Body() body: {
       code: string;
       cartTotalPaise: number;
@@ -176,22 +179,22 @@ export class B2cFeaturesController {
       }>;
     },
   ) {
-    this.requireCustomer(req);
-    const result = await this.couponService.validateCoupon(
-      req.tenantId,
-      req.customerId!,
-      {
-        code: body.code.toUpperCase(),
-        cartTotalPaise: body.cartTotalPaise,
-        cartItems: body.cartItems,
-      },
-    );
+    const { tenantId, customerId } = this.customerContext(req);
+    if (typeof body.code !== 'string' || body.code.trim() === '') {
+      throw new BadRequestException('code is required');
+    }
+    const result = await this.couponService.validateCoupon(tenantId, customerId, {
+      code: body.code.trim().toUpperCase(),
+      cartTotalPaise: body.cartTotalPaise,
+      cartItems: body.cartItems,
+    });
     return { success: true, data: result };
   }
 
   @Post('coupons/auto-apply')
+  @UseGuards(B2CAuthGuard)
   async getAutoApplyCoupon(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Body() body: {
       cartTotalPaise: number;
       cartItems: Array<{
@@ -202,10 +205,10 @@ export class B2cFeaturesController {
       }>;
     },
   ) {
-    this.requireCustomer(req);
+    const { tenantId, customerId } = this.customerContext(req);
     const result = await this.couponService.getAutoApplyCoupons(
-      req.tenantId,
-      req.customerId!,
+      tenantId,
+      customerId,
       body.cartTotalPaise,
       body.cartItems,
     );
@@ -214,14 +217,15 @@ export class B2cFeaturesController {
 
   // ─── Back In Stock ────────────────────────────────────────────
 
+  /** Anonymous (email) or signed-in subscription; customerId is attached when present. */
   @Post('back-in-stock/subscribe')
   @HttpCode(HttpStatus.CREATED)
   async subscribeBackInStock(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Body() body: { productId: string; email: string },
   ) {
     const result = await this.backInStockService.subscribe(
-      req.tenantId,
+      this.publicTenantOf(req),
       body.productId,
       body.email,
       req.customerId,
@@ -231,28 +235,46 @@ export class B2cFeaturesController {
 
   @Delete('back-in-stock/:alertId')
   async unsubscribeBackInStock(
-    @Req() req: StoreRequest,
+    @Req() req: Request,
     @Param('alertId') alertId: string,
   ) {
-    await this.backInStockService.unsubscribe(req.tenantId, alertId, req.customerId);
+    await this.backInStockService.unsubscribe(this.publicTenantOf(req), alertId, req.customerId);
     return { success: true };
   }
 
   @Get('back-in-stock')
-  async getBackInStockSubscriptions(@Req() req: StoreRequest) {
-    this.requireCustomer(req);
-    const items = await this.backInStockService.getSubscriptions(
-      req.tenantId,
-      req.customerId!,
-    );
+  @UseGuards(B2CAuthGuard)
+  async getBackInStockSubscriptions(@Req() req: Request) {
+    const { tenantId, customerId } = this.customerContext(req);
+    const items = await this.backInStockService.getSubscriptions(tenantId, customerId);
     return { success: true, data: items };
   }
 
   // ─── Helpers ──────────────────────────────────────────────────
 
-  private requireCustomer(req: StoreRequest): asserts req is StoreRequest & { customerId: string } {
-    if (!req.customerId) {
-      throw new BadRequestException('Customer authentication required');
+  /** Tenant and customer from the B2C guard. Throws if either is missing. */
+  private customerContext(req: Request): { tenantId: string; customerId: string } {
+    const tenantId = req.b2cTenantId;
+    const customerId = req.customerId;
+    if (!tenantId || !customerId) {
+      throw new UnauthorizedException('Customer authentication required');
     }
+    return { tenantId, customerId };
+  }
+
+  /** Tenant for public routes, resolved by TenantMiddleware. */
+  private publicTenantOf(req: Request): string {
+    // Guest storefront requests carry a UUID-validated x-tenant-id header;
+    // staff requests have the tenant set by TenantMiddleware.
+    const header = req.headers['x-tenant-id'];
+    const headerTenant = Array.isArray(header) ? header[0] : header;
+    if (headerTenant && UUID_RE.test(headerTenant)) {
+      return headerTenant;
+    }
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
+    return tenantId;
   }
 }

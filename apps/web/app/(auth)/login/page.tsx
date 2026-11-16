@@ -8,9 +8,10 @@ import { api } from '@/lib/api';
 export default function LoginPage() {
   const router = useRouter();
   const { setTokens } = useAuthStore();
-  const [email, setEmail] = React.useState('admin@sharmajewellers.com');
-  const [password, setPassword] = React.useState('admin123');
-  const [tenantSlug, setTenantSlug] = React.useState('sharma-jewellers');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [tenantSlug, setTenantSlug] = React.useState('');
+  const showDemoHint = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
@@ -27,11 +28,14 @@ export default function LoginPage() {
 
       if (result.success && result.data) {
         setTokens(result.data.accessToken, result.data.refreshToken);
+        // Keep the button in its loading state until navigation completes
+        // (first dashboard load can take a while in dev).
         router.push('/dashboard');
+        return;
       }
+      setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
-    } finally {
       setLoading(false);
     }
   };
@@ -47,13 +51,13 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo credentials */}
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
-          <p className="font-semibold text-amber-800">Demo Credentials (pre-filled):</p>
-          <p className="text-amber-700 mt-1">Business: sharma-jewellers</p>
-          <p className="text-amber-700">Email: admin@sharmajewellers.com</p>
-          <p className="text-amber-700">Password: admin123</p>
-        </div>
+        {/* Demo hint: shown only when NEXT_PUBLIC_DEMO_MODE=true. Never prints credentials. */}
+        {showDemoHint && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+            <p className="font-semibold text-amber-800">Demo mode is enabled</p>
+            <p className="text-amber-700 mt-1">Use the demo account credentials provided by your administrator.</p>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border bg-card p-8 shadow-sm">

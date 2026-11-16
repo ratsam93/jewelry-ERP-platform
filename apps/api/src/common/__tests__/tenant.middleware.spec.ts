@@ -167,7 +167,7 @@ describe('TenantMiddleware', () => {
     expect(mockNext).toHaveBeenCalled();
   });
 
-  it('uses dev-secret fallback when JWT_SECRET env var is not set', () => {
+  it('does NOT accept tokens signed with the old public dev-secret when JWT_SECRET is unset', () => {
     delete process.env.JWT_SECRET;
     const newMiddleware = new TenantMiddleware();
 
@@ -188,8 +188,8 @@ describe('TenantMiddleware', () => {
 
     newMiddleware.use(req, res, mockNext);
 
-    expect(req.tenantId).toBe('tenant-1');
-    expect(req.userId).toBe('user-1');
+    expect(req.tenantId).toBeUndefined();
+    expect(req.userId).toBeUndefined();
     expect(mockNext).toHaveBeenCalled();
 
     // Restore

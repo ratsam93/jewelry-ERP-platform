@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Global, Module, forwardRef } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -11,6 +11,9 @@ import { TwoFactorAuthService } from './auth.2fa.service';
 import { AccessTokenDenylistService } from './access-token-denylist.service';
 import { CrmModule } from '../modules/crm/crm.module';
 
+// Global so AccessTokenDenylistService is injectable by TenantMiddleware,
+// TrpcController and RealtimeGateway without each module importing AuthModule.
+@Global()
 @Module({
   // CrmModule exports EmailService / SmsService / WhatsAppService which the
   // OtpService, AuthService password-reset, and B2C welcome email rely on.

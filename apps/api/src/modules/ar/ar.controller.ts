@@ -9,10 +9,9 @@ import {
   Body,
   Param,
   Query,
-  Headers,
+  Req,
   HttpCode,
   HttpStatus,
-  BadRequestException,
 } from '@nestjs/common';
 import type { ApiResponse } from '@caratflow/shared-types';
 import type {
@@ -24,33 +23,7 @@ import type {
 import { ArTryOnService } from './ar.tryon.service';
 import { Ar360Service } from './ar.360.service';
 import { ArService } from './ar.service';
-
-interface StorefrontContext {
-  tenantId: string;
-  customerId: string | null;
-  sessionId: string;
-}
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function extractContext(headers: Record<string, string | undefined>): StorefrontContext {
-  const tenantId = headers['x-tenant-id'];
-  if (!tenantId) throw new BadRequestException('Missing x-tenant-id header');
-  if (!UUID_RE.test(tenantId)) {
-    throw new BadRequestException('x-tenant-id must be a valid UUID');
-  }
-  const customerId = headers['x-customer-id'] ?? null;
-  if (customerId && !UUID_RE.test(customerId)) {
-    throw new BadRequestException('x-customer-id must be a valid UUID');
-  }
-
-  return {
-    tenantId,
-    customerId,
-    sessionId: headers['x-session-id'] ?? `sess-${Date.now()}`,
-  };
-}
+import { extractContext, type HeaderBearingRequest } from '../../common/customer-identity';
 
 function success<T>(data: T): ApiResponse<T> {
   return { success: true, data };
@@ -73,9 +46,9 @@ export class ArController {
   @Get('products/:productId/tryon')
   async getTryOnConfig(
     @Param('productId') productId: string,
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<TryOnConfig>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const config = await this.tryOnService.getTryOnConfig(ctx.tenantId, productId);
     return success(config);
   }
@@ -87,9 +60,9 @@ export class ArController {
   @Get('products/:productId/360')
   async get360Config(
     @Param('productId') productId: string,
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<Product360Config | null>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const config = await this.ar360Service.get360Config(ctx.tenantId, productId);
     return success(config);
   }
@@ -102,9 +75,9 @@ export class ArController {
   @HttpCode(HttpStatus.CREATED)
   async startSession(
     @Body() body: { productId: string; deviceType: string },
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<TryOnSessionResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const session = await this.tryOnService.startSession(ctx.tenantId, {
       productId: body.productId,
       customerId: ctx.customerId ?? undefined,
@@ -127,9 +100,9 @@ export class ArController {
       addedToCart?: boolean;
       duration: number;
     },
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<TryOnSessionResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const session = await this.tryOnService.endSession(ctx.tenantId, {
       sessionId,
       screenshotTaken: body.screenshotTaken ?? false,
@@ -149,9 +122,9 @@ export class ArController {
     @Query('category') category: string | undefined,
     @Query('page') page: string | undefined,
     @Query('limit') limit: string | undefined,
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<ArProductListItem[]>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const result = await this.arService.getProductsWithAr(
       ctx.tenantId,
       category,

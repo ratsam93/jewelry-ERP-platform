@@ -7,6 +7,7 @@ import {
   createTestApp,
   type TestApp,
   storefrontHeaders,
+  authenticatedStorefrontHeaders,
 } from './test-app';
 import { resetMocks } from './mocks';
 
@@ -141,11 +142,20 @@ describe('Chatbot Integration Tests', () => {
   // ═══════════════════════════════════════════════════════════════
 
   describe('GET /api/v1/store/chat/session/:sessionId', () => {
-    it('returns session history', async () => {
+    it('returns 401 for guests (no customer token)', async () => {
       const sessionId = 'chat-session-' + uuid();
       const res = await request(app.getHttpServer())
         .get(`/api/v1/store/chat/session/${sessionId}`)
         .set(storefrontHeaders());
+
+      expect(res.status).toBe(401);
+    });
+
+    it('returns session history for an authenticated customer', async () => {
+      const sessionId = 'chat-session-' + uuid();
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/store/chat/session/${sessionId}`)
+        .set(authenticatedStorefrontHeaders());
 
       expect([200, 404, 500]).toContain(res.status);
     });

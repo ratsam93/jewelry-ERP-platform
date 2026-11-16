@@ -112,6 +112,9 @@ export class StorefrontCartService extends TenantAwareService {
     });
 
     const desiredQty = existingItem ? existingItem.quantity + quantity : quantity;
+    if (desiredQty > MAX_LINE_QUANTITY) {
+      throw new BadRequestException(`quantity must be ${MAX_LINE_QUANTITY} or less per line`);
+    }
     if (desiredQty > available) {
       throw new BadRequestException(
         `Insufficient stock. Available: ${available}, requested: ${desiredQty}`,
@@ -245,7 +248,9 @@ export class StorefrontCartService extends TenantAwareService {
       if (existing) {
         await this.prisma.cartItem.update({
           where: { id: existing.id },
-          data: { quantity: existing.quantity + guestItem.quantity },
+          data: {
+            quantity: Math.min(existing.quantity + guestItem.quantity, MAX_LINE_QUANTITY),
+          },
         });
       } else {
         await this.prisma.cartItem.create({

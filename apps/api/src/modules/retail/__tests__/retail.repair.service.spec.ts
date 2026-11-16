@@ -4,6 +4,10 @@ import { RetailRepairService } from '../retail.repair.service';
 import { createMockPrismaService, createMockEventBusService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
 
 vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid-' + Math.random().toString(36).slice(2, 10)) }));
+vi.mock('@caratflow/db', () => ({
+  PrismaClient: class {},
+  Prisma: { JsonNull: Symbol.for('Prisma.JsonNull'), DbNull: Symbol.for('Prisma.DbNull') },
+}));
 
 describe('RetailRepairService', () => {
   let service: RetailRepairService;

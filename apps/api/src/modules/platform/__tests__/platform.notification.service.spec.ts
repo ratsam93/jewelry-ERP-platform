@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException } from '@nestjs/common';
+
+// @caratflow/db only exports Prisma as a type, so provide runtime sentinels.
+vi.mock('@caratflow/db', () => ({
+  PrismaClient: class {},
+  Prisma: { JsonNull: { __json: 'JsonNull' }, DbNull: { __json: 'DbNull' } },
+}));
+
 import { PlatformNotificationService } from '../platform.notification.service';
 import {
   createMockPrismaService,

@@ -22,9 +22,9 @@ interface SupplierPerformanceCardProps {
 
 function formatPaise(paise: number): string {
   const rupees = paise / 100;
-  if (rupees >= 100000) return `\u20B9${(rupees / 100000).toFixed(1)}L`;
-  if (rupees >= 1000) return `\u20B9${(rupees / 1000).toFixed(1)}K`;
-  return `\u20B9${rupees.toLocaleString('en-IN')}`;
+  if (rupees >= 100000) return `₹${(rupees / 100000).toFixed(1)}L`;
+  if (rupees >= 1000) return `₹${(rupees / 1000).toFixed(1)}K`;
+  return `₹${rupees.toLocaleString('en-IN')}`;
 }
 
 function getRatingColor(percent: number): string {

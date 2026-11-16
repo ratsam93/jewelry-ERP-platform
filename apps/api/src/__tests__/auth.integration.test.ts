@@ -24,7 +24,7 @@ describe('Auth Integration Tests', () => {
   beforeAll(async () => {
     testApp = await createTestApp();
     app = testApp.app;
-  });
+  }, 60_000); // NestJS AppModule compile can exceed the 10s default on a cold transform cache
 
   afterAll(async () => {
     await app.close();
@@ -344,6 +344,12 @@ describe('Auth Integration Tests', () => {
         createMockCustomerAuth({
           passwordHash,
           email: 'customer@example.com',
+          customer: {
+            id: 'cust-001',
+            tenantId: TEST_TENANT_ID,
+            firstName: 'Customer',
+            lastName: 'Test',
+          },
         }),
       );
       testApp.prisma.customerAuth.update.mockResolvedValue({});
@@ -414,10 +420,13 @@ describe('Auth Integration Tests', () => {
       testApp.prisma.otpVerification.findFirst.mockResolvedValue({
         id: uuid(),
         identifier: '+919876543210',
-        otp: '123456',
+        otpCode: '123456',
         purpose: 'REGISTRATION',
         expiresAt: new Date(Date.now() + 300000),
-        isUsed: false,
+        verifiedAt: null,
+        attempts: 0,
+        maxAttempts: 3,
+        createdAt: new Date(),
       });
       testApp.prisma.otpVerification.update.mockResolvedValue({});
 

@@ -11,6 +11,83 @@ import {
   generateAdminToken,
 } from './test-app';
 import { resetMocks } from './mocks';
+import { vi } from 'vitest';
+import * as bcrypt from 'bcryptjs';
+
+// Password hash for the B2C customer's current password (low cost: test only).
+const CURRENT_PASSWORD = 'OldPassword1!';
+const CURRENT_PASSWORD_HASH = bcrypt.hashSync(CURRENT_PASSWORD, 4);
+
+// Customer row returned by prisma.customer.findFirst for the B2C token's customer.
+const PORTAL_CUSTOMER_ROW = {
+  id: TEST_B2C_CUSTOMER.customerId,
+  tenantId: TEST_B2C_CUSTOMER.tenantId,
+  firstName: 'Test',
+  lastName: 'Customer',
+  email: TEST_B2C_CUSTOMER.email,
+  phone: TEST_B2C_CUSTOMER.phone,
+  alternatePhone: null,
+  address: null,
+  city: null,
+  state: null,
+  country: null,
+  postalCode: null,
+  dateOfBirth: null,
+  anniversary: null,
+  loyaltyPoints: 0,
+  loyaltyTier: null,
+  preferences: {},
+  createdAt: new Date('2025-01-01'),
+  customerAuth: { isEmailVerified: true, isPhoneVerified: true },
+};
+
+// Delegates the customer-portal services use that the shared mock does not define.
+const PORTAL_MODELS = [
+  'onlineOrder',
+  'loyaltyTransaction',
+  'loyaltyProgram',
+  'kittyMember',
+  'kittyScheme',
+  'kittyInstallment',
+  'goldSavingsMember',
+  'goldSavingsScheme',
+  'goldSavingsInstallment',
+  'wishlist',
+  'saleReturn',
+  'shipment',
+  'sale',
+  'metalRateHistory',
+  'kycVerification',
+] as const;
+
+/** Installs empty-result stubs for the portal models and a valid customer row. */
+function stubPortalModels(prisma: Record<string, unknown>): void {
+  for (const name of PORTAL_MODELS) {
+    const model = (prisma[name] ??= {}) as Record<string, unknown>;
+    for (const fn of ['findFirst', 'findUnique', 'findMany', 'count', 'aggregate', 'create', 'update', 'updateMany']) {
+      if (typeof model[fn] !== 'function') model[fn] = vi.fn();
+    }
+    (model.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (model.count as ReturnType<typeof vi.fn>).mockResolvedValue(0);
+    (model.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (model.aggregate as ReturnType<typeof vi.fn>).mockResolvedValue({ _sum: {}, _count: 0 });
+  }
+  const customer = prisma['customer'] as Record<string, ReturnType<typeof vi.fn>>;
+  customer.findFirst.mockResolvedValue(PORTAL_CUSTOMER_ROW);
+  customer.update.mockResolvedValue(PORTAL_CUSTOMER_ROW);
+
+  // Transactions run against the same stubs (tx === prisma) so writes made
+  // inside $transaction resolve against the delegates configured here.
+  prisma['$transaction'] = vi.fn(async (fn: unknown) =>
+    (fn as (tx: unknown) => Promise<unknown>)(prisma),
+  );
+  const customerAuth = prisma['customerAuth'] as Record<string, ReturnType<typeof vi.fn>>;
+  customerAuth.updateMany = vi.fn().mockResolvedValue({ count: 1 });
+  const goldMember = prisma['goldSavingsMember'] as Record<string, ReturnType<typeof vi.fn>>;
+  goldMember.create.mockResolvedValue({ id: uuid() });
+  const goldInstallment = prisma['goldSavingsInstallment'] as Record<string, ReturnType<typeof vi.fn>>;
+  goldInstallment.createMany = vi.fn().mockResolvedValue({ count: 0 });
+}
 
 describe('Customer Portal Integration Tests', () => {
   let app: INestApplication;
@@ -30,9 +107,18 @@ describe('Customer Portal Integration Tests', () => {
   beforeEach(() => {
     resetMocks(testApp.prisma);
     (testApp.prisma as Record<string, unknown>)['$queryRawUnsafe'] = async () => [{ 1: 1 }];
+    stubPortalModels(testApp.prisma as unknown as Record<string, unknown>);
   });
 
-  // All customer-portal endpoints are guarded by B2CAuthGuard
+  // All customer-portal endpoints are guarded by B2CAuthGuard.
+  // The B2C token carries the tenant and customer id; the services look the
+  // customer up via prisma.customer.findFirst, so that mock must return a row.
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Request DTOs in customer-portal.controller.ts are decorated with
+  //  class-validator rules, so valid bodies/queries reach the services and
+  //  return their normal success status. Invalid input is still rejected (400).
+  // ═══════════════════════════════════════════════════════════════
 
   // ═══════════════════════════════════════════════════════════════
   //  AUTH ENFORCEMENT
@@ -66,11 +152,9 @@ describe('Customer Portal Integration Tests', () => {
         .get('/api/v1/store/account/dashboard')
         .set('Authorization', `Bearer ${b2cToken}`);
 
-      expect([200, 500]).toContain(res.status);
-      if (res.status === 200) {
-        expect(res.body.success).toBe(true);
-        expect(res.body).toHaveProperty('data');
-      }
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body).toHaveProperty('data');
     });
   });
 
@@ -84,15 +168,13 @@ describe('Customer Portal Integration Tests', () => {
         .get('/api/v1/store/account/profile')
         .set('Authorization', `Bearer ${b2cToken}`);
 
-      expect([200, 500]).toContain(res.status);
-      if (res.status === 200) {
-        expect(res.body.success).toBe(true);
-      }
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 
   describe('PUT /api/v1/store/account/profile', () => {
-    it('updates customer profile', async () => {
+    it('updates profile with a valid body', async () => {
       const res = await request(app.getHttpServer())
         .put('/api/v1/store/account/profile')
         .set('Authorization', `Bearer ${b2cToken}`)
@@ -102,24 +184,30 @@ describe('Customer Portal Integration Tests', () => {
           phone: '+919999999999',
         });
 
-      expect([200, 500]).toContain(res.status);
-      if (res.status === 200) {
-        expect(res.body.success).toBe(true);
-      }
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 
   describe('PUT /api/v1/store/account/password', () => {
     it('changes password with correct current password', async () => {
+      const customerAuth = testApp.prisma.customerAuth as unknown as Record<string, ReturnType<typeof vi.fn>>;
+      customerAuth.findFirst.mockResolvedValue({
+        id: uuid(),
+        customerId: TEST_B2C_CUSTOMER.customerId,
+        passwordHash: CURRENT_PASSWORD_HASH,
+      });
+
       const res = await request(app.getHttpServer())
         .put('/api/v1/store/account/password')
         .set('Authorization', `Bearer ${b2cToken}`)
         .send({
-          currentPassword: 'OldPassword1!',
+          currentPassword: CURRENT_PASSWORD,
           newPassword: 'NewPassword1!',
         });
 
-      expect([200, 400, 401, 500]).toContain(res.status);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
 
     it('returns 401 without auth', async () => {
@@ -139,24 +227,23 @@ describe('Customer Portal Integration Tests', () => {
   // ═══════════════════════════════════════════════════════════════
 
   describe('GET /api/v1/store/account/orders', () => {
-    it('returns 200 with paginated orders', async () => {
+    it('returns 200 for order list with no query params', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/store/account/orders')
         .set('Authorization', `Bearer ${b2cToken}`);
 
-      expect([200, 500]).toContain(res.status);
-      if (res.status === 200) {
-        expect(res.body.success).toBe(true);
-      }
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
 
-    it('accepts pagination and filter params', async () => {
+    it('returns 200 for paginated/filtered order list', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/store/account/orders')
-        .query({ page: 1, limit: 10, sortOrder: 'desc', status: 'COMPLETED' })
+        .query({ page: 1, limit: 10, sortOrder: 'desc', status: 'DELIVERED' })
         .set('Authorization', `Bearer ${b2cToken}`);
 
-      expect([200, 500]).toContain(res.status);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 
@@ -181,10 +268,8 @@ describe('Customer Portal Integration Tests', () => {
         .get('/api/v1/store/account/loyalty')
         .set('Authorization', `Bearer ${b2cToken}`);
 
-      expect([200, 500]).toContain(res.status);
-      if (res.status === 200) {
-        expect(res.body.success).toBe(true);
-      }
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 
@@ -228,12 +313,25 @@ describe('Customer Portal Integration Tests', () => {
 
   describe('POST /api/v1/store/account/schemes/enroll', () => {
     it('enrolls in a scheme', async () => {
+      const goldScheme = testApp.prisma.goldSavingsScheme as unknown as Record<string, ReturnType<typeof vi.fn>>;
+      goldScheme.findFirst.mockResolvedValue({
+        id: uuid(),
+        tenantId: TEST_B2C_CUSTOMER.tenantId,
+        schemeName: 'Gold Savings',
+        status: 'OPEN',
+        durationMonths: 12,
+        bonusMonths: 0,
+        monthlyAmountPaise: BigInt(500000),
+        maturityBonusPercent: 0,
+      });
+
       const res = await request(app.getHttpServer())
         .post('/api/v1/store/account/schemes/enroll')
         .set('Authorization', `Bearer ${b2cToken}`)
         .send({ schemeId: uuid(), schemeType: 'GOLD_SAVINGS' });
 
-      expect([201, 400, 500]).toContain(res.status);
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
     });
   });
 
@@ -279,12 +377,12 @@ describe('Customer Portal Integration Tests', () => {
         .get('/api/v1/store/account/notifications')
         .set('Authorization', `Bearer ${b2cToken}`);
 
-      expect([200, 500]).toContain(res.status);
+      expect(res.status).toBe(200);
     });
   });
 
   describe('PUT /api/v1/store/account/notifications', () => {
-    it('updates notification preferences', async () => {
+    it('updates notification preferences with a valid body', async () => {
       const res = await request(app.getHttpServer())
         .put('/api/v1/store/account/notifications')
         .set('Authorization', `Bearer ${b2cToken}`)
@@ -293,7 +391,8 @@ describe('Customer Portal Integration Tests', () => {
           promotions: { email: true, sms: false, whatsapp: false, push: false },
         });
 
-      expect([200, 500]).toContain(res.status);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 });

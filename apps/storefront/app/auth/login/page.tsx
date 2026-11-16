@@ -11,9 +11,10 @@ type AuthTokens = { accessToken?: string; refreshToken?: string };
 export default function LoginPage() {
   const router = useRouter();
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
-  const [email, setEmail] = useState("admin@sharmajewellers.com");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("admin123");
+  const [password, setPassword] = useState("");
+  const showDemoHint = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -131,12 +132,13 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-          {/* Demo credentials notice */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-xs">
-            <p className="font-semibold text-amber-800">Demo Credentials (pre-filled):</p>
-            <p className="text-amber-700 mt-0.5">Email: admin@sharmajewellers.com</p>
-            <p className="text-amber-700">Password: admin123</p>
-          </div>
+          {/* Demo hint: shown only when NEXT_PUBLIC_DEMO_MODE=true. Never prints credentials. */}
+          {showDemoHint && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-xs">
+              <p className="font-semibold text-amber-800">Demo mode is enabled</p>
+              <p className="text-amber-700 mt-0.5">Use the demo account credentials provided by your administrator.</p>
+            </div>
+          )}
 
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">{error}</div>}
 

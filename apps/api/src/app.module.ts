@@ -38,17 +38,9 @@ import { PayrollModule } from './modules/payroll/payroll.module';
 
 @Module({
   imports: [
-    // Three named rate-limit buckets. Per-endpoint @Throttle() picks one:
-    //   short  — 1 req/sec  (newsletter, OTP send)
-    //   medium — 10 req/min (login, password reset)
-    //   long   — 100 req/hr (registration)
-    // Default policy applied via ThrottlerGuard is the most permissive bucket;
-    // hot endpoints opt into a stricter named bucket.
-    ThrottlerModule.forRoot([
-      { name: 'short', ttl: 1000, limit: 3 },
-      { name: 'medium', ttl: 60_000, limit: 10 },
-      { name: 'long', ttl: 60 * 60_000, limit: 100 },
-    ]),
+    // Single default bucket: 100 requests per 60s per IP. Hot endpoints tighten
+    // it with a per-route @Throttle({ default: { limit, ttl } }) override.
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 100 }]),
     CommonModule,
     AuthModule,
     HealthModule,
@@ -84,7 +76,7 @@ import { PayrollModule } from './modules/payroll/payroll.module';
     PayrollModule,
   ],
   providers: [
-    // Apply ThrottlerGuard globally; per-endpoint @Throttle() refines limits.
+    // Apply ThrottlerGuard globally; per-endpoint @Throttle({ default }) refines limits.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

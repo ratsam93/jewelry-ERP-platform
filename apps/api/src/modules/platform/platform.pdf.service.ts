@@ -44,6 +44,14 @@ export interface RenderOptions {
   height?: string;
 }
 
+/**
+ * Template placeholders whose values are intentionally raw HTML.
+ * Every other placeholder value is HTML-escaped in fillTemplate.
+ *  - lineItemsRows: produced by buildTableRows(), which escapes each cell.
+ *    Callers must not pass unescaped HTML here.
+ */
+const RAW_HTML_PLACEHOLDERS: ReadonlySet<string> = new Set(['lineItemsRows']);
+
 const DEFAULT_OPTIONS: RenderOptions = {
   format: 'A4',
   printBackground: true,
@@ -83,11 +91,15 @@ export class PlatformPdfService implements OnModuleDestroy {
       });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Chromium sandbox stays ON by default. Only disable it explicitly
+      // (e.g. some Docker hosts without user namespaces) via env.
+      const disableSandbox = process.env.PUPPETEER_NO_SANDBOX === 'true';
+      const sandboxArgs = disableSandbox ? ['--no-sandbox', '--disable-setuid-sandbox'] : [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const launchOpts: Record<string, any> = {
         headless: true,
         args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
+          ...sandboxArgs,
           '--disable-dev-shm-usage',
           '--font-render-hinting=none',
         ],
@@ -135,6 +147,19 @@ export class PlatformPdfService implements OnModuleDestroy {
     const browser = await this.getBrowser();
     const page: PuppeteerPage = await browser.newPage();
     try {
+      // Templates are self-contained. Block every network request except
+      // inline data: URLs, so markup cannot fetch internal or external
+      // resources (SSRF / data exfiltration via <img>, <link>, etc.).
+      await page.setRequestInterception(true);
+      page.on('request', (request: { url(): string; continue(): unknown; abort(): unknown }) => {
+        if (request.url().startsWith('data:')) {
+          void request.continue();
+        } else {
+          void request.abort();
+        }
+      });
+      // Templates do not need JavaScript; disable it for the page.
+      await page.setJavaScriptEnabled(false);
       await page.setContent(html, { waitUntil: 'networkidle0' });
       const pdf = await page.pdf({
         format: opts.format,
@@ -196,11 +221,16 @@ export class PlatformPdfService implements OnModuleDestroy {
     return this.fillTemplate(raw, data);
   }
 
+  /**
+   * Substitute `{{key}}` placeholders. Values are HTML-escaped unless the
+   * key is in RAW_HTML_PLACEHOLDERS (see above).
+   */
   fillTemplate(template: string, data: Record<string, unknown>): string {
     return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_m, key: string) => {
       const val = data[key];
       if (val === null || val === undefined) return '';
-      return String(val);
+      const str = String(val);
+      return RAW_HTML_PLACEHOLDERS.has(key) ? str : this.escapeHtml(str);
     });
   }
 

@@ -5,8 +5,10 @@ import { Module } from '@nestjs/common';
 import { ReferralService } from './referral.service';
 import { ReferralController } from './referral.controller';
 import { ReferralTrpcRouter } from './referral.trpc';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
+  imports: [AuthModule],
   controllers: [ReferralController],
   providers: [
     ReferralService,

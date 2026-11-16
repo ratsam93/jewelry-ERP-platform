@@ -8,10 +8,11 @@ import {
   Get,
   Delete,
   Query,
-  Headers,
+  Req,
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { ApiResponse } from '@caratflow/shared-types';
 import type {
@@ -19,29 +20,14 @@ import type {
   AutocompleteResponse,
 } from '@caratflow/shared-types';
 import { SearchService } from './search.service';
+import { extractContext, type HeaderBearingRequest } from '../../common/customer-identity';
 
-interface SearchContext {
-  tenantId: string;
-  customerId: string | null;
-}
+/** Maximum accepted length of a search query (characters). */
+const MAX_QUERY_LENGTH = 200;
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function extractContext(headers: Record<string, string | undefined>): SearchContext {
-  const tenantId = headers['x-tenant-id'];
-  if (!tenantId) throw new BadRequestException('Missing x-tenant-id header');
-  if (!UUID_RE.test(tenantId)) {
-    throw new BadRequestException('x-tenant-id must be a valid UUID');
-  }
-  const customerId = headers['x-customer-id'] ?? null;
-  if (customerId && !UUID_RE.test(customerId)) {
-    throw new BadRequestException('x-customer-id must be a valid UUID');
-  }
-  return {
-    tenantId,
-    customerId,
-  };
+/** Trim and cap a raw query string. */
+function normalizeQuery(raw: string): string {
+  return raw.trim().slice(0, MAX_QUERY_LENGTH);
 }
 
 function success<T>(data: T): ApiResponse<T> {
@@ -58,15 +44,16 @@ export class SearchController {
    */
   @Get()
   async search(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('q') q?: string,
     @Query('filters') filtersJson?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('sort') sort?: string,
   ): Promise<ApiResponse<SearchResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     if (!q || !q.trim()) throw new BadRequestException('Search query (q) is required');
+    const query = normalizeQuery(q);
 
     let filters: Record<string, unknown> | undefined;
     if (filtersJson) {
@@ -79,7 +66,7 @@ export class SearchController {
 
     const data = await this.searchService.search(
       ctx.tenantId,
-      q.trim(),
+      query,
       filters as unknown as import('@caratflow/shared-types').SearchFilters | undefined,
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
@@ -95,15 +82,15 @@ export class SearchController {
    */
   @Get('autocomplete')
   async autocomplete(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('q') q?: string,
   ): Promise<ApiResponse<AutocompleteResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     if (!q || !q.trim()) throw new BadRequestException('Query (q) is required');
 
     const data = await this.searchService.autocomplete(
       ctx.tenantId,
-      q.trim(),
+      normalizeQuery(q),
       8,
       ctx.customerId,
     );
@@ -116,10 +103,10 @@ export class SearchController {
    */
   @Get('popular')
   async popularSearches(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('limit') limit?: string,
   ): Promise<ApiResponse<string[]>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const data = await this.searchService.getPopularSearches(
       ctx.tenantId,
       limit ? parseInt(limit, 10) : 10,
@@ -133,11 +120,11 @@ export class SearchController {
    */
   @Get('recent')
   async recentSearches(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('limit') limit?: string,
   ): Promise<ApiResponse<string[]>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
 
     const data = await this.searchService.getRecentSearches(
       ctx.customerId,
@@ -153,10 +140,10 @@ export class SearchController {
   @Delete('recent')
   @HttpCode(HttpStatus.NO_CONTENT)
   async clearRecentSearches(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<void> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     await this.searchService.clearRecentSearches(ctx.customerId);
   }
 }

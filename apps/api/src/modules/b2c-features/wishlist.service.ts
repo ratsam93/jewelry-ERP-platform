@@ -1,7 +1,7 @@
 // ─── Wishlist Service ───────────────────────────────────────────
 // Add/remove products, price snapshots, price alert monitoring.
 
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
@@ -18,6 +18,13 @@ export class WishlistService extends TenantAwareService {
     private readonly notificationService: CrmNotificationService,
   ) {
     super(prisma);
+  }
+
+  /** Reject calls where tenant or customer is missing, so no Prisma filter is silently dropped. */
+  private assertCustomerScope(tenantId: string, customerId: string): void {
+    if (!tenantId || !customerId) {
+      throw new UnauthorizedException('Customer authentication required');
+    }
   }
 
   async addToWishlist(tenantId: string, customerId: string, productId: string) {
@@ -76,6 +83,7 @@ export class WishlistService extends TenantAwareService {
   }
 
   async getWishlist(tenantId: string, customerId: string) {
+    this.assertCustomerScope(tenantId, customerId);
     const items = await this.prisma.wishlist.findMany({
       where: { tenantId, customerId },
       include: {
@@ -120,6 +128,7 @@ export class WishlistService extends TenantAwareService {
   }
 
   async getWishlistCount(tenantId: string, customerId: string): Promise<number> {
+    this.assertCustomerScope(tenantId, customerId);
     return this.prisma.wishlist.count({
       where: { tenantId, customerId },
     });

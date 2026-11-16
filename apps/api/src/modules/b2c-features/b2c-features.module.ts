@@ -12,9 +12,10 @@ import { B2cFeaturesController } from './b2c-features.controller';
 import { B2cFeaturesTrpcRouter } from './b2c-features.trpc';
 import { B2cFeaturesEventHandler } from './b2c-features.event-handler';
 import { CrmModule } from '../crm/crm.module';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
-  imports: [CrmModule],
+  imports: [CrmModule, AuthModule],
   controllers: [B2cFeaturesController],
   providers: [
     WishlistService,

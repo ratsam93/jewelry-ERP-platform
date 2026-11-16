@@ -2,20 +2,82 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { createHash, timingSafeEqual } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/global-exception.filter';
 import { LoggingInterceptor } from './common/logging.interceptor';
+import { getJwtSecret } from './common/jwt-secret';
+
+// Swagger is served at /api/docs (ignoreGlobalPrefix). The gate also covers the
+// global-prefixed variants so no docs path is left unprotected.
+const SWAGGER_GATED_PATHS = [
+  '/api/docs',
+  '/api/docs-json',
+  '/api/v1/api/docs',
+  '/api/v1/api/docs-json',
+];
+
+/** TRUST_PROXY: 'true' | 'false' | hop count | Express trust-proxy string. Default 1 hop. */
+function parseTrustProxy(raw: string | undefined): boolean | number | string {
+  const value = (raw ?? '1').trim();
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value;
+}
+
+/** Constant-time string comparison (hashing first so lengths do not leak). */
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a, 'utf8').digest();
+  const hb = createHash('sha256').update(b, 'utf8').digest();
+  return timingSafeEqual(ha, hb);
+}
+
+function swaggerBasicAuthGate(user: string, password: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const challenge = () => {
+      res.set('WWW-Authenticate', 'Basic realm="CaratFlow API Docs"');
+      res.status(401).send('Authentication required');
+    };
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Basic ')) {
+      challenge();
+      return;
+    }
+    const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+    const sepIdx = decoded.indexOf(':');
+    if (sepIdx < 0) {
+      challenge();
+      return;
+    }
+    const nameOk = safeEqual(decoded.slice(0, sepIdx), user);
+    const passOk = safeEqual(decoded.slice(sepIdx + 1), password);
+    if (!(nameOk && passOk)) {
+      challenge();
+      return;
+    }
+    next();
+  };
+}
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Fail fast: in production this throws unless JWT_SECRET is set (>= 32 chars).
+  getJwtSecret();
 
-  // Hide framework fingerprint (D-045)
+  const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  // Hide framework fingerprint (D-045) and honour the reverse proxy for client IPs
+  // (rate limiting, logs).
   const httpAdapter = app.getHttpAdapter();
   const instance = httpAdapter.getInstance?.() as
-    | { disable?: (k: string) => void; use?: (fn: unknown) => void }
+    | {
+        disable?: (k: string) => void;
+        set?: (k: string, v: unknown) => void;
+      }
     | undefined;
-  if (instance?.disable) instance.disable('x-powered-by');
+  instance?.disable?.('x-powered-by');
+  instance?.set?.('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
   // Security headers (D-038)
   app.use(
@@ -25,9 +87,13 @@ async function bootstrap() {
     }),
   );
 
-  // CORS
+  // CORS — entries are trimmed and empty entries dropped.
+  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: (process.env.CORS_ORIGINS ?? 'http://localhost:3000').split(','),
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Customer-Id', 'X-Session-Id'],
@@ -51,51 +117,36 @@ async function bootstrap() {
 
   // API prefix
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health'],
+    exclude: ['health', 'api/v1/*path'],
   });
 
-  // Swagger — gated in production unless SWAGGER_ENABLED=true (D-026).
-  // When enabled in production, require basic auth via SWAGGER_USER/SWAGGER_PASSWORD.
+  // Swagger — OFF unless SWAGGER_ENABLED=true (D-026). In production it also needs
+  // SWAGGER_USER/SWAGGER_PASSWORD, otherwise it is refused.
+  const swaggerEnabled = process.env.SWAGGER_ENABLED === 'true';
   const isProd = process.env.NODE_ENV === 'production';
-  const swaggerEnabled = process.env.SWAGGER_ENABLED === 'true' || !isProd;
+  let docsMounted = false;
   if (swaggerEnabled) {
-    if (isProd) {
-      const swaggerUser = process.env.SWAGGER_USER;
-      const swaggerPassword = process.env.SWAGGER_PASSWORD;
-      if (!swaggerUser || !swaggerPassword) {
-        console.warn(
-          '[CARATFLOW] SWAGGER_ENABLED=true in production but SWAGGER_USER/SWAGGER_PASSWORD are not set — refusing to expose docs',
-        );
-      } else {
-        app.use(['/api/docs', '/api/docs-json'], (req: Request, res: Response, next: NextFunction) => {
-          const header = req.headers.authorization;
-          if (!header || !header.startsWith('Basic ')) {
-            res.set('WWW-Authenticate', 'Basic realm="CaratFlow API Docs"');
-            res.status(401).send('Authentication required');
-            return;
-          }
-          const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-          const sepIdx = decoded.indexOf(':');
-          const name = sepIdx >= 0 ? decoded.slice(0, sepIdx) : '';
-          const pass = sepIdx >= 0 ? decoded.slice(sepIdx + 1) : '';
-          if (name !== swaggerUser || pass !== swaggerPassword) {
-            res.set('WWW-Authenticate', 'Basic realm="CaratFlow API Docs"');
-            res.status(401).send('Authentication required');
-            return;
-          }
-          next();
-        });
-        mountSwagger(app);
-      }
+    const swaggerUser = process.env.SWAGGER_USER;
+    const swaggerPassword = process.env.SWAGGER_PASSWORD;
+    if (isProd && (!swaggerUser || !swaggerPassword)) {
+      console.warn(
+        '[CARATFLOW] SWAGGER_ENABLED=true in production but SWAGGER_USER/SWAGGER_PASSWORD are not set — refusing to expose docs',
+      );
     } else {
+      if (swaggerUser && swaggerPassword) {
+        app.use(SWAGGER_GATED_PATHS, swaggerBasicAuthGate(swaggerUser, swaggerPassword));
+      } else {
+        console.warn('[CARATFLOW] Swagger enabled without SWAGGER_USER/SWAGGER_PASSWORD (non-production only)');
+      }
       mountSwagger(app);
+      docsMounted = true;
     }
   }
 
   const port = process.env.API_PORT ?? 4000;
   await app.listen(port);
   console.warn(`CaratFlow API running on http://localhost:${port}`);
-  if (swaggerEnabled) {
+  if (docsMounted) {
     console.warn(`Swagger docs at http://localhost:${port}/api/docs`);
   }
 }
@@ -111,7 +162,7 @@ function mountSwagger(app: INestApplication): void {
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document, { useGlobalPrefix: false });
 }
 
 bootstrap();

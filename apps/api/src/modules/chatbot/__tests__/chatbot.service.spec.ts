@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException } from '@nestjs/common';
 import { createMockPrismaService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
+// '@caratflow/db' only exports Prisma as a type at runtime, so the service's
+// Prisma.JsonNull sentinel must be provided by the mock.
+vi.mock('@caratflow/db', () => ({
+  PrismaClient: class {},
+  Prisma: { JsonNull: { __sentinel: 'JsonNull' }, DbNull: { __sentinel: 'DbNull' } },
+}));
 import { ChatbotService } from '../chatbot.service';
 
 describe('ChatbotService', () => {

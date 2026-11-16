@@ -1,6 +1,7 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, NestMiddleware, Optional } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import * as jwt from 'jsonwebtoken';
+import { AccessTokenDenylistService } from '../auth/access-token-denylist.service';
+import { extractBearerToken, resolveStaffClaims } from '../auth/access-token';
 
 export interface JwtPayload {
   sub: string; // userId
@@ -26,22 +27,20 @@ declare global {
 
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
+  constructor(@Optional() private readonly denylist?: AccessTokenDenylistService) {}
+
   use(req: Request, _res: Response, next: NextFunction) {
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const token = authHeader.slice(7);
-        const secret = process.env.JWT_SECRET ?? 'dev-secret';
-        const payload = jwt.verify(token, secret) as JwtPayload;
-        req.tenantId = payload.tenantId;
-        req.userId = payload.sub;
-        req.userRole = payload.role;
-        req.userPermissions = payload.permissions;
-        req.accessTokenJti = payload.jti;
-        req.accessTokenExp = payload.exp;
-      } catch {
-        // Token invalid -- let guards handle the 401
-      }
+    // Only staff tokens populate userId/tenant. B2C customer tokens, expired or
+    // mis-signed tokens, and denylisted (revoked) tokens are treated as anonymous;
+    // guards then return 401.
+    const claims = resolveStaffClaims(extractBearerToken(req.headers.authorization), this.denylist);
+    if (claims) {
+      req.tenantId = claims.tenantId;
+      req.userId = claims.sub;
+      req.userRole = claims.role;
+      req.userPermissions = claims.permissions;
+      req.accessTokenJti = claims.jti;
+      req.accessTokenExp = claims.exp;
     }
     next();
   }

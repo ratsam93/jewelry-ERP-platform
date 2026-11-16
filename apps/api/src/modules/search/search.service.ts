@@ -18,6 +18,14 @@ import { SearchSynonymService } from './search.synonym.service';
 import { SearchAnalyticsService } from './search.analytics.service';
 import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * Escape LIKE wildcards so user input is matched literally by Prisma `contains`.
+ * Backslash is the default escape character for MySQL LIKE.
+ */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 @Injectable()
 export class SearchService extends TenantAwareService {
   private readonly logger = new Logger(SearchService.name);
@@ -365,7 +373,7 @@ export class SearchService extends TenantAwareService {
       where: {
         tenantId,
         isActive: true,
-        name: { contains: query },
+        name: { contains: escapeLike(query) },
       },
       include: {
         category: { select: { name: true } },
@@ -396,7 +404,7 @@ export class SearchService extends TenantAwareService {
     const categories = await this.prisma.category.findMany({
       where: {
         tenantId,
-        name: { contains: query },
+        name: { contains: escapeLike(query) },
       },
       include: {
         _count: { select: { products: true } },
@@ -419,7 +427,7 @@ export class SearchService extends TenantAwareService {
     const results = await this.prisma.popularSearch.findMany({
       where: {
         tenantId,
-        query: { contains: query },
+        query: { contains: escapeLike(query) },
         resultCount: { gt: 0 },
       },
       orderBy: { searchCount: 'desc' },
@@ -438,7 +446,7 @@ export class SearchService extends TenantAwareService {
       where: {
         tenantId,
         isActive: true,
-        suggestion: { contains: query },
+        suggestion: { contains: escapeLike(query) },
       },
       orderBy: { priority: 'desc' },
       take: limit,
@@ -452,7 +460,7 @@ export class SearchService extends TenantAwareService {
       where: {
         tenantId,
         isActive: true,
-        suggestion: { contains: query.toLowerCase() },
+        suggestion: { contains: escapeLike(query.toLowerCase()) },
       },
       orderBy: { priority: 'desc' },
       take: 5,

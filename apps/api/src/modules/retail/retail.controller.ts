@@ -7,9 +7,11 @@ import {
   Param,
   Req,
   Res,
-  BadRequestException,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { StaffAuthGuard } from '../../common/staff-auth.guard';
 import { RetailService } from './retail.service';
 
 interface AuthenticatedRequest extends Request {
@@ -17,13 +19,11 @@ interface AuthenticatedRequest extends Request {
   userId?: string;
 }
 
+// Tenant identity comes only from the verified JWT (set by TenantMiddleware).
+// Never read it from request headers.
 function getTenantId(req: AuthenticatedRequest): string {
-  const tenantId =
-    req.tenantId ??
-    (req.headers['x-tenant-id'] as string | undefined) ??
-    undefined;
-  if (!tenantId) throw new BadRequestException('Missing tenant context');
-  return tenantId;
+  if (!req.tenantId) throw new UnauthorizedException('Staff authentication required');
+  return req.tenantId;
 }
 
 @Controller('api/v1/retail')
@@ -34,6 +34,7 @@ export class RetailController {
    * GET /api/v1/retail/sales/:id/receipt.pdf
    * Stream a POS sale receipt as application/pdf.
    */
+  @UseGuards(StaffAuthGuard)
   @Get('sales/:id/receipt.pdf')
   async downloadReceipt(
     @Req() req: AuthenticatedRequest,

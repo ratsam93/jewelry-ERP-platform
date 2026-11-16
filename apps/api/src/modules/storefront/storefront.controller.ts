@@ -12,11 +12,11 @@ import {
   Body,
   Param,
   Query,
-  Headers,
   Req,
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { IsInt, IsString, IsOptional, Min, Max, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -67,38 +67,7 @@ import { StorefrontAddressService } from './storefront.address.service';
 import { StorefrontReviewService } from './storefront.review.service';
 import { StorefrontHomeService } from './storefront.home.service';
 import { StorefrontCouponService } from './storefront.coupon.service';
-
-/**
- * Extract tenant/customer context from request headers.
- * In production, a middleware or guard would validate JWT and inject these.
- */
-interface StorefrontContext {
-  tenantId: string;
-  customerId: string | null;
-  sessionId: string;
-}
-
-// RFC 4122 UUID — accepts both lowercase and uppercase hex (D-041).
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function extractContext(headers: Record<string, string | undefined>): StorefrontContext {
-  const tenantId = headers['x-tenant-id'];
-  if (!tenantId) throw new BadRequestException('Missing x-tenant-id header');
-  if (!UUID_RE.test(tenantId)) {
-    throw new BadRequestException('x-tenant-id must be a valid UUID');
-  }
-  const customerId = headers['x-customer-id'] ?? null;
-  if (customerId && !UUID_RE.test(customerId)) {
-    throw new BadRequestException('x-customer-id must be a valid UUID');
-  }
-
-  return {
-    tenantId,
-    customerId,
-    sessionId: headers['x-session-id'] ?? `sess-${Date.now()}`,
-  };
-}
+import { extractContext, type HeaderBearingRequest } from '../../common/customer-identity';
 
 /**
  * Parse a 1-based page number; defaults to 1, rejects non-integers / <1.
@@ -146,9 +115,9 @@ export class StorefrontController {
 
   @Get('home')
   async getHome(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<StorefrontHomeResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const data = await this.homeService.getHomepageData(ctx.tenantId);
     return success(data);
   }
@@ -157,7 +126,7 @@ export class StorefrontController {
 
   @Get('products')
   async getProducts(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('sortBy') sortBy?: string,
@@ -171,7 +140,7 @@ export class StorefrontController {
     @Query('weightMaxMg') weightMaxMg?: string,
     @Query('search') search?: string,
   ): Promise<ApiResponse<PaginatedResult<CatalogProductResponse>>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const data = await this.catalogService.getProducts(ctx.tenantId, {
       page: parsePage(page),
       limit: parseLimit(limit, 20, 100),
@@ -191,21 +160,21 @@ export class StorefrontController {
 
   @Get('products/:id')
   async getProductById(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('id') id: string,
   ): Promise<ApiResponse<CatalogProductResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const data = await this.catalogService.getProductById(ctx.tenantId, id);
     return success(data);
   }
 
   @Get('products/search')
   async searchProducts(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('q') query: string,
     @Query('limit') limit?: string,
   ): Promise<ApiResponse<CatalogProductResponse[]>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     if (!query) throw new BadRequestException('Search query is required');
     const data = await this.catalogService.searchProducts(
       ctx.tenantId,
@@ -218,19 +187,19 @@ export class StorefrontController {
 
   @Get('categories')
   async getCategories(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<unknown>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const data = await this.catalogService.getCategories(ctx.tenantId);
     return success(data);
   }
 
   @Get('compare')
   async compareProducts(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('ids') ids: string,
   ): Promise<ApiResponse<ProductCompareResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     if (!ids) throw new BadRequestException('Product ids are required');
     const productIds = ids.split(',').map((id) => id.trim());
     if (productIds.length < 2 || productIds.length > 4) {
@@ -244,9 +213,9 @@ export class StorefrontController {
 
   @Get('cart')
   async getCart(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<CartResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const data = await this.cartService.getOrCreateCart(
       ctx.tenantId,
       ctx.customerId,
@@ -257,10 +226,10 @@ export class StorefrontController {
 
   @Post('cart/items')
   async addCartItem(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: AddCartItemDto,
   ): Promise<ApiResponse<CartResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const cart = await this.cartService.getOrCreateCart(
       ctx.tenantId,
       ctx.customerId,
@@ -277,11 +246,11 @@ export class StorefrontController {
 
   @Put('cart/items/:itemId')
   async updateCartItem(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('itemId') itemId: string,
     @Body() body: UpdateCartItemDto,
   ): Promise<ApiResponse<CartResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const cart = await this.cartService.getOrCreateCart(
       ctx.tenantId,
       ctx.customerId,
@@ -298,10 +267,10 @@ export class StorefrontController {
 
   @Delete('cart/items/:itemId')
   async removeCartItem(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('itemId') itemId: string,
   ): Promise<ApiResponse<CartResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const cart = await this.cartService.getOrCreateCart(
       ctx.tenantId,
       ctx.customerId,
@@ -313,9 +282,9 @@ export class StorefrontController {
 
   @Delete('cart')
   async clearCart(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<CartResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const cart = await this.cartService.getOrCreateCart(
       ctx.tenantId,
       ctx.customerId,
@@ -327,10 +296,10 @@ export class StorefrontController {
 
   @Post('cart/merge')
   async mergeGuestCart(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<CartResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.cartService.mergeGuestCart(
       ctx.tenantId,
       ctx.sessionId,
@@ -341,10 +310,10 @@ export class StorefrontController {
 
   @Post('cart/coupon')
   async applyCoupon(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: { couponCode: string },
   ): Promise<ApiResponse<CartResponse>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const cart = await this.cartService.getOrCreateCart(
       ctx.tenantId,
       ctx.customerId,
@@ -364,44 +333,44 @@ export class StorefrontController {
   @Post('wishlist')
   @HttpCode(HttpStatus.CREATED)
   async addToWishlist(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: { productId: string },
   ): Promise<ApiResponse<null>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     await this.wishlistService.add(ctx.tenantId, ctx.customerId, body.productId);
     return success(null);
   }
 
   @Get('wishlist')
   async getWishlist(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<WishlistResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.wishlistService.getWishlist(ctx.tenantId, ctx.customerId);
     return success(data);
   }
 
   @Delete('wishlist/:productId')
   async removeFromWishlist(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('productId') productId: string,
   ): Promise<ApiResponse<null>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     await this.wishlistService.remove(ctx.tenantId, ctx.customerId, productId);
     return success(null);
   }
 
   @Post('wishlist/:productId/price-alert')
   async enablePriceAlert(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('productId') productId: string,
     @Body() body: { targetPricePaise: number },
   ): Promise<ApiResponse<null>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     await this.wishlistService.enablePriceAlert(
       ctx.tenantId,
       ctx.customerId,
@@ -415,11 +384,11 @@ export class StorefrontController {
 
   @Post('checkout')
   async initiateCheckout(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: { cartId: string; addressId: string; paymentMethod: string; couponCode?: string },
   ): Promise<ApiResponse<OrderResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.checkoutService.initiateCheckout(ctx.tenantId, ctx.customerId, {
       cartId: body.cartId,
       addressId: body.addressId,
@@ -431,12 +400,12 @@ export class StorefrontController {
 
   @Post('checkout/:orderId/complete')
   async completeCheckout(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('orderId') orderId: string,
     @Body() body: { externalPaymentId: string; gatewayResponse?: Record<string, unknown> },
   ): Promise<ApiResponse<OrderResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.checkoutService.completeCheckout(
       ctx.tenantId,
       ctx.customerId,
@@ -450,12 +419,12 @@ export class StorefrontController {
 
   @Get('orders')
   async getMyOrders(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<ApiResponse<PaginatedResult<OrderResponse>>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const pagination: Pagination = {
       page: parsePage(page),
       limit: parseLimit(limit, 20, 100),
@@ -467,26 +436,26 @@ export class StorefrontController {
 
   @Get('orders/:id')
   async getOrderById(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('id') id: string,
   ): Promise<ApiResponse<OrderResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.orderService.getOrderById(ctx.tenantId, ctx.customerId, id);
     return success(data);
   }
 
   @Post('orders/:id/return')
   async requestReturn(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('id') id: string,
     @Body() body: {
       items: Array<{ orderItemId: string; quantity: number; reason: string }>;
       reason: string;
     },
   ): Promise<ApiResponse<null>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     await this.orderService.requestReturn(
       ctx.tenantId,
       ctx.customerId,
@@ -499,12 +468,12 @@ export class StorefrontController {
 
   @Post('orders/:id/cancel')
   async cancelOrder(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('id') id: string,
     @Body() body: { reason: string },
   ): Promise<ApiResponse<OrderResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.checkoutService.cancelOrder(
       ctx.tenantId,
       ctx.customerId,
@@ -516,11 +485,11 @@ export class StorefrontController {
 
   @Post('orders/:id/reorder')
   async reorder(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('id') id: string,
   ): Promise<ApiResponse<{ cartId: string }>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const cartId = await this.orderService.reorder(ctx.tenantId, ctx.customerId, id);
     return success({ cartId });
   }
@@ -530,11 +499,11 @@ export class StorefrontController {
   @Post('reviews')
   @HttpCode(HttpStatus.CREATED)
   async submitReview(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: { productId: string; rating: number; title?: string; body?: string; images?: string[] },
   ): Promise<ApiResponse<ReviewResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.reviewService.submitReview(ctx.tenantId, ctx.customerId, {
       productId: body.productId,
       rating: body.rating,
@@ -547,14 +516,14 @@ export class StorefrontController {
 
   @Get('reviews/:productId')
   async getReviews(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('productId') productId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: string,
   ): Promise<ApiResponse<PaginatedResult<ReviewResponse>>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const data = await this.reviewService.getReviews(ctx.tenantId, {
       productId,
       page: parsePage(page),
@@ -568,10 +537,10 @@ export class StorefrontController {
   @Post('reviews/:reviewId/helpful')
   @HttpCode(HttpStatus.NO_CONTENT)
   async markReviewHelpful(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('reviewId') reviewId: string,
   ): Promise<void> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     await this.reviewService.markHelpful(ctx.tenantId, reviewId);
   }
 
@@ -579,21 +548,21 @@ export class StorefrontController {
 
   @Get('addresses')
   async listAddresses(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<AddressResponse[]>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.addressService.listAddresses(ctx.tenantId, ctx.customerId);
     return success(data);
   }
 
   @Get('addresses/:id')
   async getAddress(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('id') id: string,
   ): Promise<ApiResponse<AddressResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.addressService.getAddress(ctx.tenantId, ctx.customerId, id);
     return success(data);
   }
@@ -601,7 +570,7 @@ export class StorefrontController {
   @Post('addresses')
   @HttpCode(HttpStatus.CREATED)
   async createAddress(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: {
       label?: string;
       firstName: string;
@@ -616,8 +585,8 @@ export class StorefrontController {
       isDefault?: boolean;
     },
   ): Promise<ApiResponse<AddressResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.addressService.createAddress(ctx.tenantId, ctx.customerId, {
       ...body,
       label: body.label ?? '',
@@ -628,12 +597,12 @@ export class StorefrontController {
 
   @Put('addresses/:id')
   async updateAddress(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
   ): Promise<ApiResponse<AddressResponse>> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     const data = await this.addressService.updateAddress(
       ctx.tenantId,
       ctx.customerId,
@@ -646,11 +615,11 @@ export class StorefrontController {
   @Delete('addresses/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteAddress(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Param('id') id: string,
   ): Promise<void> {
-    const ctx = extractContext(headers);
-    if (!ctx.customerId) throw new BadRequestException('Customer login required');
+    const ctx = extractContext(req);
+    if (!ctx.customerId) throw new UnauthorizedException('Customer login required');
     await this.addressService.deleteAddress(ctx.tenantId, ctx.customerId, id);
   }
 
@@ -658,10 +627,10 @@ export class StorefrontController {
 
   @Post('coupons/validate')
   async validateCoupon(
-    @Headers() headers: Record<string, string | undefined>,
+    @Req() req: HeaderBearingRequest,
     @Body() body: { code: string; cartTotalPaise: number },
   ): Promise<ApiResponse<CouponValidationResult>> {
-    const ctx = extractContext(headers);
+    const ctx = extractContext(req);
     const data = await this.couponService.validateCoupon(
       ctx.tenantId,
       body.code,

@@ -10,8 +10,10 @@ import { ReorderService } from './reorder.service';
 import { PreOrderController } from './preorder.controller';
 import { PreOrderTrpcRouter } from './preorder.trpc';
 import { PreOrderEventHandler } from './preorder.event-handler';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
+  imports: [AuthModule],
   controllers: [PreOrderController],
   providers: [
     PreOrderService,

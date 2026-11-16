@@ -76,14 +76,26 @@ describe('OtpService', () => {
       expect(diffMs).toBeLessThan(6 * 60 * 1000);
     });
 
-    it('should return OTP in non-production environment', async () => {
+    it('should NOT return OTP unless ALLOW_DEV_OTP is explicitly enabled', async () => {
       prisma.otpVerification.updateMany.mockResolvedValue({ count: 0 });
       prisma.otpVerification.create.mockResolvedValue({ id: 'otp-id' });
+      delete process.env.ALLOW_DEV_OTP;
 
       const result = await service.generateOtp('+919876543210', 'LOGIN' as never);
 
-      // NODE_ENV is set to 'test' in setup
-      expect(result.otp).toBeDefined();
+      expect(result.otp).toBeUndefined();
+    });
+
+    it('should return OTP only when ALLOW_DEV_OTP=true', async () => {
+      prisma.otpVerification.updateMany.mockResolvedValue({ count: 0 });
+      prisma.otpVerification.create.mockResolvedValue({ id: 'otp-id' });
+      process.env.ALLOW_DEV_OTP = 'true';
+      try {
+        const result = await service.generateOtp('+919876543210', 'LOGIN' as never);
+        expect(result.otp).toBeDefined();
+      } finally {
+        delete process.env.ALLOW_DEV_OTP;
+      }
     });
   });
 

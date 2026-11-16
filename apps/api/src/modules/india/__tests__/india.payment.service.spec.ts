@@ -1,5 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IndiaPaymentService } from '../india.payment.service';
+
+// Razorpay SDK is mocked so the order path is exercised without network calls.
+const ordersCreate = vi.hoisted(() => vi.fn());
+vi.mock('razorpay', () => ({
+  default: class {
+    orders = { create: ordersCreate };
+    constructor(_opts: unknown) {}
+  },
+}));
 
 describe('IndiaPaymentService (Unit)', () => {
   let service: IndiaPaymentService;
@@ -160,11 +169,39 @@ describe('IndiaPaymentService (Unit)', () => {
   // ─── Razorpay placeholder ───────────────────────────────────────
 
   describe('createRazorpayOrder', () => {
-    it('returns placeholder response', async () => {
-      const result = await service.createRazorpayOrder(10000, 'INR', 'receipt-1');
+    const savedEnv = { ...process.env };
 
-      expect(result.orderId).toContain('placeholder');
-      expect(result.message).toContain('pending');
+    beforeEach(() => {
+      ordersCreate.mockReset();
+      ordersCreate.mockResolvedValue({ id: 'order_TEST123', amount: 10000, currency: 'INR' });
+      process.env.RAZORPAY_KEY_ID = 'rzp_test_key';
+      process.env.RAZORPAY_KEY_SECRET = 'rzp_test_secret';
+    });
+
+    afterEach(() => {
+      process.env = { ...savedEnv };
+    });
+
+    it('creates a Razorpay order for the tenant and returns its id', async () => {
+      const result = await service.createRazorpayOrder('tenant-1', 10000, 'INR', 'receipt-1');
+
+      expect(ordersCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 10000, currency: 'INR', receipt: 'receipt-1' }),
+      );
+      expect(result.orderId).toBe('order_TEST123');
+      expect(result.keyId).toBe('rzp_test_key');
+      expect(result.amount).toBe(10000);
+      expect(result.currency).toBe('INR');
+    });
+
+    it('rejects when Razorpay is not configured for the tenant', async () => {
+      delete process.env.RAZORPAY_KEY_ID;
+      delete process.env.RAZORPAY_KEY_SECRET;
+
+      await expect(service.createRazorpayOrder('tenant-1', 10000, 'INR', 'receipt-1')).rejects.toThrow(
+        'Razorpay not configured for tenant tenant-1',
+      );
+      expect(ordersCreate).not.toHaveBeenCalled();
     });
   });
 });

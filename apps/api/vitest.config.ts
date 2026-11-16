@@ -1,7 +1,32 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import swc from 'unplugin-swc';
+import fs from 'fs';
+
+// Integration tests boot AppModule, which needs the local MySQL/Redis settings.
+// Load the repo-root .env (if present) without overriding variables already set.
+try {
+  const envFile = path.resolve(__dirname, '../../.env');
+  for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
+    const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*$/.exec(line);
+    if (m && m[1] && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
+  }
+} catch {
+  // no .env: tests that need services will fail with a clear connection error
+}
 
 export default defineConfig({
+  // esbuild does not emit decorator metadata, which NestJS DI needs for constructor
+  // injection in integration tests. Compile TS with SWC (same as the real build).
+  plugins: [
+    swc.vite({
+      jsc: {
+        parser: { syntax: 'typescript', decorators: true },
+        transform: { legacyDecorator: true, decoratorMetadata: true },
+        target: 'es2022',
+      },
+    }),
+  ],
   test: {
     globals: true,
     environment: 'node',

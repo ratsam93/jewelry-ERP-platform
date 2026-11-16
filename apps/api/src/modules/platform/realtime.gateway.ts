@@ -6,7 +6,7 @@
 // `BROADCASTABLE_EVENT_TYPES` are relayed -- sensitive events
 // (payments, KYC, auth) are filtered out.
 
-import { Logger, OnModuleInit } from '@nestjs/common';
+import { Logger, OnModuleInit, Optional } from '@nestjs/common';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -14,7 +14,6 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
-import * as jwt from 'jsonwebtoken';
 import {
   BROADCASTABLE_EVENT_TYPES,
   isBroadcastableEventType,
@@ -22,13 +21,8 @@ import {
   type DomainEventType,
 } from '@caratflow/shared-types';
 import { EventBusService } from '../../event-bus/event-bus.service';
-
-interface RealtimeJwtPayload {
-  sub: string;
-  tenantId: string;
-  email?: string;
-  role?: string;
-}
+import { AccessTokenDenylistService } from '../../auth/access-token-denylist.service';
+import { resolveStaffClaims } from '../../auth/access-token';
 
 @WebSocketGateway({ namespace: '/realtime', cors: { origin: true, credentials: true } })
 export class RealtimeGateway
@@ -39,7 +33,10 @@ export class RealtimeGateway
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly eventBus: EventBusService) {}
+  constructor(
+    private readonly eventBus: EventBusService,
+    @Optional() private readonly denylist?: AccessTokenDenylistService,
+  ) {}
 
   onModuleInit(): void {
     // Subscribe to every broadcastable event type. Each handler emits to
@@ -85,33 +82,25 @@ export class RealtimeGateway
       return;
     }
 
-    let payload: RealtimeJwtPayload;
-    try {
-      const secret = process.env.JWT_SECRET ?? 'dev-secret';
-      payload = jwt.verify(token, secret) as RealtimeJwtPayload;
-    } catch {
-      this.logger.warn(`Rejecting socket ${client.id}: invalid token`);
+    // Staff tokens only: B2C customer tokens, invalid/expired and revoked tokens are rejected.
+    const claims = resolveStaffClaims(token, this.denylist);
+    if (!claims) {
+      this.logger.warn(`Rejecting socket ${client.id}: invalid or non-staff token`);
       client.emit('error', { message: 'Unauthorized: invalid token' });
       client.disconnect(true);
       return;
     }
 
-    if (!payload?.tenantId || !payload?.sub) {
-      client.emit('error', { message: 'Unauthorized: missing tenantId/sub' });
-      client.disconnect(true);
-      return;
-    }
+    (client.data as Record<string, unknown>).tenantId = claims.tenantId;
+    (client.data as Record<string, unknown>).userId = claims.sub;
 
-    (client.data as Record<string, unknown>).tenantId = payload.tenantId;
-    (client.data as Record<string, unknown>).userId = payload.sub;
-
-    void client.join(`tenant:${payload.tenantId}`);
-    void client.join(`user:${payload.sub}`);
+    void client.join(`tenant:${claims.tenantId}`);
+    void client.join(`user:${claims.sub}`);
 
     this.logger.log(
-      `Socket ${client.id} connected: tenant=${payload.tenantId} user=${payload.sub}`,
+      `Socket ${client.id} connected: tenant=${claims.tenantId} user=${claims.sub}`,
     );
-    client.emit('ready', { tenantId: payload.tenantId, userId: payload.sub });
+    client.emit('ready', { tenantId: claims.tenantId, userId: claims.sub });
   }
 
   handleDisconnect(client: Socket): void {

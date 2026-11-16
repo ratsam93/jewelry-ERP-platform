@@ -62,7 +62,10 @@ export default function ProductDetailPage() {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Breadcrumbs */}
