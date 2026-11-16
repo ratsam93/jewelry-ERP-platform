@@ -64,7 +64,7 @@ export const UpdateProfileInputSchema = z.object({
   postalCode: z.string().max(20).optional(),
   dateOfBirth: z.coerce.date().optional(),
   anniversary: z.coerce.date().optional(),
-  preferences: z.record(z.unknown()).optional(),
+  preferences: z.record(z.string(), z.unknown()).optional(),
 });
 export type UpdateProfileInput = z.infer<typeof UpdateProfileInputSchema>;
 

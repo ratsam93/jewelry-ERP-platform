@@ -2,6 +2,7 @@
 // All CRM procedures exposed via tRPC.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { TrpcService } from '../../trpc/trpc.service';
 import { CrmService } from './crm.service';
 import { CrmLoyaltyService } from './crm.loyalty.service';
@@ -164,7 +165,7 @@ export class CrmTrpcRouter {
         }),
 
       loyaltyProgramUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(LoyaltyProgramInputSchema.partial()))
+        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(LoyaltyProgramInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.loyaltyService.updateProgram(ctx.tenantId, ctx.userId, id, data);
@@ -233,7 +234,7 @@ export class CrmTrpcRouter {
         }),
 
       notificationTemplateUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(NotificationTemplateInputSchema.partial()))
+        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(NotificationTemplateInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.notificationService.updateTemplate(ctx.tenantId, ctx.userId, id, data);
@@ -277,7 +278,7 @@ export class CrmTrpcRouter {
         }),
 
       campaignUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(CampaignInputSchema.partial()))
+        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(CampaignInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.campaignService.updateCampaign(ctx.tenantId, ctx.userId, id, data);
@@ -327,7 +328,7 @@ export class CrmTrpcRouter {
         }),
 
       leadUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(LeadInputSchema.partial()))
+        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(LeadInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.leadService.updateLead(ctx.tenantId, ctx.userId, id, data);

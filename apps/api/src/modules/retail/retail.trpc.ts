@@ -2,6 +2,7 @@
 // All tRPC procedures for the retail / POS module.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { TrpcService } from '../../trpc/trpc.service';
 import { RetailService } from './retail.service';
@@ -440,7 +441,7 @@ export class RetailTrpcRouter {
         ),
 
       updateDiscount: this.trpc.authedProcedure
-        .input(z.object({ discountId: z.string().uuid(), data: DiscountInputSchema.partial() }))
+        .input(z.object({ discountId: z.string().uuid(), data: partialUpdate(DiscountInputSchema) }))
         .mutation(({ ctx, input }) =>
           this.discountService.updateDiscount(ctx.tenantId, ctx.userId, input.discountId, input.data),
         ),

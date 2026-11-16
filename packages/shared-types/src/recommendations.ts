@@ -122,10 +122,10 @@ export type TrackClickInput = z.infer<typeof TrackClickInputSchema>;
 
 export const CustomerBehaviorResponseSchema = z.object({
   customerId: z.string().uuid(),
-  viewedCategories: z.record(z.number()).nullable(),
-  viewedProducts: z.record(z.number()).nullable(),
-  purchasedCategories: z.record(z.number()).nullable(),
-  purchasedProducts: z.record(z.number()).nullable(),
+  viewedCategories: z.record(z.string(), z.number()).nullable(),
+  viewedProducts: z.record(z.string(), z.number()).nullable(),
+  purchasedCategories: z.record(z.string(), z.number()).nullable(),
+  purchasedProducts: z.record(z.string(), z.number()).nullable(),
   searchQueries: z.array(z.string()).nullable(),
   avgOrderValuePaise: z.number().int(),
   preferredMetalType: z.string().nullable(),

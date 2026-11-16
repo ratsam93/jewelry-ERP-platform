@@ -438,7 +438,7 @@ export class ReportingTrpcRouter {
         .input(z.object({
           scheduledReportId: z.string().uuid().optional(),
           limit: z.number().int().min(1).max(100).default(20),
-        }).default({}))
+        }).default({ limit: 20 }))
         .query(({ ctx, input }) =>
           this.prisma.reportExecution.findMany({
             where: {

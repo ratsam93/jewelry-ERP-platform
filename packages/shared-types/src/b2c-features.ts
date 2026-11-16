@@ -3,6 +3,7 @@
 // Abandoned Cart Recovery, and Back-in-Stock Alerts.
 
 import { z } from 'zod';
+import { partialUpdate } from './zod-helpers';
 
 // ─── Enums ────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ export const CouponCodeInputSchema = z.object({
 });
 export type CouponCodeInput = z.infer<typeof CouponCodeInputSchema>;
 
-export const CouponCodeUpdateSchema = CouponCodeInputSchema.partial().omit({ code: true });
+export const CouponCodeUpdateSchema = partialUpdate(CouponCodeInputSchema).omit({ code: true });
 export type CouponCodeUpdate = z.infer<typeof CouponCodeUpdateSchema>;
 
 export const ValidateCouponInputSchema = z.object({

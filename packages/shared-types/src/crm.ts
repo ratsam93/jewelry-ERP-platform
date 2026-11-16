@@ -89,7 +89,7 @@ export const NotificationRequestSchema = z.object({
   customerId: z.string().uuid(),
   channel: z.nativeEnum(NotificationType),
   templateId: z.string(),
-  variables: z.record(z.string()),
+  variables: z.record(z.string(), z.string()),
 });
 
 export type NotificationRequest = z.infer<typeof NotificationRequestSchema>;
@@ -197,7 +197,7 @@ export const SendNotificationInputSchema = z.object({
   channel: NotificationChannelEnum,
   subject: z.string().max(500).optional(),
   body: z.string().optional(),
-  variables: z.record(z.string()).optional(),
+  variables: z.record(z.string(), z.string()).optional(),
 });
 export type SendNotificationInput = z.infer<typeof SendNotificationInputSchema>;
 

@@ -11,8 +11,8 @@ vi.mock('bullmq', () => {
     close: vi.fn().mockResolvedValue(undefined),
   };
   return {
-    Queue: vi.fn(() => mockQueue),
-    Worker: vi.fn(() => mockWorker),
+    Queue: vi.fn(function () { return mockQueue; }),
+    Worker: vi.fn(function () { return mockWorker; }),
   };
 });
 

@@ -2,6 +2,7 @@
 // Admin procedures for AR asset management, 360 config, analytics.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { TrpcService } from '../../trpc/trpc.service';
 import { ArService } from './ar.service';
@@ -52,7 +53,7 @@ export class ArTrpcRouter {
       updateAsset: this.trpc.authedProcedure
         .input(z.object({
           assetId: z.string().uuid(),
-          data: ArAssetInputSchema.partial().extend({
+          data: partialUpdate(ArAssetInputSchema).extend({
             isActive: z.boolean().optional(),
             processingStatus: z.string().optional(),
           }),

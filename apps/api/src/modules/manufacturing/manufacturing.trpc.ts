@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { TrpcService } from '../../trpc/trpc.service';
 import { ManufacturingService } from './manufacturing.service';
@@ -162,7 +163,7 @@ export class ManufacturingTrpc {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: UuidSchema, data: KarigarInputSchema.partial() }))
+          .input(z.object({ id: UuidSchema, data: partialUpdate(KarigarInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.karigarService.updateKarigar(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -285,7 +286,7 @@ export class ManufacturingTrpc {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: UuidSchema, data: ProductionPlanInputSchema.partial() }))
+          .input(z.object({ id: UuidSchema, data: partialUpdate(ProductionPlanInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.planningService.updatePlan(ctx.tenantId, ctx.userId, input.id, input.data),
           ),

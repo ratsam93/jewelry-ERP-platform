@@ -34,9 +34,10 @@ describe('RecommendationsTrpcRouter', () => {
 
   beforeEach(() => vi.clearAllMocks());
 
-  const PRODUCT_ID = '11111111-1111-1111-1111-111111111111';
-  const CATEGORY_ID = '22222222-2222-2222-2222-222222222222';
-  const REC_LOG_ID = '33333333-3333-3333-3333-333333333333';
+  // Valid RFC 9562 v4 UUIDs (Zod 4 strictly validates version and variant digits)
+  const PRODUCT_ID = '3f1e2d4c-5b6a-4789-9abc-def012345678';
+  const CATEGORY_ID = '5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d';
+  const REC_LOG_ID = '6b7c8d9e-0f1a-4b2c-9d3e-4f5a6b7c8d9e';
 
   // ─── personalized ─────────────────────────────────────────
   describe('personalized', () => {

@@ -101,7 +101,7 @@ export const SalesChannelInputSchema = z.object({
   apiSecret: z.string().max(500).optional(),
   storeUrl: z.string().url().max(500).optional(),
   webhookSecret: z.string().max(500).optional(),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
   isActive: z.boolean().default(true),
 });
 export type SalesChannelInput = z.infer<typeof SalesChannelInputSchema>;
@@ -112,7 +112,7 @@ export const SalesChannelResponseSchema = z.object({
   name: z.string(),
   channelType: z.nativeEnum(SalesChannelType),
   storeUrl: z.string().nullable(),
-  settings: z.record(z.unknown()).nullable(),
+  settings: z.record(z.string(), z.unknown()).nullable(),
   isActive: z.boolean(),
   lastSyncAt: z.coerce.date().nullable(),
   createdAt: z.coerce.date(),
@@ -341,7 +341,7 @@ export const PaymentGatewayInputSchema = z.object({
   isActive: z.boolean().default(true),
   isDefault: z.boolean().default(false),
   supportedMethods: z.array(z.string()).optional(),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 });
 export type PaymentGatewayInput = z.infer<typeof PaymentGatewayInputSchema>;
 
@@ -408,9 +408,9 @@ export const ShopifyWebhookPayloadSchema = z.object({
   email: z.string().email().optional(),
   total_price: z.string().optional(),
   currency: z.string().optional(),
-  line_items: z.array(z.record(z.unknown())).optional(),
-  shipping_address: z.record(z.unknown()).optional(),
-  billing_address: z.record(z.unknown()).optional(),
+  line_items: z.array(z.record(z.string(), z.unknown())).optional(),
+  shipping_address: z.record(z.string(), z.unknown()).optional(),
+  billing_address: z.record(z.string(), z.unknown()).optional(),
   financial_status: z.string().optional(),
   fulfillment_status: z.string().nullable().optional(),
 });
@@ -444,7 +444,7 @@ export const StripeWebhookPayloadSchema = z.object({
   id: z.string(),
   type: z.string(),
   data: z.object({
-    object: z.record(z.unknown()),
+    object: z.record(z.string(), z.unknown()),
   }),
 });
 export type StripeWebhookPayload = z.infer<typeof StripeWebhookPayloadSchema>;

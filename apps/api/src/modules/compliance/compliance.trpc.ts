@@ -2,6 +2,7 @@
 // All compliance API endpoints exposed via tRPC.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { TrpcService } from '../../trpc/trpc.service';
 import { ComplianceHuidService } from './compliance.huid.service';
 import { ComplianceHallmarkService } from './compliance.hallmark.service';
@@ -119,7 +120,7 @@ export class ComplianceTrpcRouter {
             ),
 
           update: this.trpc.authedProcedure
-            .input(z.object({ id: z.string().uuid(), data: HallmarkCenterInputSchema.partial() }))
+            .input(z.object({ id: z.string().uuid(), data: partialUpdate(HallmarkCenterInputSchema) }))
             .mutation(({ input }) =>
               this.hallmarkService.updateCenter(input.id, input.data),
             ),
@@ -179,7 +180,7 @@ export class ComplianceTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: GemstoneCertificateInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(GemstoneCertificateInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.certificateService.update(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -239,7 +240,7 @@ export class ComplianceTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: ComplianceDocumentInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(ComplianceDocumentInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.documentService.update(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -272,7 +273,7 @@ export class ComplianceTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: InsurancePolicyInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(InsurancePolicyInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.insuranceService.update(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -304,7 +305,7 @@ export class ComplianceTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: ComplianceAuditInputSchema.partial() }))
+          .input(z.object({ id: z.string().uuid(), data: partialUpdate(ComplianceAuditInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.auditService.update(ctx.tenantId, ctx.userId, input.id, input.data),
           ),

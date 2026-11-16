@@ -73,7 +73,7 @@ export const SavedReportInputSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().max(500).optional(),
   reportType: z.nativeEnum(ReportTypeEnum),
-  filters: z.record(z.unknown()).optional(),
+  filters: z.record(z.string(), z.unknown()).optional(),
   columns: z.array(z.string()).optional(),
   groupBy: z.array(z.string()).optional(),
   sortBy: z.array(z.object({
@@ -91,7 +91,7 @@ export const SavedReportResponseSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   reportType: z.nativeEnum(ReportTypeEnum),
-  filters: z.record(z.unknown()).nullable(),
+  filters: z.record(z.string(), z.unknown()).nullable(),
   columns: z.array(z.string()).nullable(),
   groupBy: z.array(z.string()).nullable(),
   sortBy: z.array(z.object({
@@ -148,7 +148,7 @@ export const ReportExecutionResponseSchema = z.object({
   scheduledReportId: z.string().nullable(),
   reportType: z.nativeEnum(ReportTypeEnum),
   status: z.nativeEnum(ReportExecutionStatusEnum),
-  parameters: z.record(z.unknown()).nullable(),
+  parameters: z.record(z.string(), z.unknown()).nullable(),
   resultFileUrl: z.string().nullable(),
   rowCount: z.number().nullable(),
   executionTimeMs: z.number().nullable(),
@@ -167,7 +167,7 @@ export const DashboardWidgetConfigSchema = z.object({
   y: z.number().int().min(0),
   w: z.number().int().min(1).max(12),
   h: z.number().int().min(1).max(12),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 export type DashboardWidgetConfig = z.infer<typeof DashboardWidgetConfigSchema>;
 
@@ -622,7 +622,7 @@ export type DashboardInput = z.infer<typeof DashboardInputSchema>;
 
 export const WidgetDataInputSchema = z.object({
   widgetType: z.nativeEnum(DashboardWidgetTypeEnum),
-  config: z.record(z.unknown()).default({}),
+  config: z.record(z.string(), z.unknown()).default({}),
   dateRange: DateRangeSchema.optional(),
 });
 export type WidgetDataInput = z.infer<typeof WidgetDataInputSchema>;

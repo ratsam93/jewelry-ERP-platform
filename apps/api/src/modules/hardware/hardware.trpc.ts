@@ -246,7 +246,7 @@ export class HardwareTrpcRouter {
         preview: this.trpc.authedProcedure
           .input(z.object({
             templateId: z.string().uuid(),
-            data: z.record(z.string()),
+            data: z.record(z.string(), z.string()),
           }))
           .query(({ ctx, input }) =>
             this.printerService.preview(ctx.tenantId, input.templateId, input.data),

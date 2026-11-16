@@ -235,7 +235,7 @@ export const CertificateVerificationResultSchema = z.object({
   isValid: z.boolean(),
   lab: CertificateIssuingLabEnum,
   verifiedAt: z.coerce.date().nullable(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 export type CertificateVerificationResult = z.infer<typeof CertificateVerificationResultSchema>;
 
@@ -288,7 +288,7 @@ export const ChainOfCustodyInputSchema = z.object({
   locationId: z.string().uuid().optional(),
   documentReference: z.string().max(200).optional(),
   notes: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type ChainOfCustodyInput = z.infer<typeof ChainOfCustodyInputSchema>;
 
@@ -305,7 +305,7 @@ export const ChainOfCustodyEventSchema = z.object({
   locationId: z.string().uuid().nullable(),
   documentReference: z.string().nullable(),
   notes: z.string().nullable(),
-  metadata: z.record(z.unknown()).nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
   createdAt: z.coerce.date(),
 });
 export type ChainOfCustodyEvent = z.infer<typeof ChainOfCustodyEventSchema>;
@@ -374,7 +374,7 @@ export const InsurancePolicyInputSchema = z.object({
   premiumPaise: z.number().int().positive(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-  claimHistory: z.record(z.unknown()).optional(),
+  claimHistory: z.record(z.string(), z.unknown()).optional(),
   documentUrl: z.string().url().optional(),
 });
 export type InsurancePolicyInput = z.infer<typeof InsurancePolicyInputSchema>;
@@ -391,7 +391,7 @@ export const InsurancePolicySchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   status: InsurancePolicyStatusEnum,
-  claimHistory: z.record(z.unknown()).nullable(),
+  claimHistory: z.record(z.string(), z.unknown()).nullable(),
   documentUrl: z.string().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),

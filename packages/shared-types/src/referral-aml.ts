@@ -142,7 +142,7 @@ export const AmlSarReportInputSchema = z.object({
   alertId: z.string().uuid(),
   customerId: z.string().uuid(),
   reportType: AmlReportTypeEnum,
-  reportData: z.record(z.unknown()),
+  reportData: z.record(z.string(), z.unknown()),
   notes: z.string().optional(),
 });
 export type AmlSarReportInput = z.infer<typeof AmlSarReportInputSchema>;

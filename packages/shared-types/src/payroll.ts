@@ -2,6 +2,7 @@
 // Employees, attendance, payroll periods, payslips, salary structures.
 
 import { z } from 'zod';
+import { partialUpdate } from './zod-helpers';
 import { UuidSchema } from './common';
 
 // ─── Enums ────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ export const EmployeeInputSchema = z.object({
 });
 export type EmployeeInput = z.infer<typeof EmployeeInputSchema>;
 
-export const EmployeeUpdateSchema = EmployeeInputSchema.partial().extend({
+export const EmployeeUpdateSchema = partialUpdate(EmployeeInputSchema).extend({
   status: z.nativeEnum(EmployeeStatus).optional(),
   leftAt: z.coerce.date().optional(),
 });

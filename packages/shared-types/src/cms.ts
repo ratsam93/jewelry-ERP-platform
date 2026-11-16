@@ -274,7 +274,7 @@ export const SeoMetadataInputSchema = z.object({
   metaDescription: z.string().max(500).optional(),
   ogImage: z.string().url().max(1000).optional(),
   canonicalUrl: z.string().url().max(1000).optional(),
-  structuredData: z.record(z.unknown()).optional(),
+  structuredData: z.record(z.string(), z.unknown()).optional(),
 });
 export type SeoMetadataInput = z.infer<typeof SeoMetadataInputSchema>;
 
@@ -287,7 +287,7 @@ export const SeoMetadataResponseSchema = z.object({
   metaDescription: z.string().nullable(),
   ogImage: z.string().nullable(),
   canonicalUrl: z.string().nullable(),
-  structuredData: z.record(z.unknown()).nullable(),
+  structuredData: z.record(z.string(), z.unknown()).nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

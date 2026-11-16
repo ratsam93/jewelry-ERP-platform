@@ -148,7 +148,7 @@ export const RequestModificationInputSchema = z.object({
   orderId: z.string().uuid(),
   customerId: z.string().uuid(),
   modificationType: z.nativeEnum(ModificationType),
-  requestedData: z.record(z.unknown()),
+  requestedData: z.record(z.string(), z.unknown()),
   reason: z.string().optional(),
 });
 export type RequestModificationInput = z.infer<typeof RequestModificationInputSchema>;

@@ -1,6 +1,7 @@
 // ─── Payroll tRPC Router ──────────────────────────────────────
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { TrpcService } from '../../trpc/trpc.service';
 import { PayrollEmployeeService } from './payroll.employee.service';
@@ -124,7 +125,7 @@ export class PayrollTrpcRouter {
           .mutation(({ ctx, input }) => this.salaryService.create(ctx.tenantId, input)),
 
         update: t.authedProcedure
-          .input(z.object({ id: UuidSchema, data: SalaryStructureInputSchema.partial() }))
+          .input(z.object({ id: UuidSchema, data: partialUpdate(SalaryStructureInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.salaryService.update(ctx.tenantId, input.id, input.data),
           ),

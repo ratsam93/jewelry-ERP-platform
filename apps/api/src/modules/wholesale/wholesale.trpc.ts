@@ -2,6 +2,7 @@
 // All tRPC procedures for the wholesale module.
 
 import { Injectable } from '@nestjs/common';
+import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { TrpcService } from '../../trpc/trpc.service';
 import { WholesaleService } from './wholesale.service';
@@ -295,7 +296,7 @@ export class WholesaleTrpcRouter {
         ),
 
       updateRateContract: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid(), data: RateContractInputSchema.partial() }))
+        .input(z.object({ id: z.string().uuid(), data: partialUpdate(RateContractInputSchema) }))
         .mutation(({ ctx, input }) =>
           this.rateContractService.updateRateContract(ctx.tenantId, ctx.userId, input.id, input.data),
         ),
@@ -339,7 +340,7 @@ export class WholesaleTrpcRouter {
         ),
 
       updateAgent: this.trpc.authedProcedure
-        .input(z.object({ agentId: z.string().uuid(), data: AgentBrokerInputSchema.partial() }))
+        .input(z.object({ agentId: z.string().uuid(), data: partialUpdate(AgentBrokerInputSchema) }))
         .mutation(({ ctx, input }) =>
           this.agentService.updateAgent(ctx.tenantId, ctx.userId, input.agentId, input.data),
         ),
@@ -488,7 +489,7 @@ export class WholesaleTrpcRouter {
         ),
 
       updateSupplier: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid(), data: SupplierInputSchema.partial() }))
+        .input(z.object({ id: z.string().uuid(), data: partialUpdate(SupplierInputSchema) }))
         .mutation(({ ctx, input }) =>
           this.supplierService.updateSupplier(ctx.tenantId, ctx.userId, input.id, input.data),
         ),
