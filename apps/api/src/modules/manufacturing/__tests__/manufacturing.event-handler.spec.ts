@@ -88,7 +88,7 @@ describe('ManufacturingEventHandler', () => {
   });
 
   it('skips creation when productId or locationId is missing from the event', async () => {
-    const { productId, ...withoutProduct } = fullPayload;
+    const { productId: _productId, ...withoutProduct } = fullPayload;
     await subscribedHandlers.get('retail.custom_order.created')!(customOrderEvent(withoutProduct));
 
     expect(mockMfgService.createJobOrder).not.toHaveBeenCalled();

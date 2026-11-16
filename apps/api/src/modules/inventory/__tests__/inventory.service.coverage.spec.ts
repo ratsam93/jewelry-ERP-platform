@@ -1105,7 +1105,7 @@ describe('InventoryService (coverage)', () => {
       const result = await service.createStoneStock(TENANT, USER, {
         locationId: 'loc-1',
         stoneType: 'DIAMOND',
-        totalWeightCt: 2.5,
+        totalWeightMg: BigInt(500),
         totalPieces: 4,
         valuePaise: BigInt(250000),
       } as never);
@@ -1120,7 +1120,11 @@ describe('InventoryService (coverage)', () => {
         clarity: null,
         cutGrade: null,
         certificationNumber: null,
-        totalWeightCt: 2.5,
+        origin: 'NATURAL',
+        growthMethod: 'NONE',
+        treatment: 'NONE',
+        totalWeightMg: BigInt(500),
+        totalWeightCt: 2,
         totalPieces: 4,
         valuePaise: BigInt(250000),
       });
@@ -1138,7 +1142,7 @@ describe('InventoryService (coverage)', () => {
         color: 'RED',
         clarity: 'VS',
         cutGrade: 'EX',
-        totalWeightCt: 1,
+        totalWeightMg: BigInt(200),
         totalPieces: 1,
         valuePaise: BigInt(1),
         certificationNumber: 'CERT-1',
@@ -1151,6 +1155,8 @@ describe('InventoryService (coverage)', () => {
         clarity: 'VS',
         cutGrade: 'EX',
         certificationNumber: 'CERT-1',
+        totalWeightMg: BigInt(200),
+        totalWeightCt: 1,
       });
     });
 
@@ -1163,24 +1169,24 @@ describe('InventoryService (coverage)', () => {
     });
 
     it('rejects adjustments that drive weight or pieces below zero', async () => {
-      prisma.stoneStock.findFirst.mockResolvedValue({ id: 'ss-1', totalWeightCt: 1, totalPieces: 2, valuePaise: BigInt(10) });
+      prisma.stoneStock.findFirst.mockResolvedValue({ id: 'ss-1', totalWeightMg: BigInt(200), totalWeightCt: 1, totalPieces: 2, valuePaise: BigInt(10) });
 
       await expect(
-        service.adjustStoneStock(TENANT, USER, { id: 'ss-1', weightChangeCt: -2, piecesChange: 0, valueChangePaise: BigInt(0) } as never),
+        service.adjustStoneStock(TENANT, USER, { id: 'ss-1', weightChangeMg: BigInt(-400), piecesChange: 0, valueChangePaise: BigInt(0) } as never),
       ).rejects.toThrow('Stone stock weight/pieces cannot go below zero');
 
       await expect(
-        service.adjustStoneStock(TENANT, USER, { id: 'ss-1', weightChangeCt: 0, piecesChange: -3, valueChangePaise: BigInt(0) } as never),
+        service.adjustStoneStock(TENANT, USER, { id: 'ss-1', weightChangeMg: BigInt(0), piecesChange: -3, valueChangePaise: BigInt(0) } as never),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('updates stone stock and clamps negative value to zero', async () => {
-      prisma.stoneStock.findFirst.mockResolvedValue({ id: 'ss-1', totalWeightCt: 3, totalPieces: 5, valuePaise: BigInt(100) });
+      prisma.stoneStock.findFirst.mockResolvedValue({ id: 'ss-1', totalWeightMg: BigInt(600), totalWeightCt: 3, totalPieces: 5, valuePaise: BigInt(100) });
       prisma.stoneStock.update.mockResolvedValue({ id: 'ss-1' });
 
       const result = await service.adjustStoneStock(TENANT, USER, {
         id: 'ss-1',
-        weightChangeCt: -1,
+        weightChangeMg: BigInt(-200),
         piecesChange: 2,
         valueChangePaise: BigInt(-500),
       } as never);
@@ -1188,19 +1194,19 @@ describe('InventoryService (coverage)', () => {
       expect(prisma.stoneStock.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'ss-1' },
-          data: { totalWeightCt: 2, totalPieces: 7, valuePaise: BigInt(0), updatedBy: USER },
+          data: { totalWeightMg: BigInt(400), totalWeightCt: 2, totalPieces: 7, valuePaise: BigInt(0), updatedBy: USER },
         }),
       );
       expect(result).toEqual({ id: 'ss-1' });
     });
 
     it('updates stone stock adding positive value', async () => {
-      prisma.stoneStock.findFirst.mockResolvedValue({ id: 'ss-2', totalWeightCt: 1, totalPieces: 1, valuePaise: BigInt(100) });
+      prisma.stoneStock.findFirst.mockResolvedValue({ id: 'ss-2', totalWeightMg: BigInt(200), totalWeightCt: 1, totalPieces: 1, valuePaise: BigInt(100) });
       prisma.stoneStock.update.mockResolvedValue({ id: 'ss-2' });
 
       await service.adjustStoneStock(TENANT, USER, {
         id: 'ss-2',
-        weightChangeCt: 1,
+        weightChangeMg: BigInt(200),
         piecesChange: 0,
         valueChangePaise: BigInt(50),
       } as never);
@@ -1507,9 +1513,9 @@ describe('InventoryService (coverage)', () => {
         { metalType: 'GOLD', purityFineness: 916, weightMg: BigInt(1000), valuePaise: BigInt(5000) },
       ]);
       prisma.stoneStock.findMany.mockResolvedValue([
-        { stoneType: 'DIAMOND', totalWeightCt: 1.5, totalPieces: 2, valuePaise: BigInt(100) },
-        { stoneType: 'DIAMOND', totalWeightCt: 0.5, totalPieces: 1, valuePaise: BigInt(50) },
-        { stoneType: 'RUBY', totalWeightCt: 2, totalPieces: 4, valuePaise: BigInt(200) },
+        { stoneType: 'DIAMOND', totalWeightMg: BigInt(300), totalWeightCt: 1.5, totalPieces: 2, valuePaise: BigInt(100) },
+        { stoneType: 'DIAMOND', totalWeightMg: BigInt(100), totalWeightCt: 0.5, totalPieces: 1, valuePaise: BigInt(50) },
+        { stoneType: 'RUBY', totalWeightMg: BigInt(400), totalWeightCt: 2, totalPieces: 4, valuePaise: BigInt(200) },
       ]);
       prisma.stockMovement.findMany.mockResolvedValue([{ id: 'mv-1' }]);
 
@@ -1533,8 +1539,8 @@ describe('InventoryService (coverage)', () => {
         { metalType: 'GOLD', purityFineness: 916, totalWeightMg: BigInt(1000), totalValuePaise: BigInt(5000) },
       ]);
       expect(result.stoneBreakdown).toEqual([
-        { stoneType: 'DIAMOND', totalWeightCt: 2, totalPieces: 3, totalValuePaise: BigInt(150) },
-        { stoneType: 'RUBY', totalWeightCt: 2, totalPieces: 4, totalValuePaise: BigInt(200) },
+        { stoneType: 'DIAMOND', totalWeightMg: BigInt(400), totalPieces: 3, totalValuePaise: BigInt(150) },
+        { stoneType: 'RUBY', totalWeightMg: BigInt(400), totalPieces: 4, totalValuePaise: BigInt(200) },
       ]);
       expect(result.recentMovements).toEqual([{ id: 'mv-1' }]);
       expect(prisma.stockMovement.findMany).toHaveBeenCalledWith(

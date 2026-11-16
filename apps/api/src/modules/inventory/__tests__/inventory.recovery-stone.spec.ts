@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { InventoryService } from '../inventory.service';
 import { StoneStockInputSchema, caratsToMg, mgToCarats } from '@caratflow/shared-types';
 
