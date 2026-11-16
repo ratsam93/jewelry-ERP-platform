@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { PageHeader, DataTable, StatusBadge } from '@caratflow/ui';
-import { Package, Plus, ArrowRightLeft, Download } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ColumnDef } from '@caratflow/ui';
 import { StockItemForm } from '@/features/inventory/stock-item-form';
@@ -23,12 +22,12 @@ interface StockItemRow {
   location?: { id: string; name: string; locationType: string };
 }
 
-export default function StockItemsPage() {
+function StockItemsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showForm, setShowForm] = useState(false);
   const [page, setPage] = useState(1);
-  const [locationFilter, setLocationFilter] = useState(searchParams.get('locationId') ?? '');
+  const [locationFilter] = useState(searchParams.get('locationId') ?? '');
   const [lowStockOnly, setLowStockOnly] = useState(searchParams.get('lowStock') === 'true');
   const [search, setSearch] = useState('');
 
@@ -182,5 +181,14 @@ export default function StockItemsPage() {
         />
       )}
     </div>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary so the page can be prerendered.
+export default function StockItemsPage() {
+  return (
+    <Suspense fallback={null}>
+      <StockItemsContent />
+    </Suspense>
   );
 }

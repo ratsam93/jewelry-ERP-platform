@@ -64,7 +64,7 @@ export class PlatformExportService extends TenantAwareService {
     tenantId: string,
     jobId: string,
     input: CreateExportInput,
-    audit: AuditMeta,
+    _audit: AuditMeta,
   ) {
     await this.prisma.exportJob.update({
       where: { id: jobId },

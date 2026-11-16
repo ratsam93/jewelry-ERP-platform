@@ -26,7 +26,6 @@ import {
   OldGoldInputSchema,
   AppraisalInputSchema,
   DiscountInputSchema,
-  GiftCardInputSchema,
   PaginationSchema,
   StaffDashboardInputSchema,
 } from '@caratflow/shared-types';

@@ -506,7 +506,7 @@ export class ReportingDashboardService extends TenantAwareService {
   }
 
   private async getRateTickerData(
-    tenantId: string,
+    _tenantId: string,
   ): Promise<{ rates: Array<{ metal: string; purity: number; ratePerGramPaise: number }> }> {
     // Placeholder: In production, this would fetch from a rate feed service
     return {

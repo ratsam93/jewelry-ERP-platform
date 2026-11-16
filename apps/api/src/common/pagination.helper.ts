@@ -1,4 +1,4 @@
-import type { PaginatedResult, Pagination } from '@caratflow/shared-types';
+import type { PaginatedResult } from '@caratflow/shared-types';
 
 export interface PaginationQuery {
   page?: number;

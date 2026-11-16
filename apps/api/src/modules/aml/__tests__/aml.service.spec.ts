@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AmlService } from '../aml.service';
-import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID, resetAllMocks } from '../../../__tests__/setup';
+import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID } from '../../../__tests__/setup';
 
 describe('AmlService', () => {
   let service: AmlService;

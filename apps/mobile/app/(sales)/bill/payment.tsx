@@ -32,13 +32,13 @@ export default function PaymentScreen() {
   const totalPaise = parseInt(params.total ?? '0', 10);
   const cart = params.cart ? JSON.parse(params.cart) : [];
   const customerId = params.customerId || undefined;
-  const { activeLocationId, user } = useAuthStore();
+  const { activeLocationId } = useAuthStore();
 
   const [payments, setPayments] = useState<PaymentSplit[]>([
     { method: 'CASH', amountPaise: totalPaise },
   ]);
 
-  const [reference, setReference] = useState('');
+  useState('');
 
   const paidTotal = payments.reduce((s, p) => s + p.amountPaise, 0);
   const remaining = totalPaise - paidTotal;

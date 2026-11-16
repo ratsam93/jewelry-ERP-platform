@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException } from '@nestjs/common';
-import { createMockPrismaService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
+import { createMockPrismaService, resetMocks } from '../../../__tests__/mocks';
 import { CustomerPortalKycService } from '../customer-portal.kyc.service';
 
 describe('CustomerPortalKycService', () => {
   let service: CustomerPortalKycService; let prisma: ReturnType<typeof createMockPrismaService>;
-  const { tenantId } = mockTenantContext;
   beforeEach(() => {
     prisma = createMockPrismaService();
     resetMocks(prisma);

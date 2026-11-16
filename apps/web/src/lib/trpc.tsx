@@ -37,6 +37,14 @@ export function createTrpcClient() {
     links: [
       httpBatchLink({
         url: `${getApiBaseUrl()}/trpc`,
+        // The server router (apps/api/src/trpc/trpc.service.ts) sets a custom
+        // transformer, and tRPC v11 types require the client link to declare one.
+        // Identity functions mirror the server's input/output deserialize steps,
+        // so requests and responses are sent exactly as before.
+        transformer: {
+          input: { serialize: (obj: unknown) => obj, deserialize: (obj: unknown) => obj },
+          output: { serialize: (obj: unknown) => obj, deserialize: (obj: unknown) => obj },
+        },
         headers() {
           const token = getAuthToken();
           return token ? { Authorization: `Bearer ${token}` } : {};

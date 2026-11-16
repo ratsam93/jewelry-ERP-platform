@@ -1,6 +1,5 @@
 'use client';
 
-import * as React from 'react';
 import { DayPicker, type DateRange as DayPickerDateRange } from 'react-day-picker';
 import * as Popover from '@radix-ui/react-popover';
 import { CalendarIcon } from 'lucide-react';

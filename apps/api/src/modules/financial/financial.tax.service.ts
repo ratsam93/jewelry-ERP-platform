@@ -1,10 +1,9 @@
 // ─── Financial Tax Service ─────────────────────────────────────
 // GST computation, TDS/TCS tracking, GSTR-1 / GSTR-3B generation.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
-import type { Prisma } from '@caratflow/db';
 import type {
   GstComputationInput,
   GstComputationResult,

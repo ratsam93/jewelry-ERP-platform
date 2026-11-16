@@ -1,10 +1,9 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { PageHeader, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
+import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { MovementTimeline } from '@/features/inventory/movement-timeline';
-import type { ColumnDef } from '@caratflow/ui';
 
 export default function StockItemDetailPage() {
   const { id } = useParams<{ id: string }>();

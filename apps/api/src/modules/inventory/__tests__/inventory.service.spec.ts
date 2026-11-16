@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InventoryService } from '../inventory.service';
 import {
@@ -7,7 +7,6 @@ import {
   createMockStockItem,
   createMockProduct,
   mockTenantContext,
-  TEST_LOCATION,
   resetMocks,
   capturePublishedEvents,
 } from '../../../__tests__/mocks';
@@ -485,7 +484,7 @@ describe('InventoryService', () => {
         valuePaise: 250000n,
       });
 
-      const result = await service.adjustMetalStock(tenantId, userId, {
+      await service.adjustMetalStock(tenantId, userId, {
         locationId: 'loc-a',
         metalType: 'GOLD',
         purityFineness: 916,

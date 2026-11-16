@@ -8,7 +8,6 @@ import { AppModule } from '../app.module';
 import { PrismaService } from '../common/prisma.service';
 import { vi } from 'vitest';
 import * as jwt from 'jsonwebtoken';
-import { v4 as uuid } from 'uuid';
 import { createMockPrismaService, createMockEventBusService } from './mocks';
 
 // ─── Constants ────────────────────────────────────────────────────

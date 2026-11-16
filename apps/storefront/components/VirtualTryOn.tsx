@@ -101,9 +101,9 @@ export default function VirtualTryOn({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
-  const [showShareMenu, setShowShareMenu] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [sessionStart] = useState(Date.now());
+  const [_showShareMenu, setShowShareMenu] = useState(false);
+  const [_sessionId, setSessionId] = useState<string | null>(null);
+  const [_sessionStart] = useState(Date.now());
 
   const overlayImage = config.overlayUrl ?? config.productImage;
   const zone = CATEGORY_ZONES[config.category];

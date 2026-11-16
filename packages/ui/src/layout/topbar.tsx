@@ -1,7 +1,6 @@
 'use client';
 
-import * as React from 'react';
-import { Bell, ChevronDown, LogOut, Moon, Search, Settings, Sun, User } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Moon, Search, Settings, Sun } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
 

@@ -55,7 +55,6 @@ import type {
   StorefrontHomeResponse,
   ProductCompareResponse,
   CouponValidationResult,
-  CouponCodeResponse,
 } from '@caratflow/shared-types';
 import type { PaginatedResult } from '@caratflow/shared-types';
 import { StorefrontCatalogService } from './storefront.catalog.service';

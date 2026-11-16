@@ -10,7 +10,7 @@ type ActiveTab = 'stock-take' | 'encode' | 'monitor' | 'anti-theft';
 
 export default function RfidManagementPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('stock-take');
-  const [encodeSerial, setEncodeSerial] = useState('');
+  const [_encodeSerial, setEncodeSerial] = useState('');
   const [encodeTagData, setEncodeTagData] = useState('');
   const [encodeSerialId, setEncodeSerialId] = useState('');
   const [monitorLocationId, setMonitorLocationId] = useState('');

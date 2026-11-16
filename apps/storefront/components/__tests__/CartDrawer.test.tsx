@@ -1,6 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { screen, act } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { describe, it, expect } from "vitest";
+import { screen } from "@testing-library/react";
 import CartDrawer from "@/components/CartDrawer";
 import { mockProducts } from "@/lib/mock-data";
 import { renderWithStore } from "./test-utils";
@@ -8,7 +7,6 @@ import { createElement, useEffect } from "react";
 import StoreProvider from "@/components/StoreProvider";
 import { useStore } from "@/lib/store";
 import { render } from "@testing-library/react";
-import { formatRupees, calculateProductPrice } from "@/lib/utils";
 
 function CartDrawerWithItems({ addItems }: { addItems: boolean }) {
   const store = useStore();

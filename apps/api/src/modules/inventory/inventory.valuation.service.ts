@@ -1,7 +1,7 @@
 // ─── Inventory Valuation Service ──────────────────────────────
 // Calculates stock value using different valuation methods.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import type { StockValuationRequest } from '@caratflow/shared-types';
@@ -51,11 +51,6 @@ export class InventoryValuationService extends TenantAwareService {
     const items: ValuationItem[] = [];
 
     for (const si of stockItems) {
-      // Get inward movements ordered by date (oldest first = FIFO)
-      const inwardMovements = si.movements
-        .filter((m: { movementType: string; quantityChange: number }) => m.quantityChange > 0)
-        .sort((a: { movedAt: Date }, b: { movedAt: Date }) => a.movedAt.getTime() - b.movedAt.getTime());
-
       // Use cost price from product as unit cost for simplicity
       // In a full implementation, each inward movement would carry its purchase price
       const unitCost = si.product.costPricePaise ? BigInt(si.product.costPricePaise) : 0n;
@@ -80,14 +75,6 @@ export class InventoryValuationService extends TenantAwareService {
     const items: ValuationItem[] = [];
 
     for (const si of stockItems) {
-      // Weighted average: total inward value / total inward quantity
-      const inwardMovements = si.movements.filter(
-        (m: { quantityChange: number }) => m.quantityChange > 0,
-      );
-      const totalInwardQty = inwardMovements.reduce(
-        (sum: number, m: { quantityChange: number }) => sum + m.quantityChange, 0,
-      );
-
       // Use product cost price as the per-unit cost
       const unitCost = si.product.costPricePaise ? BigInt(si.product.costPricePaise) : 0n;
       const totalValue = unitCost * BigInt(si.quantityOnHand);

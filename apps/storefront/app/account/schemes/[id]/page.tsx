@@ -56,7 +56,6 @@ export default function SchemeDetailPage() {
 
   useEffect(() => {
     loadScheme();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function handlePay(installmentId: string) {

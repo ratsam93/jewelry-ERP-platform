@@ -6,7 +6,6 @@ import {
   createMockEventBus,
   TEST_TENANT_ID,
   TEST_USER_ID,
-  resetAllMocks,
 } from '../../../__tests__/setup';
 
 function extendPrisma(base: ReturnType<typeof createMockPrismaService>) {

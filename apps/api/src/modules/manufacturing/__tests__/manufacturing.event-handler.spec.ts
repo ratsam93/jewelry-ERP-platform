@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { ManufacturingEventHandler } from '../manufacturing.event-handler';
 import { createMockEventBus, TEST_TENANT_ID, TEST_USER_ID } from '../../../__tests__/setup';
 
 describe('ManufacturingEventHandler', () => {
   let handler: ManufacturingEventHandler;
   let mockEventBus: ReturnType<typeof createMockEventBus>;
-  let subscribedHandlers: Map<string, Function>;
+  let subscribedHandlers: Map<string, (...args: any[]) => any>;
 
   beforeEach(() => {
     mockEventBus = createMockEventBus();
     subscribedHandlers = new Map();
-    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: Function) => {
+    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: (...args: any[]) => any) => {
       subscribedHandlers.set(eventType, handlerFn);
     });
 

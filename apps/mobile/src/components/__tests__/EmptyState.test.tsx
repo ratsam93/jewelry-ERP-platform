@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest';
-import React from 'react';
 import { EmptyState } from '../EmptyState';
 
 function typeNameOf(node: any): string {
@@ -61,7 +60,7 @@ describe('EmptyState', () => {
       ? result.props.children.filter(Boolean)
       : [result.props.children];
     // Should not contain a View wrapping a Button
-    const serialized = JSON.stringify(result);
+    const _serialized = JSON.stringify(result);
     // The "Add Item" text should not appear as a button title
     // Since actionLabel && onAction is false, the button node won't render
     const viewChildren = children.filter(

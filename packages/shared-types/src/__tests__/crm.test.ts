@@ -10,14 +10,6 @@ import {
   CustomerSegmentInputSchema,
   LeadStatusUpdateSchema,
   NotificationTemplateInputSchema,
-  LeadSourceEnum,
-  FeedbackTypeEnum,
-  OccasionTypeEnum,
-  InteractionTypeEnum,
-  InteractionDirectionEnum,
-  NotificationChannelEnum,
-  NotificationCategoryEnum,
-  LeadStatusEnum,
 } from '../crm';
 
 const validUuid = '550e8400-e29b-41d4-a716-446655440000';

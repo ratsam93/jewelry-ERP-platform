@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PageHeader, DataTable, StatusBadge, getStatusVariant, StatCard } from '@caratflow/ui';
-import { Umbrella, Plus } from 'lucide-react';
+import { Umbrella } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import type { ColumnDef } from '@caratflow/ui';
 

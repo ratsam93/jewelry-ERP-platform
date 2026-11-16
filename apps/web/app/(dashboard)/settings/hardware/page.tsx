@@ -7,7 +7,7 @@ import { DeviceType, DeviceStatus } from '@caratflow/shared-types';
 import type { DeviceConfigResponse, CreateDeviceConfig } from '@caratflow/shared-types';
 import { DeviceStatusIndicator } from '@/features/hardware/DeviceStatusIndicator';
 import { DeviceConfigForm } from '@/features/hardware/DeviceConfigForm';
-import { Plus, Settings2, Trash2, Wifi } from 'lucide-react';
+import { Plus, Settings2, Trash2 } from 'lucide-react';
 
 const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
   [DeviceType.RFID_READER]: 'RFID Reader',

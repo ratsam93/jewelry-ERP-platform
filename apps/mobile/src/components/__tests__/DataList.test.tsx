@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest';
-import React from 'react';
 
 // DataList uses useCallback hook which requires React render context.
 // We test its branching logic by examining what the component produces

@@ -1,6 +1,6 @@
 'use client';
 
-import { Award, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { Award, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
 interface CertificateCardProps {

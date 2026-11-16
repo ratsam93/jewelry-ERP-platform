@@ -12,7 +12,7 @@ export default function ConsignmentOutDetailPage() {
   const issue = trpc.wholesale.issueConsignmentOut.useMutation({ onSuccess: () => refetch() });
 
   if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
-  const c = data as Record<string, unknown>;
+  const c = data as unknown as Record<string, unknown>;
   const items = (c.items as Array<Record<string, unknown>>) ?? [];
   const status = c.status as string;
 

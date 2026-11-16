@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { initTRPC, TRPCError } from '@trpc/server';
-import { z } from 'zod';
 
 export interface TrpcContext {
   tenantId?: string;

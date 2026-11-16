@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { createMockPrismaService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
 vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid') }));
 import { CmsBlogService } from '../cms.blog.service';

@@ -1,7 +1,7 @@
 // ─── Financial Reporting Service ───────────────────────────────
 // P&L, Balance Sheet, Trial Balance, Cash Flow, Aging, Day Book.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import type {
@@ -24,7 +24,7 @@ export class FinancialReportingService extends TenantAwareService {
   async profitAndLoss(
     tenantId: string,
     dateRange: { from: Date; to: Date },
-    costCenterId?: string,
+    _costCenterId?: string,
   ): Promise<ProfitAndLossReport> {
     const revenueAccounts = await this.prisma.account.findMany({
       where: { tenantId, accountType: 'REVENUE', isActive: true },

@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from 'react';
 import { PageHeader, DataTable, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { Activity } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useRealtime } from '@/lib/realtime';
 import type { ColumnDef } from '@caratflow/ui';

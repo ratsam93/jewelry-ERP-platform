@@ -2,10 +2,9 @@
 
 import { PageHeader, StatCard, StatusBadge } from '@caratflow/ui';
 import {
-  Users, Gift, TrendingUp, Trophy, ArrowRight,
-  Share2, CheckCircle, Clock, XCircle,
+  Users, Gift, TrendingUp, Trophy,
+  Share2, CheckCircle, XCircle,
 } from 'lucide-react';
-import Link from 'next/link';
 
 // Placeholder data -- in production, use trpc.referral hooks
 const activeProgram = {

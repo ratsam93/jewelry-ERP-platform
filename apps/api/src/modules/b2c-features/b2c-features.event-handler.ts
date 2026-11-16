@@ -113,7 +113,7 @@ export class B2cFeaturesEventHandler implements OnModuleInit {
    */
   private async findAbandonedCartsForCustomer(tenantId: string, customerId: string) {
     // Access prisma through the service's protected member
-    const prisma = (this.abandonedCartService as unknown as { prisma: { abandonedCart: { findMany: Function } } }).prisma;
+    const prisma = (this.abandonedCartService as unknown as { prisma: { abandonedCart: { findMany: (...args: any[]) => any } } }).prisma;
     return prisma.abandonedCart.findMany({
       where: {
         tenantId,
@@ -127,7 +127,7 @@ export class B2cFeaturesEventHandler implements OnModuleInit {
    * Find active abandoned carts by customer email.
    */
   private async findAbandonedCartsByEmail(tenantId: string, email: string) {
-    const prisma = (this.abandonedCartService as unknown as { prisma: { abandonedCart: { findMany: Function } } }).prisma;
+    const prisma = (this.abandonedCartService as unknown as { prisma: { abandonedCart: { findMany: (...args: any[]) => any } } }).prisma;
     return prisma.abandonedCart.findMany({
       where: {
         tenantId,

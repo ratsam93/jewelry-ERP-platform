@@ -13,7 +13,7 @@ export default function ConsignmentsOutPage() {
   const { data, isLoading } = trpc.wholesale.listConsignmentsOut.useQuery({
     pagination: { page, limit: 20, sortOrder: 'desc' },
   });
-  const items = ((data?.items as Array<Record<string, unknown>>) ?? []);
+  const items = ((data?.items as unknown as Array<Record<string, unknown>>) ?? []);
 
   return (
     <div className="space-y-6">

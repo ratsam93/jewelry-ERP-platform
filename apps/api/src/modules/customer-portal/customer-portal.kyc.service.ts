@@ -5,7 +5,6 @@
 import {
   Injectable,
   BadRequestException,
-  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';

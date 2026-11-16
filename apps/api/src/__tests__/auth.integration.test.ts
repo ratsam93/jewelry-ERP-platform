@@ -9,7 +9,6 @@ import {
   type TestApp,
   TEST_TENANT_ID,
   TEST_TENANT_SLUG,
-  TEST_ADMIN_USER,
   TEST_B2C_CUSTOMER,
   generateAdminToken,
   generateB2CToken,

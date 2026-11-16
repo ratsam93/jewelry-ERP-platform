@@ -55,7 +55,7 @@ export function getStatusVariant(_status: string) {
   return 'info' as const;
 }
 
-export function FormField({ label, children, required }: { label: string; required?: boolean; children: React.ReactNode }) {
+export function FormField({ label, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div data-testid="form-field">
       <label>{label}</label>
@@ -64,11 +64,11 @@ export function FormField({ label, children, required }: { label: string; requir
   );
 }
 
-export function Dialog({ children, open, onOpenChange }: { children: React.ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+export function Dialog({ children, open }: { children: React.ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   return open !== false ? <div data-testid="dialog" role="dialog">{children}</div> : null;
 }
 
-export function DialogContent({ children, className }: { children: React.ReactNode; className?: string }) {
+export function DialogContent({ children }: { children: React.ReactNode; className?: string }) {
   return <div>{children}</div>;
 }
 

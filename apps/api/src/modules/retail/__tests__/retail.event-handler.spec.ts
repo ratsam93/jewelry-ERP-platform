@@ -5,12 +5,12 @@ import { createMockEventBus, TEST_TENANT_ID, TEST_USER_ID } from '../../../__tes
 describe('RetailEventHandler', () => {
   let handler: RetailEventHandler;
   let mockEventBus: ReturnType<typeof createMockEventBus>;
-  let subscribedHandlers: Map<string, Function>;
+  let subscribedHandlers: Map<string, (...args: any[]) => any>;
 
   beforeEach(() => {
     mockEventBus = createMockEventBus();
     subscribedHandlers = new Map();
-    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: Function) => {
+    mockEventBus.subscribe.mockImplementation((eventType: string, handlerFn: (...args: any[]) => any) => {
       subscribedHandlers.set(eventType, handlerFn);
     });
 

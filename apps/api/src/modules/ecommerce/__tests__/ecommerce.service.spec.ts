@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { EcommerceService } from '../ecommerce.service';
-import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
+import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID, TEST_USER_ID } from '../../../__tests__/setup';
 
 function extendPrisma(base: ReturnType<typeof createMockPrismaService>) {
   return {
@@ -94,7 +94,7 @@ describe('EcommerceService (Unit)', () => {
         .mockResolvedValueOnce({ ...baseOrder, status: 'CONFIRMED', confirmedAt: new Date() });
       mockPrisma.onlineOrder.update.mockResolvedValue({});
 
-      const result = await service.updateOrderStatus(TEST_TENANT_ID, TEST_USER_ID, {
+      await service.updateOrderStatus(TEST_TENANT_ID, TEST_USER_ID, {
         orderId: 'o-1', status: 'CONFIRMED' as any,
       });
 

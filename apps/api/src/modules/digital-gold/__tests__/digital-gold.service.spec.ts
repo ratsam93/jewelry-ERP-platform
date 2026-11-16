@@ -330,7 +330,7 @@ describe('DigitalGoldService', () => {
       (mockPrisma as any).goldVault.findUnique.mockResolvedValue(null);
       (mockPrisma as any).goldVault.create.mockResolvedValue(makeVault());
 
-      const result = await service.getOrCreateVault(TEST_TENANT_ID, CUSTOMER_ID);
+      await service.getOrCreateVault(TEST_TENANT_ID, CUSTOMER_ID);
       expect((mockPrisma as any).goldVault.create).toHaveBeenCalled();
     });
   });

@@ -8,8 +8,6 @@ import { render } from "./test-utils";
 const product = mockProducts[0]!; // Has stone charges
 const price = calculateProductPrice(product);
 
-const productNoStone = mockProducts.find((p) => p.stoneTotalPrice === 0)!;
-const priceNoStone = calculateProductPrice(productNoStone);
 
 describe("PriceBreakdown", () => {
   it("shows Metal Value label", () => {

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { FinancialBankService } from '../financial.bank.service';
-import { createMockPrismaService, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
+import { createMockPrismaService, TEST_TENANT_ID, resetAllMocks } from '../../../__tests__/setup';
 
 describe('FinancialBankService (Unit)', () => {
   let service: FinancialBankService;
@@ -260,7 +260,7 @@ describe('FinancialBankService (Unit)', () => {
       ]);
       mockPrisma.bankTransaction.count.mockResolvedValue(2);
 
-      const result = await service.listBankTransactions(TEST_TENANT_ID, 'ba-1', {
+      await service.listBankTransactions(TEST_TENANT_ID, 'ba-1', {
         isReconciled: false,
       });
 

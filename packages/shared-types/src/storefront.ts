@@ -360,15 +360,23 @@ export type CouponCodeResponse = z.infer<typeof CouponCodeResponseSchema>;
 
 // ─── Homepage ─────────────────────────────────────────────────────
 
-export const StorefrontCategorySchema = z.object({
+// Recursive schema: the type is declared explicitly so TypeScript can resolve it.
+export interface StorefrontCategory {
+  id: string;
+  name: string;
+  parentId: string | null;
+  description: string | null;
+  sortOrder: number;
+  children?: StorefrontCategory[];
+}
+export const StorefrontCategorySchema: z.ZodType<StorefrontCategory> = z.object({
   id: z.string().uuid(),
   name: z.string(),
   parentId: z.string().uuid().nullable(),
   description: z.string().nullable(),
   sortOrder: z.number().int(),
   children: z.array(z.lazy(() => StorefrontCategorySchema)).optional(),
-});
-export type StorefrontCategory = z.infer<typeof StorefrontCategorySchema>;
+}) as z.ZodType<StorefrontCategory>;
 
 export const LiveRateSchema = z.object({
   metalType: z.string(),

@@ -19,7 +19,7 @@ export function WeightCapture({
   locationId,
   onWeightCaptured,
 }: WeightCaptureProps) {
-  const [currentReading, setCurrentReading] = useState<WeightReading | null>(null);
+  const [currentReading] = useState<WeightReading | null>(null);
   const [tareWeightMg, setTareWeightMg] = useState(0);
   const [capturedWeight, setCapturedWeight] = useState<WeightCaptureResponse | null>(null);
 

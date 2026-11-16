@@ -35,7 +35,7 @@ const SIZE_CLASSES: Record<string, string> = {
  * Subscribes to WebSocket for live status updates.
  */
 export function DeviceStatusIndicator({
-  deviceId,
+  deviceId: _deviceId,
   initialStatus = DeviceStatus.DISCONNECTED,
   showLabel = false,
   size = 'md',

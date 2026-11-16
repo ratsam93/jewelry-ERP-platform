@@ -13,7 +13,6 @@ import {
   Download,
   FileText,
   Languages,
-  Settings,
 } from 'lucide-react';
 
 const settingsCards = [

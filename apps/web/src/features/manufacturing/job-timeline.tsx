@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@caratflow/ui';
-import { Check, Circle, Clock, X, AlertTriangle } from 'lucide-react';
+import { Check, Circle, Clock, X } from 'lucide-react';
 
 interface TimelineStep {
   status: string;

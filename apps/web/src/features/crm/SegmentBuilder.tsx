@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 interface SegmentCriteria {
   customerType?: string[];

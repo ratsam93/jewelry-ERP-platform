@@ -6,7 +6,6 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import type {
   ExportOrderInput,
   ExportOrderResponse,
-  ExportOrderItemResponse,
   ExportOrderListFilter,
   ExportDashboardResponse,
 } from '@caratflow/shared-types';
@@ -337,7 +336,6 @@ export class ExportService extends TenantAwareService {
       ExportOrderStatus.READY,
       ExportOrderStatus.CUSTOMS_CLEARED,
     ];
-    const shippedStatuses: ExportOrderStatus[] = [ExportOrderStatus.SHIPPED];
 
     const [
       activeOrders,

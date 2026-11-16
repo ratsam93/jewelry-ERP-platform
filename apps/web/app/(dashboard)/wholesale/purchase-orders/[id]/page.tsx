@@ -21,7 +21,7 @@ export default function PurchaseOrderDetailPage() {
     return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
   }
 
-  const p = po as Record<string, unknown>;
+  const p = po as unknown as Record<string, unknown>;
   const items = ((p.items as Array<Record<string, unknown>>) ?? []);
   const status = p.status as string;
 

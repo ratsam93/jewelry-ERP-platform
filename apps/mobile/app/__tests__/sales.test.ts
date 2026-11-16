@@ -28,7 +28,7 @@ vi.mock('@/components/WeightDisplay', () => ({
 
 vi.mock('@/components/Badge', () => ({
   Badge: ({ children, ...props }: any) => ({ type: 'Badge', props: { ...props, children } }),
-  getStatusVariant: (status: string) => 'default',
+  getStatusVariant: (_status: string) => 'default',
 }));
 
 vi.mock('@/components/StatCard', () => ({

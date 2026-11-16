@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { WholesaleConsignmentService } from '../wholesale.consignment.service';
 import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
 
@@ -134,7 +134,7 @@ describe('WholesaleConsignmentService (Unit)', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.returnConsignmentOutItems(
+      await service.returnConsignmentOutItems(
         TEST_TENANT_ID,
         TEST_USER_ID,
         'co-1',
@@ -243,7 +243,7 @@ describe('WholesaleConsignmentService (Unit)', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.convertConsignmentOutToSale(
+      await service.convertConsignmentOutToSale(
         TEST_TENANT_ID,
         TEST_USER_ID,
         'co-1',

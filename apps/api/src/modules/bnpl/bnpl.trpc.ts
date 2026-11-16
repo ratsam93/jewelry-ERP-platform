@@ -14,9 +14,6 @@ import {
   BnplTransactionListFilterSchema,
   EmiPlanListFilterSchema,
   EmiCalculatorInputSchema,
-  BnplProviderName,
-  BnplTransactionStatus,
-  EmiCardType,
 } from '@caratflow/shared-types';
 import { PaginationSchema } from '@caratflow/shared-types';
 

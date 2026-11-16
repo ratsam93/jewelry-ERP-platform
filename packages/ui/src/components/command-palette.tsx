@@ -4,7 +4,6 @@ import * as React from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Search } from 'lucide-react';
-import { cn } from '../lib/utils';
 
 interface CommandPaletteItem {
   id: string;
@@ -79,7 +78,7 @@ export function CommandPalette({ items, placeholder = 'Type a command or search.
                       }}
                       className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                     >
-                      {item.icon && <span className="mr-2">{item.icon}</span>}
+                      {item.icon ? <span className="mr-2">{item.icon}</span> : null}
                       <div className="flex-1">
                         <div>{item.label}</div>
                         {item.description && (

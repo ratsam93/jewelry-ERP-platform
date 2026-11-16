@@ -3,9 +3,7 @@ import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import {
   type QualityCheckpointInput,
-  QcStatus,
   MfgJobOrderStatus,
-  JOB_ORDER_TRANSITIONS,
 } from '@caratflow/shared-types';
 
 @Injectable()

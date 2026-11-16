@@ -13,7 +13,6 @@
 // hook shim for the duration of each render.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
 
 // ─── React hook shim ─────────────────────────────────────────────
 // Screens use `import { useState, useEffect } from 'react'`, which

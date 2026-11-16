@@ -89,7 +89,7 @@ export class StorefrontCartService extends TenantAwareService {
     quantity: number,
   ): Promise<CartResponse> {
     quantity = ensureValidQuantity(quantity);
-    const cart = await this.getCartOrThrow(tenantId, cartId);
+    await this.getCartOrThrow(tenantId, cartId);
 
     // Validate product exists and is active
     const product = await this.prisma.product.findFirst({
@@ -228,7 +228,7 @@ export class StorefrontCartService extends TenantAwareService {
     }
 
     // Find or create customer cart
-    let customerCart = await this.prisma.cart.findFirst({
+    const customerCart = await this.prisma.cart.findFirst({
       where: { tenantId, customerId },
       include: { items: true },
     });

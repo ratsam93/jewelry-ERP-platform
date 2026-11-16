@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import React from 'react';
 import { Avatar } from '../Avatar';
 
 function typeNameOf(node: any): string {

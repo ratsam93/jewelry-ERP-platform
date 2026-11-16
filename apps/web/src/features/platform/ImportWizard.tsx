@@ -31,7 +31,7 @@ export function ImportWizard({ onClose }: ImportWizardProps) {
   const [entityType, setEntityType] = useState<string>('customer');
   const [parsedFile, setParsedFile] = useState<ParsedFile | null>(null);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [, setIsProcessing] = useState(false);
   const [results, setResults] = useState<{
     successRows: number;
     errorRows: number;

@@ -53,7 +53,6 @@ export class BnplEmiService extends TenantAwareService {
     // Zero interest EMI
     if (interestRatePct === 0) {
       const monthlyEmi = Math.ceil(amountPaise / tenure);
-      const totalPayable = monthlyEmi * tenure;
       // For zero interest, any rounding goes to the last installment,
       // but total payable should equal the amount
       return {
@@ -66,7 +65,6 @@ export class BnplEmiService extends TenantAwareService {
     // interestRatePct is annual rate * 100 (e.g., 1200 = 12%)
     // Monthly rate = annualRate / 12 / 10000
     // To use integer math, we use a precision scale of 10^12
-    const SCALE = 1_000_000_000_000; // 10^12
 
     // Monthly rate as a fraction: interestRatePct / (12 * 10000)
     // r_scaled = (interestRatePct * SCALE) / 120000
