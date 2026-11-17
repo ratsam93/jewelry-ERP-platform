@@ -15,10 +15,11 @@ describe('AmlService', () => {
 
     (mockPrisma as any).amlRule = {
       findFirst: vi.fn(),
-      findFirstOrThrow: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
     };
     (mockPrisma as any).amlAlert = {
       create: vi.fn().mockResolvedValue({ id: 'alert-1' }),
@@ -276,6 +277,28 @@ describe('AmlService', () => {
       );
 
       expect(result.alertsCreated).toBe(2);
+    });
+  });
+
+  describe('deleteRule', () => {
+    it('hard-deletes a rule that no alert references', async () => {
+      (mockPrisma as any).amlRule.findFirst.mockResolvedValue({ id: 'r1' });
+      (mockPrisma as any).amlAlert.count.mockResolvedValue(0);
+      (mockPrisma as any).amlRule.delete.mockResolvedValue({ id: 'r1' });
+      await service.deleteRule(TEST_TENANT_ID, 'r1');
+      expect((mockPrisma as any).amlRule.delete).toHaveBeenCalledWith({ where: { id: 'r1' } });
+      expect((mockPrisma as any).amlRule.update).not.toHaveBeenCalled();
+    });
+
+    it('deactivates a rule that alerts still reference', async () => {
+      (mockPrisma as any).amlRule.findFirst.mockResolvedValue({ id: 'r1' });
+      (mockPrisma as any).amlAlert.count.mockResolvedValue(2);
+      await service.deleteRule(TEST_TENANT_ID, 'r1');
+      expect((mockPrisma as any).amlRule.delete).not.toHaveBeenCalled();
+      expect((mockPrisma as any).amlRule.update).toHaveBeenCalledWith({
+        where: { id: 'r1' },
+        data: { isActive: false },
+      });
     });
   });
 });

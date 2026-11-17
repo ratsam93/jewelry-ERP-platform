@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = React.useState('');
@@ -26,9 +27,9 @@ export default function ForgotPasswordPage() {
                 If an account exists for <strong>{email}</strong>, a password reset link has been
                 sent. Check your email.
               </p>
-              <a href="/login" className="inline-block text-sm text-primary hover:underline">
+              <Link href="/login" className="inline-block text-sm text-primary hover:underline">
                 Back to login
-              </a>
+              </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -50,9 +51,9 @@ export default function ForgotPasswordPage() {
                 Send Reset Link
               </button>
               <p className="text-center text-sm text-muted-foreground">
-                <a href="/login" className="text-primary hover:underline">
+                <Link href="/login" className="text-primary hover:underline">
                   Back to login
-                </a>
+                </Link>
               </p>
             </form>
           )}

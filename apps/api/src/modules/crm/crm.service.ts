@@ -1,7 +1,7 @@
 // ─── CRM Service ───────────────────────────────────────────────
 // Main customer service: 360 view, search, segmentation, CSV import.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
@@ -25,9 +25,10 @@ export class CrmService extends TenantAwareService {
 
   /** Customer 360 view: aggregate profile + purchase history + loyalty + occasions + interactions + feedback */
   async getCustomer360(tenantId: string, customerId: string): Promise<Customer360Response> {
-    const customer = await this.prisma.customer.findFirstOrThrow({
+    const customer = await this.prisma.customer.findFirst({
       where: this.tenantWhere(tenantId, { id: customerId }) as { tenantId: string; id: string },
     });
+    if (!customer) throw new NotFoundException('Customer not found');
 
     const [
       loyaltyTransactions,
@@ -382,9 +383,10 @@ export class CrmService extends TenantAwareService {
 
   /** Refresh segment customer count */
   async refreshSegment(tenantId: string, segmentId: string) {
-    const segment = await this.prisma.customerSegment.findFirstOrThrow({
+    const segment = await this.prisma.customerSegment.findFirst({
       where: { id: segmentId, tenantId },
     });
+    if (!segment) throw new NotFoundException('Customer segment not found');
     const criteria = segment.criteria as SegmentCriteria;
     const { count } = await this.evaluateSegment(tenantId, criteria);
     return this.prisma.customerSegment.update({

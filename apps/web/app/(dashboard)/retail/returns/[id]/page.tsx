@@ -4,17 +4,19 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function ReturnDetailPage() {
   const params = useParams<{ id: string }>();
   const returnId = params?.id ?? '';
-  const { data, isLoading, refetch } = trpc.retail.getReturn.useQuery({ returnId }, { enabled: Boolean(returnId) });
+  const { data, isLoading, error, refetch } = trpc.retail.getReturn.useQuery({ returnId }, { enabled: Boolean(returnId) });
   const approve = trpc.retail.approveReturn.useMutation({ onSuccess: () => refetch() });
   const complete = trpc.retail.completeReturn.useMutation({ onSuccess: () => refetch() });
   const reject = trpc.retail.rejectReturn.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({ isLoading, error, data, entity: 'Return', backHref: '/retail/returns', onRetry: () => refetch() });
+  if (state) return state;
   const r = data as Record<string, unknown>;
   const items = (r.items as Array<Record<string, unknown>>) ?? [];
   const status = r.status as string;

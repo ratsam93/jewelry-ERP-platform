@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { BadRequestException } from '@nestjs/common';
 import { ReportingCustomService } from '../reporting.custom.service';
 import { createMockPrismaService, TEST_TENANT_ID } from '../../../__tests__/setup';
 
@@ -128,7 +129,7 @@ describe('ReportingCustomService (Unit)', () => {
       expect(result.executionTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('throws for unsupported entity type', async () => {
+    it('throws BadRequestException for unsupported entity type', async () => {
       await expect(
         service.executeCustomReport(TEST_TENANT_ID, {
           entityType: 'bad',
@@ -138,10 +139,10 @@ describe('ReportingCustomService (Unit)', () => {
           filters: [],
           sortBy: [],
         } as any),
-      ).rejects.toThrow();
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('throws for no valid columns', async () => {
+    it('throws BadRequestException for no valid columns', async () => {
       await expect(
         service.executeCustomReport(TEST_TENANT_ID, {
           entityType: 'sales',
@@ -151,7 +152,7 @@ describe('ReportingCustomService (Unit)', () => {
           filters: [],
           sortBy: [],
         } as any),
-      ).rejects.toThrow('No valid columns');
+      ).rejects.toThrow(new BadRequestException('No valid columns selected'));
     });
   });
 });

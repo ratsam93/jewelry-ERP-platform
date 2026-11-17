@@ -15,6 +15,7 @@ import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
 import { WhatsAppService } from './whatsapp.service';
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import {
   EmailTestInputSchema,
   EmailSendInputSchema,
@@ -481,7 +482,7 @@ export class CrmTrpcRouter {
               select: { email: true },
             });
             if (!customer?.email) {
-              throw new Error(`Customer ${input.customerId} has no email`);
+              throw new TRPCError({ code: 'BAD_REQUEST', message: `Customer ${input.customerId} has no email` });
             }
             return this.emailService.sendEmail(ctx.tenantId, {
               to: customer.email,
@@ -516,7 +517,7 @@ export class CrmTrpcRouter {
               select: { phone: true },
             } as unknown);
             if (!customer?.phone) {
-              throw new Error(`Customer ${input.customerId} has no phone`);
+              throw new TRPCError({ code: 'BAD_REQUEST', message: `Customer ${input.customerId} has no phone` });
             }
             return this.smsService.sendSms(ctx.tenantId, {
               to: customer.phone,
@@ -625,7 +626,7 @@ export class CrmTrpcRouter {
             });
 
             if (!customer?.phone) {
-              throw new Error('Customer has no phone number');
+              throw new TRPCError({ code: 'BAD_REQUEST', message: 'Customer has no phone number' });
             }
             const components =
               input.params.length > 0

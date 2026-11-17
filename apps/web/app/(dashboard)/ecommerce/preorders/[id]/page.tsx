@@ -3,14 +3,18 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function PreorderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading } = trpc.preorder.getPreOrder.useQuery({ preOrderId: id }, { enabled: Boolean(id) });
+  const { data, isLoading, error, refetch } = trpc.preorder.getPreOrder.useQuery({ preOrderId: id }, { enabled: Boolean(id) });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Pre-order', backHref: '/ecommerce/preorders', onRetry: () => refetch(),
+  });
+  if (state) return state;
   const p: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
 
   return (

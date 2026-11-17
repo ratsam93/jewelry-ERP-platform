@@ -3,11 +3,11 @@ import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV === "development";
 
 function apiOrigin(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  const raw = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
   try {
     return new URL(raw).origin;
   } catch {
-    return "http://localhost:3001";
+    return "http://localhost:4000";
   }
 }
 

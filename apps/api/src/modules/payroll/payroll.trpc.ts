@@ -106,7 +106,10 @@ export class PayrollTrpcRouter {
           .mutation(({ ctx, input }) => this.attendanceService.markBulk(ctx.tenantId, input)),
 
         monthlySummary: t.authedProcedure
-          .input(z.object({ employeeId: UuidSchema, yearMonth: z.string() }))
+          .input(z.object({
+            employeeId: UuidSchema,
+            yearMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'yearMonth must be YYYY-MM'),
+          }))
           .query(({ ctx, input }) =>
             this.attendanceService.monthlySummary(ctx.tenantId, input.employeeId, input.yearMonth),
           ),

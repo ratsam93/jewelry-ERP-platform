@@ -37,7 +37,7 @@ export class CustomerPortalTrpcRouter {
   ) {}
 
   get router() {
-    const authed = this.trpc.authedProcedure;
+    const authed = this.trpc.customerProcedure;
 
     return this.trpc.router({
       // ─── Dashboard ───────────────────────────────────────

@@ -27,6 +27,9 @@ export class StorefrontCouponService extends TenantAwareService {
     cartTotalPaise: number,
     customerId: string | null,
   ): Promise<CouponValidationResult> {
+    if (typeof code !== 'string' || code.trim() === '') {
+      throw new BadRequestException('Coupon code is required');
+    }
     const coupon = await this.prisma.couponCode.findUnique({
       where: { tenantId_code: { tenantId, code: code.toUpperCase() } },
     });
@@ -115,6 +118,9 @@ export class StorefrontCouponService extends TenantAwareService {
     code: string,
     cartTotalPaise: number,
   ): Promise<CouponValidationResult> {
+    if (typeof code !== 'string' || code.trim() === '') {
+      throw new BadRequestException('Coupon code is required');
+    }
     const coupon = await this.prisma.couponCode.findUnique({
       where: { tenantId_code: { tenantId, code: code.toUpperCase() } },
     });

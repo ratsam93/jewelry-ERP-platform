@@ -43,11 +43,13 @@ test.describe('Storefront - Product Browsing', () => {
     await page.goto('/category/gold');
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
-    const productLink = page.locator('a[href^="/product/"]').first();
+    const productLink = page.locator('a[href^="/product/"]').filter({ hasText: /\S/ }).first();
     const hasProductLink = await productLink.isVisible().catch(() => false);
 
     if (hasProductLink) {
-      await productLink.click();
+      // Use the card's text (name/price) link: the image link's centre is covered by the hover-only "Quick Add" overlay.
+    await productLink.click();
+    await page.waitForURL('**/product/**', { timeout: 30000 });
       await page.waitForLoadState('networkidle').catch(() => undefined);
       expect(page.url()).toContain('/product/');
     } else {
@@ -71,11 +73,13 @@ test.describe('Storefront - Product Browsing', () => {
     await page.goto('/category/gold');
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
-    const productLink = page.locator('a[href^="/product/"]').first();
+    const productLink = page.locator('a[href^="/product/"]').filter({ hasText: /\S/ }).first();
     if (!(await productLink.isVisible().catch(() => false))) {
       test.skip(true, 'No products available to add to wishlist');
     }
+    // Use the card's text (name/price) link: the image link's centre is covered by the hover-only "Quick Add" overlay.
     await productLink.click();
+    await page.waitForURL('**/product/**', { timeout: 30000 });
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
     const wishBtn = page
@@ -83,6 +87,7 @@ test.describe('Storefront - Product Browsing', () => {
         'button[aria-label*="wishlist" i], button:has-text("Wishlist"), button:has-text("Add to Wishlist")',
       )
       .first();
+    await wishBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined); // PDP data loads async
     if (!(await wishBtn.isVisible().catch(() => false))) {
       test.skip(true, 'No wishlist button on product page');
     }
@@ -100,22 +105,26 @@ test.describe('Storefront - Product Browsing', () => {
     expect(hasResults).toBe(true);
   });
 
+  // The category cards no longer carry "Compare" buttons (only wishlist + Quick Add): "Add to compare" now lives
+  // on the product detail page, so add two different products from their detail pages.
   test('compare: add 2 products to compare list', async ({ page }) => {
     await page.goto('/category/gold');
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
-    const compareButtons = page.locator(
-      'button[aria-label*="compare" i], button:has-text("Compare")',
-    );
-    const btnCount = await compareButtons.count();
-    if (btnCount < 2) {
-      test.skip(true, 'Need at least 2 compare buttons in UI to test compare list');
+    const hrefs = await page
+      .locator('a[href^="/product/"]')
+      .evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('href') as string))].slice(0, 2));
+    if (hrefs.length < 2) {
+      test.skip(true, 'Need at least 2 products to test the compare list');
     }
 
-    await compareButtons.nth(0).click().catch(() => undefined);
-    await page.waitForTimeout(200);
-    await compareButtons.nth(1).click().catch(() => undefined);
-    await page.waitForTimeout(200);
+    for (const href of hrefs) {
+      await page.goto(href);
+      const compareBtn = page.locator('button[aria-label*="compare" i], button:has-text("Compare")').first();
+      await compareBtn.waitFor({ state: 'visible', timeout: 15000 });
+      await compareBtn.click();
+      await page.waitForTimeout(300);
+    }
 
     const res = await page.goto('/compare');
     expect(res?.status()).toBeLessThan(500);

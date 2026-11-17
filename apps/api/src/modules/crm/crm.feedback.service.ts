@@ -1,7 +1,7 @@
 // ─── CRM Feedback Service ──────────────────────────────────────
 // Collect, review, action customer feedback. Average rating by period.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
@@ -32,10 +32,12 @@ export class CrmFeedbackService extends TenantAwareService {
   }
 
   async getFeedback(tenantId: string, feedbackId: string) {
-    return this.prisma.feedback.findFirstOrThrow({
+    const found = await this.prisma.feedback.findFirst({
       where: { id: feedbackId, tenantId },
       include: { customer: { select: { firstName: true, lastName: true } } },
     });
+    if (!found) throw new NotFoundException('Feedback not found');
+    return found;
   }
 
   async listFeedback(tenantId: string, page = 1, limit = 20, status?: string, feedbackType?: string) {
@@ -62,9 +64,10 @@ export class CrmFeedbackService extends TenantAwareService {
 
   /** Mark feedback as reviewed */
   async reviewFeedback(tenantId: string, userId: string, feedbackId: string) {
-    await this.prisma.feedback.findFirstOrThrow({
+    const found = await this.prisma.feedback.findFirst({
       where: { id: feedbackId, tenantId },
     });
+    if (!found) throw new NotFoundException('Feedback not found');
     return this.prisma.feedback.update({
       where: { id: feedbackId },
       data: {
@@ -78,9 +81,10 @@ export class CrmFeedbackService extends TenantAwareService {
 
   /** Mark feedback as actioned */
   async actionFeedback(tenantId: string, userId: string, feedbackId: string) {
-    await this.prisma.feedback.findFirstOrThrow({
+    const found = await this.prisma.feedback.findFirst({
       where: { id: feedbackId, tenantId },
     });
+    if (!found) throw new NotFoundException('Feedback not found');
     return this.prisma.feedback.update({
       where: { id: feedbackId },
       data: {

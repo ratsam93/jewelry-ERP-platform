@@ -1,7 +1,7 @@
 // ─── CRM Loyalty Service ───────────────────────────────────────
 // Loyalty engine: configure program, earn/redeem/expire points, tier calc.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { Prisma } from '@caratflow/db';
 import { PrismaService } from '../../common/prisma.service';
@@ -43,9 +43,10 @@ export class CrmLoyaltyService extends TenantAwareService {
   }
 
   async updateProgram(tenantId: string, userId: string, programId: string, input: Partial<LoyaltyProgramInput>) {
-    await this.prisma.loyaltyProgram.findFirstOrThrow({
+    const found = await this.prisma.loyaltyProgram.findFirst({
       where: { id: programId, tenantId },
     });
+    if (!found) throw new NotFoundException('Loyalty program not found');
     return this.prisma.loyaltyProgram.update({
       where: { id: programId },
       data: {
@@ -82,11 +83,12 @@ export class CrmLoyaltyService extends TenantAwareService {
     referenceId: string,
     description?: string,
   ): Promise<{ transaction: unknown; newBalance: number }> {
-    if (points <= 0) throw new Error('Points to earn must be positive');
+    if (points <= 0) throw new BadRequestException('Points to earn must be positive');
 
-    const customer = await this.prisma.customer.findFirstOrThrow({
+    const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, tenantId },
     });
+    if (!customer) throw new NotFoundException('Customer not found');
 
     const newBalance = customer.loyaltyPoints + points;
 
@@ -149,18 +151,19 @@ export class CrmLoyaltyService extends TenantAwareService {
     referenceType: string,
     referenceId: string,
   ): Promise<{ transaction: unknown; newBalance: number; redemptionValuePaise: number }> {
-    if (points <= 0) throw new Error('Points to redeem must be positive');
+    if (points <= 0) throw new BadRequestException('Points to redeem must be positive');
 
-    const customer = await this.prisma.customer.findFirstOrThrow({
+    const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, tenantId },
     });
+    if (!customer) throw new NotFoundException('Customer not found');
 
     if (customer.loyaltyPoints < points) {
-      throw new Error(`Insufficient points. Available: ${customer.loyaltyPoints}, requested: ${points}`);
+      throw new BadRequestException(`Insufficient points. Available: ${customer.loyaltyPoints}, requested: ${points}`);
     }
 
     const program = await this.getActiveProgram(tenantId);
-    if (!program) throw new Error('No active loyalty program configured');
+    if (!program) throw new NotFoundException('No active loyalty program configured');
 
     const newBalance = customer.loyaltyPoints - points;
     // e.g., redemptionRate = 100 means 100 points = 1 currency unit (100 paise)
@@ -200,12 +203,13 @@ export class CrmLoyaltyService extends TenantAwareService {
 
   /** Manual adjustment (admin correction) */
   async adjustPoints(tenantId: string, userId: string, input: LoyaltyTransactionInput) {
-    const customer = await this.prisma.customer.findFirstOrThrow({
+    const customer = await this.prisma.customer.findFirst({
       where: { id: input.customerId, tenantId },
     });
+    if (!customer) throw new NotFoundException('Customer not found');
 
     const newBalance = customer.loyaltyPoints + input.points;
-    if (newBalance < 0) throw new Error('Adjustment would result in negative balance');
+    if (newBalance < 0) throw new BadRequestException('Adjustment would result in negative balance');
 
     return this.prisma.$transaction(async (tx) => {
       const txn = await tx.loyaltyTransaction.create({
@@ -301,9 +305,10 @@ export class CrmLoyaltyService extends TenantAwareService {
 
   /** Get loyalty balance and tier info for a customer */
   async getBalance(tenantId: string, customerId: string): Promise<LoyaltyBalanceResponse> {
-    const customer = await this.prisma.customer.findFirstOrThrow({
+    const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, tenantId },
     });
+    if (!customer) throw new NotFoundException('Customer not found');
 
     const program = await this.getActiveProgram(tenantId);
     const tiers = (program?.tiers as LoyaltyTierConfig[] | undefined) ?? [];
@@ -384,10 +389,11 @@ export class CrmLoyaltyService extends TenantAwareService {
    * the customer id.
    */
   async syncTierForCustomer(tenantId: string, userId: string, customerId: string): Promise<void> {
-    const customer = await this.prisma.customer.findFirstOrThrow({
+    const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, tenantId },
       select: { loyaltyPoints: true },
     });
+    if (!customer) throw new NotFoundException('Customer not found');
     await this.recalculateTier(tenantId, userId, customerId, customer.loyaltyPoints);
   }
 

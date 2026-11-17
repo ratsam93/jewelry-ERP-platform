@@ -21,7 +21,7 @@ test.describe('Storefront - AR Try-On & Chat', () => {
 
     const chatInput = page
       .locator(
-        'input[placeholder*="message" i], textarea[placeholder*="message" i], input[placeholder*="type" i], textarea[placeholder*="type" i]',
+        'input[placeholder*="message" i], textarea[placeholder*="message" i], input[placeholder*="type" i], textarea[placeholder*="type" i], input[placeholder*="ask me" i], textarea[placeholder*="ask me" i]',
       )
       .first();
     await expect(chatInput).toBeVisible({ timeout: 10000 });
@@ -33,7 +33,7 @@ test.describe('Storefront - AR Try-On & Chat', () => {
 
     const chatInput = page
       .locator(
-        'input[placeholder*="message" i], textarea[placeholder*="message" i], input[placeholder*="type" i], textarea[placeholder*="type" i]',
+        'input[placeholder*="message" i], textarea[placeholder*="message" i], input[placeholder*="type" i], textarea[placeholder*="type" i], input[placeholder*="ask me" i], textarea[placeholder*="ask me" i]',
       )
       .first();
     if (!(await chatInput.isVisible().catch(() => false))) {
@@ -64,7 +64,7 @@ test.describe('Storefront - AR Try-On & Chat', () => {
 
     const chatInput = page
       .locator(
-        'input[placeholder*="message" i], textarea[placeholder*="message" i], input[placeholder*="type" i], textarea[placeholder*="type" i]',
+        'input[placeholder*="message" i], textarea[placeholder*="message" i], input[placeholder*="type" i], textarea[placeholder*="type" i], input[placeholder*="ask me" i], textarea[placeholder*="ask me" i]',
       )
       .first();
     if (!(await chatInput.isVisible().catch(() => false))) {
@@ -83,18 +83,11 @@ test.describe('Storefront - AR Try-On & Chat', () => {
     }
 
     // Wait a bit for bot reply. If nothing shows up, skip rather than fail.
-    const waited = await page
-      .waitForFunction(
-        () => {
-          // A bot reply usually adds a second message bubble. Count distinct bubbles.
-          const bubbles = document.querySelectorAll(
-            '[class*="message"], [class*="bubble"], [class*="chat"]',
-          );
-          return bubbles.length >= 2;
-        },
-        undefined,
-        { timeout: 8000 },
-      )
+    // (page.waitForFunction is blocked by the storefront CSP (no unsafe-eval): poll with locator counts instead.)
+    const bubbles = page.locator('[class*="message"], [class*="bubble"], [class*="chat"]');
+    const waited = await expect
+      .poll(async () => (await bubbles.count()) >= 2, { timeout: 8000 })
+      .toBe(true)
       .then(() => true)
       .catch(() => false);
 

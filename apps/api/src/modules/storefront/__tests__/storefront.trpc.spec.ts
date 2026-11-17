@@ -61,6 +61,7 @@ describe('StorefrontTrpcRouter', () => {
     tenantId: 'tenant-1',
     userId: 'user-1',
     userRole: 'customer',
+    principal: 'customer' as const,
     userPermissions: ['*'],
   };
 
@@ -77,6 +78,7 @@ describe('StorefrontTrpcRouter', () => {
     couponService as never,
   );
   const caller = routerInstance.router.createCaller(ctx);
+  const staffCaller = routerInstance.router.createCaller({ ...ctx, principal: 'staff' as const });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -109,7 +111,7 @@ describe('StorefrontTrpcRouter', () => {
   describe('home', () => {
     it('delegates to homeService.getHomepageData with tenantId', async () => {
       homeService.getHomepageData.mockResolvedValue({ banners: [] });
-      const result = await caller.home();
+      const result = await staffCaller.home();
       expect(homeService.getHomepageData).toHaveBeenCalledWith('tenant-1');
       expect(result).toEqual({ banners: [] });
     });
@@ -119,7 +121,7 @@ describe('StorefrontTrpcRouter', () => {
   describe('catalog.list', () => {
     it('delegates to catalogService.getProducts', async () => {
       catalogService.getProducts.mockResolvedValue({ items: [] });
-      await caller.catalog.list({});
+      await staffCaller.catalog.list({});
       expect(catalogService.getProducts).toHaveBeenCalledWith('tenant-1', expect.any(Object));
     });
   });
@@ -127,31 +129,31 @@ describe('StorefrontTrpcRouter', () => {
   describe('catalog.getById', () => {
     it('delegates to catalogService.getProductById', async () => {
       catalogService.getProductById.mockResolvedValue({ id: PRODUCT_ID });
-      await caller.catalog.getById({ id: PRODUCT_ID });
+      await staffCaller.catalog.getById({ id: PRODUCT_ID });
       expect(catalogService.getProductById).toHaveBeenCalledWith('tenant-1', PRODUCT_ID);
     });
 
     it('rejects invalid uuid', async () => {
-      await expect(caller.catalog.getById({ id: 'bogus' })).rejects.toThrow();
+      await expect(staffCaller.catalog.getById({ id: 'bogus' })).rejects.toThrow();
     });
   });
 
   describe('catalog.search', () => {
     it('delegates to catalogService.searchProducts with limit default', async () => {
       catalogService.searchProducts.mockResolvedValue([]);
-      await caller.catalog.search({ query: 'diamond' });
+      await staffCaller.catalog.search({ query: 'diamond' });
       expect(catalogService.searchProducts).toHaveBeenCalledWith('tenant-1', 'diamond', 'user-1', 20);
     });
 
     it('rejects empty query', async () => {
-      await expect(caller.catalog.search({ query: '' })).rejects.toThrow();
+      await expect(staffCaller.catalog.search({ query: '' })).rejects.toThrow();
     });
   });
 
   describe('catalog.categories', () => {
     it('delegates to catalogService.getCategories', async () => {
       catalogService.getCategories.mockResolvedValue([]);
-      await caller.catalog.categories();
+      await staffCaller.catalog.categories();
       expect(catalogService.getCategories).toHaveBeenCalledWith('tenant-1');
     });
   });
@@ -159,12 +161,12 @@ describe('StorefrontTrpcRouter', () => {
   describe('catalog.compare', () => {
     it('delegates to catalogService.compareProducts', async () => {
       catalogService.compareProducts.mockResolvedValue([]);
-      await caller.catalog.compare({ productIds: [PRODUCT_ID, PRODUCT_ID_2] });
+      await staffCaller.catalog.compare({ productIds: [PRODUCT_ID, PRODUCT_ID_2] });
       expect(catalogService.compareProducts).toHaveBeenCalledWith('tenant-1', [PRODUCT_ID, PRODUCT_ID_2]);
     });
 
     it('rejects fewer than 2 ids', async () => {
-      await expect(caller.catalog.compare({ productIds: [PRODUCT_ID] })).rejects.toThrow();
+      await expect(staffCaller.catalog.compare({ productIds: [PRODUCT_ID] })).rejects.toThrow();
     });
   });
 
@@ -381,7 +383,7 @@ describe('StorefrontTrpcRouter', () => {
   describe('reviews.list', () => {
     it('delegates to reviewService.getReviews', async () => {
       reviewService.getReviews.mockResolvedValue({ items: [] });
-      await caller.reviews.list({ productId: PRODUCT_ID });
+      await staffCaller.reviews.list({ productId: PRODUCT_ID });
       expect(reviewService.getReviews).toHaveBeenCalledWith('tenant-1', expect.objectContaining({
         productId: PRODUCT_ID,
       }));
@@ -391,7 +393,7 @@ describe('StorefrontTrpcRouter', () => {
   describe('reviews.markHelpful', () => {
     it('delegates to reviewService.markHelpful', async () => {
       reviewService.markHelpful.mockResolvedValue({});
-      await caller.reviews.markHelpful({ reviewId: REVIEW_ID });
+      await staffCaller.reviews.markHelpful({ reviewId: REVIEW_ID });
       expect(reviewService.markHelpful).toHaveBeenCalledWith('tenant-1', REVIEW_ID);
     });
   });
@@ -460,5 +462,18 @@ describe('StorefrontTrpcRouter', () => {
   it('rejects unauthenticated calls', async () => {
     const unauth = routerInstance.router.createCaller({});
     await expect(unauth.home()).rejects.toThrow();
+  });
+
+  describe('principal access', () => {
+    it('anyPrincipal procedures accept staff and customer, reject no token', async () => {
+      homeService.getHomepageData.mockResolvedValue({});
+      await expect(staffCaller.home()).resolves.toBeDefined();
+      await expect(caller.home()).resolves.toBeDefined();
+      const anon = routerInstance.router.createCaller({});
+      await expect(anon.home()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    });
+    it('customer-bound procedures reject staff tokens', async () => {
+      await expect(staffCaller.wishlist.get()).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
   });
 });

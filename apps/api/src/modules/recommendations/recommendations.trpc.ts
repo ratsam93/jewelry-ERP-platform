@@ -19,10 +19,11 @@ export class RecommendationsTrpcRouter {
   ) {}
 
   get router() {
-    const authed = this.trpc.authedProcedure;
+    const anyPrincipal = this.trpc.anyPrincipalProcedure;
+    const customer = this.trpc.customerProcedure;
 
     return this.trpc.router({
-      personalized: authed
+      personalized: customer
         .input(z.object({ limit: z.number().int().min(1).max(100).default(12) }).optional())
         .query(({ ctx, input }) =>
           this.recommendationsService.getPersonalizedRecommendations(
@@ -30,7 +31,7 @@ export class RecommendationsTrpcRouter {
           ),
         ),
 
-      similar: authed
+      similar: anyPrincipal
         .input(z.object({
           productId: z.string().uuid(),
           limit: z.number().int().min(1).max(100).default(12),
@@ -41,7 +42,7 @@ export class RecommendationsTrpcRouter {
           ),
         ),
 
-      boughtTogether: authed
+      boughtTogether: anyPrincipal
         .input(z.object({
           productId: z.string().uuid(),
           limit: z.number().int().min(1).max(100).default(6),
@@ -52,7 +53,7 @@ export class RecommendationsTrpcRouter {
           ),
         ),
 
-      trending: authed
+      trending: anyPrincipal
         .input(z.object({
           limit: z.number().int().min(1).max(100).default(12),
           period: z.number().int().min(1).max(365).default(7),
@@ -63,7 +64,7 @@ export class RecommendationsTrpcRouter {
           ),
         ),
 
-      popularInCategory: authed
+      popularInCategory: anyPrincipal
         .input(z.object({
           categoryId: z.string().uuid(),
           limit: z.number().int().min(1).max(100).default(12),
@@ -74,11 +75,11 @@ export class RecommendationsTrpcRouter {
           ),
         ),
 
-      forYou: authed.query(({ ctx }) =>
+      forYou: customer.query(({ ctx }) =>
         this.recommendationsService.getForYou(ctx.tenantId, ctx.userId),
       ),
 
-      trackView: authed
+      trackView: customer
         .input(z.object({
           productId: z.string().uuid(),
           sessionId: z.string().min(1),
@@ -89,7 +90,7 @@ export class RecommendationsTrpcRouter {
           ),
         ),
 
-      trackClick: authed
+      trackClick: customer
         .input(TrackClickInputSchema)
         .mutation(({ ctx, input }) =>
           this.recommendationsService.logRecommendationClick(

@@ -122,7 +122,8 @@ describe('PlatformPdfService', () => {
       expect(mockLaunch).toHaveBeenCalledOnce();
       expect(mockNewPage).toHaveBeenCalledOnce();
       expect(mockSetContent).toHaveBeenCalledWith('<p>hi</p>', {
-        waitUntil: 'networkidle0',
+        waitUntil: 'domcontentloaded',
+        timeout: 15_000,
       });
       expect(mockPdf).toHaveBeenCalledOnce();
       const pdfArgs = mockPdf.mock.calls[0]?.[0] as Record<string, unknown> | undefined;

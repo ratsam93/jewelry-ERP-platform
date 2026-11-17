@@ -135,6 +135,14 @@ describe('PayrollTrpcRouter', () => {
       await caller.attendance.monthlySummary({ employeeId: EMP_ID, yearMonth: '2026-04' });
       expect(attendanceService.monthlySummary).toHaveBeenCalledWith('tenant-1', EMP_ID, '2026-04');
     });
+
+    it('monthlySummary rejects a malformed yearMonth before it reaches the service', async () => {
+      attendanceService.monthlySummary.mockClear();
+      for (const yearMonth of ['bad', '2026-4', '2026-13', '2026-00', '26-04']) {
+        await expect(caller.attendance.monthlySummary({ employeeId: EMP_ID, yearMonth })).rejects.toThrow();
+      }
+      expect(attendanceService.monthlySummary).not.toHaveBeenCalled();
+    });
   });
 
   // ─── Salary Structures ─────────────────────────────────

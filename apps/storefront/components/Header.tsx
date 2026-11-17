@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import SearchBar from "./SearchBar";
-import MegaMenu from "./MegaMenu";
+import MegaMenu, { useNavCategories } from "./MegaMenu";
 import { cn } from "@/lib/utils";
 
 export default function Header() {
   const { cartCount, wishlistCount, setCartDrawerOpen } = useStore();
+  const categories = useNavCategories();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -141,16 +142,17 @@ export default function Header() {
       {mobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg">
           <div className="px-4 py-4 space-y-2">
-            {["Rings", "Necklaces", "Earrings", "Bangles", "Bracelets", "Pendants"].map((cat) => (
-              <Link
-                key={cat}
-                href={`/category/${cat.toLowerCase()}`}
-                className="block py-2 text-sm font-medium text-navy/70 hover:text-gold transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {cat}
-              </Link>
-            ))}
+            {!categories.loading &&
+              categories.links.slice(0, 10).map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={cat.href}
+                  className="block py-2 text-sm font-medium text-navy/70 hover:text-gold transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {cat.name}
+                </Link>
+              ))}
             <hr className="border-gray-100" />
             <Link
               href="/account"

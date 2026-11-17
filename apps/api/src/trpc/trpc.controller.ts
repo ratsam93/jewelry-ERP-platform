@@ -5,6 +5,7 @@ import { TrpcRouter } from './trpc.router';
 import type { TrpcContext } from './trpc.service';
 import { AccessTokenDenylistService } from '../auth/access-token-denylist.service';
 import { extractBearerToken, resolveStaffClaims } from '../auth/access-token';
+import { verifyB2CToken } from '../common/customer-identity';
 
 @Controller('trpc')
 export class TrpcController {
@@ -22,6 +23,7 @@ export class TrpcController {
     let userId = req.userId;
     let userRole = req.userRole;
     let userPermissions = req.userPermissions;
+    let principal: TrpcContext['principal'] = userId ? 'staff' : undefined;
     const authHeader = req.headers.authorization;
     if (!userId) {
       // Staff tokens only: B2C tokens, invalid/expired and revoked tokens leave
@@ -32,6 +34,19 @@ export class TrpcController {
         userId = claims.sub;
         userRole = claims.role;
         userPermissions = claims.permissions;
+        principal = 'staff';
+      } else {
+        // B2C customer token: only customerProcedure accepts this principal;
+        // authedProcedure (staff) rejects it with FORBIDDEN.
+        const token = extractBearerToken(authHeader);
+        const customer = token ? verifyB2CToken(token) : null;
+        if (customer) {
+          tenantId = customer.tenantId;
+          userId = customer.customerId;
+          userRole = 'customer';
+          userPermissions = [];
+          principal = 'customer';
+        }
       }
     }
     const context: TrpcContext = {
@@ -39,6 +54,7 @@ export class TrpcController {
       userId,
       userRole,
       userPermissions,
+      principal,
     };
 
     // Convert Express request to Fetch API Request

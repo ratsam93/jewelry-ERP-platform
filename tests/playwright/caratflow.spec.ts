@@ -1,3 +1,4 @@
+import { E2E_CUSTOMER, loginSlot } from './helpers/auth';
 import { test, expect } from '@playwright/test';
 
 // B2C STOREFRONT
@@ -7,17 +8,25 @@ test.describe('B2C Storefront', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('Login page has demo credentials', async ({ page }) => {
+  // Credentials are no longer printed on / pre-filled into the login page.
+  test('Login page has email/password form and does not leak demo credentials', async ({ page }) => {
     await page.goto('/auth/login');
-    await expect(page.locator('text=Demo Credentials')).toBeVisible();
+    await expect(page.locator('input[type="email"]').first()).toBeVisible();
+    await expect(page.locator('input[type="password"]').first()).toBeVisible();
+    await expect(page.locator('input[type="email"]').first()).toHaveValue('');
+    await expect(page.locator('body')).not.toContainText('admin123');
   });
 
-  test('Login works with pre-filled credentials', async ({ page }) => {
+  test('Login works with entered credentials', async ({ page }) => {
     await page.goto('/auth/login');
     await page.waitForLoadState('networkidle');
-    await page.click('button:has-text("Sign In")');
-    await page.waitForTimeout(4000);
-    await expect(page.locator('text=Login successful')).toBeVisible({ timeout: 10000 });
+    await page.locator('input[type="email"]').first().fill(E2E_CUSTOMER.email);
+    await page.locator('input[type="password"]').first().fill(E2E_CUSTOMER.password);
+    await loginSlot();
+    await page.click('button[type="submit"]:has-text("Sign In")');
+    // Success: tokens stored and the app routes to /account (no toast any more).
+    await expect(page).toHaveURL(/\/account/, { timeout: 15000 });
+    expect(await page.evaluate(() => localStorage.getItem('accessToken'))).toBeTruthy();
   });
 
   test('Register page loads', async ({ page }) => {
@@ -141,12 +150,14 @@ test.describe('Admin Dashboard', () => {
 
 // API ENDPOINTS
 test.describe('API Endpoints', () => {
-  test('Swagger docs returns 200', async ({ request }) => {
+  // Swagger is OFF unless SWAGGER_ENABLED=true (D-026): 404 when disabled, 200 when enabled.
+  test('Swagger docs: 200 when enabled, 404 when disabled', async ({ request }) => {
     const res = await request.get('/api/docs');
-    expect(res.status()).toBe(200);
+    expect([200, 404]).toContain(res.status());
   });
 
   test('Login returns JWT tokens', async ({ request }) => {
+    await loginSlot();
     const res = await request.post('/api/v1/auth/login', {
       data: { email: 'admin@sharmajewellers.com', password: 'admin123', tenantSlug: 'sharma-jewellers' },
     });
@@ -158,6 +169,7 @@ test.describe('API Endpoints', () => {
   });
 
   test('Wrong password returns 401', async ({ request }) => {
+    await loginSlot();
     const res = await request.post('/api/v1/auth/login', {
       data: { email: 'admin@sharmajewellers.com', password: 'wrong', tenantSlug: 'sharma-jewellers' },
     });
@@ -165,6 +177,7 @@ test.describe('API Endpoints', () => {
   });
 
   test('Invalid tenant returns 401', async ({ request }) => {
+    await loginSlot();
     const res = await request.post('/api/v1/auth/login', {
       data: { email: 'a@b.com', password: 'x', tenantSlug: 'fake' },
     });
@@ -172,11 +185,13 @@ test.describe('API Endpoints', () => {
   });
 
   test('Missing fields returns 400', async ({ request }) => {
+    await loginSlot();
     const res = await request.post('/api/v1/auth/login', { data: {} });
     expect(res.status()).toBe(400);
   });
 
   test('Token refresh works', async ({ request }) => {
+    await loginSlot();
     const login = await request.post('/api/v1/auth/login', {
       data: { email: 'admin@sharmajewellers.com', password: 'admin123', tenantSlug: 'sharma-jewellers' },
     });
@@ -187,6 +202,7 @@ test.describe('API Endpoints', () => {
   });
 
   test('Logout then revoked token rejected', async ({ request }) => {
+    await loginSlot();
     const login = await request.post('/api/v1/auth/login', {
       data: { email: 'admin@sharmajewellers.com', password: 'admin123', tenantSlug: 'sharma-jewellers' },
     });

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import type { SalesReportResponse } from '@caratflow/shared-types';
 import { formatPaise } from '@/components/format';
 
 export default function SalesReportPage() {
@@ -11,11 +12,13 @@ export default function SalesReportPage() {
   const [from, setFrom] = useState(first.toISOString().slice(0, 10));
   const [to, setTo] = useState(today.toISOString().slice(0, 10));
 
-  const { data, isLoading } = trpc.reporting.salesByPeriod.useQuery({
+  const { data, isLoading, isError } = trpc.reporting.salesByPeriod.useQuery({
     dateRange: { from: new Date(from), to: new Date(to) },
     groupBy: 'day',
   } as never);
-  const rows = ((data as Array<Record<string, unknown>> | undefined) ?? []);
+  // The API returns { summary: SalesSummaryRow[], totals }, not a bare array.
+  const report = data as Partial<SalesReportResponse> | undefined;
+  const rows = Array.isArray(report?.summary) ? report.summary : [];
 
   return (
     <div className="space-y-6">
@@ -37,16 +40,18 @@ export default function SalesReportPage() {
         </div>
         {isLoading ? (
           <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+        ) : isError ? (
+          <div className="py-12 text-center text-sm text-destructive">Failed to load sales report.</div>
         ) : rows.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">No data</div>
         ) : (
           <div className="divide-y">
             {rows.map((r, idx) => (
               <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm">
-                <span>{(r.period as string) ?? '-'}</span>
-                <span>{String(r.orders ?? 0)}</span>
-                <span>{formatPaise(r.revenuePaise)}</span>
-                <span>{formatPaise(r.averageTicketPaise)}</span>
+                <span>{r.date ?? '-'}</span>
+                <span>{String(r.salesCount ?? 0)}</span>
+                <span>{formatPaise(r.totalRevenuePaise)}</span>
+                <span>{formatPaise(r.avgTicketPaise)}</span>
               </div>
             ))}
           </div>

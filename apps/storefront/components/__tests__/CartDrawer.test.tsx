@@ -1,7 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import CartDrawer from "@/components/CartDrawer";
-import { mockProducts } from "@/lib/mock-data";
+import { mapProduct } from "@/lib/catalog";
+import { apiProductB } from "../../__tests__/fixtures/api-catalog";
+import { installStoreApi } from "../../__tests__/fixtures/store-api";
+
+const mockProducts = [mapProduct(apiProductB)];
+
+beforeEach(() => {
+  window.localStorage.clear();
+  installStoreApi();
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 import { renderWithStore } from "./test-utils";
 import { createElement, useEffect } from "react";
 import StoreProvider from "@/components/StoreProvider";
@@ -65,7 +77,7 @@ describe("CartDrawer", () => {
     expect(screen.getByText("-")).toBeInTheDocument();
   });
 
-  it("renders empty state message when opened with no items", () => {
+  it("renders empty state message when opened with no items", async () => {
     function EmptyDrawer() {
       const store = useStore();
       useEffect(() => {
@@ -74,7 +86,7 @@ describe("CartDrawer", () => {
       return createElement(CartDrawer);
     }
     render(createElement(StoreProvider, null, createElement(EmptyDrawer)));
-    expect(screen.getByText("Your bag is empty")).toBeInTheDocument();
+    expect(await screen.findByText("Your bag is empty")).toBeInTheDocument();
     expect(screen.getByText("Continue Shopping")).toBeInTheDocument();
   });
 });

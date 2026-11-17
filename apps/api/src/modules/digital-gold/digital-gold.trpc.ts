@@ -5,6 +5,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { TrpcService } from '../../trpc/trpc.service';
 import { DigitalGoldService } from './digital-gold.service';
 import { DigitalGoldSipService } from './digital-gold.sip.service';
@@ -32,7 +33,7 @@ export class DigitalGoldTrpcRouter {
   ) {}
 
   get router() {
-    const authed = this.trpc.authedProcedure;
+    const authed = this.trpc.customerProcedure;
 
     return this.trpc.router({
       // ─── Buy / Sell ──────────────────────────────────────
@@ -90,31 +91,31 @@ export class DigitalGoldTrpcRouter {
         get: authed
           .input(z.object({ sipId: z.string().uuid() }))
           .query(({ ctx, input }) =>
-            this.sipService.getSip(ctx.tenantId, input.sipId),
+            this.sipService.getSip(ctx.tenantId, ctx.userId, input.sipId),
           ),
 
         pause: authed
           .input(z.object({ sipId: z.string().uuid() }))
           .mutation(({ ctx, input }) =>
-            this.sipService.pauseSip(ctx.tenantId, input.sipId),
+            this.sipService.pauseSip(ctx.tenantId, ctx.userId, input.sipId),
           ),
 
         resume: authed
           .input(z.object({ sipId: z.string().uuid() }))
           .mutation(({ ctx, input }) =>
-            this.sipService.resumeSip(ctx.tenantId, input.sipId),
+            this.sipService.resumeSip(ctx.tenantId, ctx.userId, input.sipId),
           ),
 
         cancel: authed
           .input(z.object({ sipId: z.string().uuid() }))
           .mutation(({ ctx, input }) =>
-            this.sipService.cancelSip(ctx.tenantId, input.sipId),
+            this.sipService.cancelSip(ctx.tenantId, ctx.userId, input.sipId),
           ),
 
         history: authed
           .input(z.object({ sipId: z.string().uuid() }))
           .query(({ ctx, input }) =>
-            this.sipService.getSipHistory(ctx.tenantId, input.sipId),
+            this.sipService.getSipHistory(ctx.tenantId, ctx.userId, input.sipId),
           ),
       }),
 
@@ -145,7 +146,7 @@ export class DigitalGoldTrpcRouter {
                 input.addressId,
               );
             default:
-              throw new Error('Invalid redemption type');
+              throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid redemption type' });
           }
         }),
 

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { mockProducts } from "@/lib/mock-data";
+import { searchProducts, slugify, type CatalogProduct } from "@/lib/catalog";
 import { cn, formatPrice, debounce, calculateProductPrice } from "@/lib/utils";
 import VoiceSearchButton from "./VoiceSearchButton";
 import { normalizeVoiceQuery } from "@/lib/voice-normalize";
@@ -38,53 +38,40 @@ interface AutocompleteData {
   recentSearches: string[];
 }
 
-// ─── Mock Autocomplete (replace with API call in production) ──────
+// ─── Autocomplete (backed by GET /store/products/search) ──────────
 
-function mockAutocomplete(query: string): AutocompleteData {
+const POPULAR_TERMS = [
+  "gold necklace set",
+  "diamond ring",
+  "silver bracelet",
+  "kundan earrings",
+  "mangalsutra",
+  "gold bangles",
+  "solitaire ring",
+  "jhumka earrings",
+];
+
+function buildAutocomplete(query: string, found: CatalogProduct[]): AutocompleteData {
   const q = query.toLowerCase();
-  const products: AutocompleteProduct[] = mockProducts
-    .filter((p) => p.name.toLowerCase().includes(q))
-    .slice(0, 4)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      productType: p.metalType,
-      categoryName: p.categoryName ?? null,
-      totalPricePaise: calculateProductPrice(p).total,
-      currencyCode: p.currencyCode ?? "INR",
-      image: p.images?.[0]?.url ?? null,
-    }));
+  const products: AutocompleteProduct[] = found.slice(0, 4).map((p) => ({
+    id: p.id,
+    name: p.name,
+    productType: p.metalType,
+    categoryName: p.categoryName ?? null,
+    totalPricePaise: calculateProductPrice(p).total,
+    currencyCode: p.currencyCode ?? "INR",
+    image: p.images?.[0]?.url ?? null,
+  }));
 
-  // Extract unique categories from matching products
   const categoryMap = new Map<string, number>();
-  mockProducts
-    .filter((p) => p.name.toLowerCase().includes(q) || p.categoryName.toLowerCase().includes(q))
-    .forEach((p) => {
-      categoryMap.set(p.categoryName, (categoryMap.get(p.categoryName) ?? 0) + 1);
-    });
+  found.forEach((p) => {
+    categoryMap.set(p.categoryName, (categoryMap.get(p.categoryName) ?? 0) + 1);
+  });
   const categories: AutocompleteCategory[] = Array.from(categoryMap.entries())
     .slice(0, 3)
-    .map(([name, count], i) => ({
-      id: `cat-${i}`,
-      name,
-      productCount: count,
-    }));
+    .map(([name, count], i) => ({ id: `cat-${i}`, name, productCount: count }));
 
-  // Popular suggestions based on common jewelry terms
-  const popularTerms = [
-    "gold necklace set",
-    "diamond ring",
-    "silver bracelet",
-    "kundan earrings",
-    "mangalsutra",
-    "gold bangles",
-    "solitaire ring",
-    "jhumka earrings",
-  ];
-  const suggestions = popularTerms
-    .filter((t) => t.includes(q))
-    .slice(0, 4);
-
+  const suggestions = POPULAR_TERMS.filter((t) => t.includes(q)).slice(0, 4);
   return { products, categories, suggestions, recentSearches: [] };
 }
 
@@ -117,12 +104,19 @@ export default function SearchBar({ className, expanded = false }: SearchBarProp
     debounce((...args: unknown[]) => {
       const query = args[0] as string;
       if (query.length >= 2) {
-        // In production: fetch from /api/v1/store/search/autocomplete?q=query
-        const data = mockAutocomplete(query);
-        setAutocomplete(data);
-        setIsOpen(true);
-        setShowRecent(false);
-        setActiveIndex(-1);
+        searchProducts(query, 8)
+          .then((found) => {
+            setAutocomplete(buildAutocomplete(query, found));
+            setIsOpen(true);
+            setShowRecent(false);
+            setActiveIndex(-1);
+          })
+          .catch(() => {
+            // Autocomplete is best-effort: fall back to popular terms only.
+            setAutocomplete(buildAutocomplete(query, []));
+            setIsOpen(true);
+            setShowRecent(false);
+          });
       } else {
         setAutocomplete(null);
         setIsOpen(false);
@@ -169,7 +163,7 @@ export default function SearchBar({ className, expanded = false }: SearchBarProp
   }
 
   function handleCategoryClick(categoryName: string) {
-    router.push(`/category/${encodeURIComponent(categoryName.toLowerCase())}`);
+    router.push(`/category/${slugify(categoryName)}`);
     setIsOpen(false);
     setShowRecent(false);
   }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import type { SalesComparisonResponse } from '@caratflow/shared-types';
 import { formatPaise } from '@/components/format';
 
 export default function SalesComparisonPage() {
@@ -16,11 +17,12 @@ export default function SalesComparisonPage() {
   const [p2From, setP2From] = useState(lastMonth.toISOString().slice(0, 10));
   const [p2To, setP2To] = useState(lastMonthEnd.toISOString().slice(0, 10));
 
-  const { data, isLoading } = trpc.reporting.salesComparison.useQuery({
+  const { data, isLoading, isError } = trpc.reporting.salesComparison.useQuery({
     period1: { from: new Date(p1From), to: new Date(p1To) },
     period2: { from: new Date(p2From), to: new Date(p2To) },
   });
-  const d = (data as Record<string, unknown> | undefined) ?? {};
+  const d = data as Partial<SalesComparisonResponse> | undefined;
+  const changePct = d?.changePercent?.revenue;
 
   return (
     <div className="space-y-6">
@@ -48,11 +50,15 @@ export default function SalesComparisonPage() {
       </div>
       {isLoading ? (
         <div className="py-12 text-center text-muted-foreground">Loading...</div>
+      ) : isError ? (
+        <div className="py-12 text-center text-sm text-destructive">Failed to load sales comparison.</div>
       ) : (
         <div className="rounded-lg border p-4 space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Period 1 Revenue</span><span>{formatPaise(d.period1RevenuePaise)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Period 2 Revenue</span><span>{formatPaise(d.period2RevenuePaise)}</span></div>
-          <div className="flex justify-between border-t pt-2 font-semibold"><span>Change</span><span>{String(d.changePercent ?? '-')}%</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Period 1 Revenue</span><span>{formatPaise(d?.period1?.totals?.totalRevenuePaise ?? 0)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Period 2 Revenue</span><span>{formatPaise(d?.period2?.totals?.totalRevenuePaise ?? 0)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Period 1 Sales</span><span>{String(d?.period1?.totals?.totalSales ?? 0)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Period 2 Sales</span><span>{String(d?.period2?.totals?.totalSales ?? 0)}</span></div>
+          <div className="flex justify-between border-t pt-2 font-semibold"><span>Revenue change</span><span>{typeof changePct === 'number' ? `${changePct}%` : '-'}</span></div>
         </div>
       )}
     </div>

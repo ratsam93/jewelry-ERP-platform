@@ -11,27 +11,27 @@ describe('AmlAlertService', () => {
     prisma = createMockPrismaService();
     resetMocks(prisma);
     eventBus = createMockEventBusService();
-    ['amlAlert','amlSarReport'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirstOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() }; });
+    ['amlAlert','amlSarReport'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() }; });
     prisma.customer.findMany = vi.fn() as any;
     service = new AmlAlertService(prisma as never, eventBus as never);
   });
 
   describe('reviewAlert', () => {
     it('should set status to UNDER_REVIEW', async () => {
-      (prisma as any).amlAlert.findFirstOrThrow.mockResolvedValue({ id: 'al-1', status: 'NEW' });
+      (prisma as any).amlAlert.findFirst.mockResolvedValue({ id: 'al-1', status: 'NEW' });
       (prisma as any).amlAlert.update.mockResolvedValue({ id: 'al-1', status: 'UNDER_REVIEW' });
       const r = await service.reviewAlert(tenantId, userId, 'al-1', 'reviewing');
       expect(r.status).toBe('UNDER_REVIEW');
     });
     it('should reject already cleared alert', async () => {
-      (prisma as any).amlAlert.findFirstOrThrow.mockResolvedValue({ id: 'al-1', status: 'CLEARED' });
+      (prisma as any).amlAlert.findFirst.mockResolvedValue({ id: 'al-1', status: 'CLEARED' });
       await expect(service.reviewAlert(tenantId, userId, 'al-1')).rejects.toThrow();
     });
   });
 
   describe('escalateAlert', () => {
     it('should escalate and publish event', async () => {
-      (prisma as any).amlAlert.findFirstOrThrow.mockResolvedValue({ id: 'al-1' });
+      (prisma as any).amlAlert.findFirst.mockResolvedValue({ id: 'al-1' });
       (prisma as any).amlAlert.update.mockResolvedValue({ id: 'al-1', status: 'ESCALATED', customerId: 'c1', severity: 'HIGH' });
       await service.escalateAlert(tenantId, userId, 'al-1');
       expect(eventBus.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'compliance.aml.alert_escalated' }));
@@ -40,7 +40,7 @@ describe('AmlAlertService', () => {
 
   describe('clearAlert', () => {
     it('should clear alert', async () => {
-      (prisma as any).amlAlert.findFirstOrThrow.mockResolvedValue({ id: 'al-1' });
+      (prisma as any).amlAlert.findFirst.mockResolvedValue({ id: 'al-1' });
       (prisma as any).amlAlert.update.mockResolvedValue({ id: 'al-1', status: 'CLEARED' });
       const r = await service.clearAlert(tenantId, userId, 'al-1', 'false positive');
       expect(r.status).toBe('CLEARED');
@@ -49,7 +49,7 @@ describe('AmlAlertService', () => {
 
   describe('reportToFiu', () => {
     it('should mark as REPORTED', async () => {
-      (prisma as any).amlAlert.findFirstOrThrow.mockResolvedValue({ id: 'al-1' });
+      (prisma as any).amlAlert.findFirst.mockResolvedValue({ id: 'al-1' });
       (prisma as any).amlAlert.update.mockResolvedValue({ id: 'al-1', status: 'REPORTED', reportedToFiu: true });
       const r = await service.reportToFiu(tenantId, userId, 'al-1');
       expect(r.status).toBe('REPORTED');

@@ -55,7 +55,12 @@ const RESPONSES: Record<string, unknown> = {
       {
         id: "w-1",
         productId: "prod-1",
-        product: { id: "prod-1", name: "Celestial Solitaire Ring", pricePaise: 8500000 },
+        productName: "Celestial Solitaire Ring",
+        productSku: "RNG-001",
+        productImage: "https://img.example.com/ring.jpg",
+        productType: "GOLD",
+        currentPricePaise: 8500000,
+        stockStatus: "IN_STOCK",
       },
     ],
     total: 1,
@@ -155,9 +160,11 @@ describe("AccountDashboard", () => {
 });
 
 describe("OrdersPage", () => {
-  it("renders My Orders heading", () => {
+  it("renders My Orders heading", async () => {
     render(<OrdersPage />);
     expect(screen.getByText("My Orders")).toBeInTheDocument();
+    // let the orders request settle inside the test so no update lands outside act
+    await screen.findByText("CF-2026-0001");
   });
 
   it("shows order cards", async () => {
@@ -190,6 +197,17 @@ describe("AccountWishlistPage", () => {
     expect(await screen.findByText("Celestial Solitaire Ring")).toBeInTheDocument();
   });
 
+  it("renders the flat API shape: name, price, image and product link", async () => {
+    renderWithStore(<AccountWishlistPage />);
+    expect(await screen.findByText("Celestial Solitaire Ring")).toBeInTheDocument();
+    expect(screen.queryByText("Product")).not.toBeInTheDocument();
+    expect(screen.getByText(/85,000/)).toBeInTheDocument();
+    expect(screen.getByText("SKU: RNG-001")).toBeInTheDocument();
+    expect(screen.getByAltText("Celestial Solitaire Ring")).toHaveAttribute("src", "https://img.example.com/ring.jpg");
+    const links = screen.getAllByRole("link", { name: /Celestial Solitaire Ring/ });
+    expect(links[0]).toHaveAttribute("href", "/product/prod-1");
+  });
+
   it("shows Add to Cart buttons", async () => {
     renderWithStore(<AccountWishlistPage />);
     const buttons = await screen.findAllByText("Add to Cart");
@@ -198,9 +216,10 @@ describe("AccountWishlistPage", () => {
 });
 
 describe("LoyaltyPage", () => {
-  it("renders Loyalty Program heading", () => {
+  it("renders Loyalty Program heading", async () => {
     render(<LoyaltyPage />);
     expect(screen.getByText("Loyalty Program")).toBeInTheDocument();
+    await screen.findByText("Your Tier");
   });
 
   it("shows current tier", async () => {
@@ -222,9 +241,10 @@ describe("LoyaltyPage", () => {
 });
 
 describe("SchemesPage", () => {
-  it("renders My Schemes heading", () => {
+  it("renders My Schemes heading", async () => {
     render(<SchemesPage />);
     expect(screen.getByText("My Schemes")).toBeInTheDocument();
+    await screen.findByText("How Gold Savings Scheme Works");
   });
 
   it("shows how it works section", async () => {
@@ -234,9 +254,10 @@ describe("SchemesPage", () => {
 });
 
 describe("ProfilePage", () => {
-  it("renders My Profile heading", () => {
+  it("renders My Profile heading", async () => {
     render(<ProfilePage />);
     expect(screen.getByText("My Profile")).toBeInTheDocument();
+    await screen.findByDisplayValue("Priya");
   });
 
   it("shows personal information form", async () => {
@@ -246,9 +267,10 @@ describe("ProfilePage", () => {
     expect(screen.getByDisplayValue("Sharma")).toBeInTheDocument();
   });
 
-  it("shows change password section", () => {
+  it("shows change password section", async () => {
     render(<ProfilePage />);
     expect(screen.getByText("Change Password")).toBeInTheDocument();
+    await screen.findByDisplayValue("Priya");
   });
 });
 

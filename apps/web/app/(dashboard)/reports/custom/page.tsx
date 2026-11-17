@@ -8,7 +8,7 @@ import { formatDate } from '@/components/format';
 
 export default function CustomReportsPage() {
   const { data, isLoading } = trpc.reporting.listSavedReports.useQuery({});
-  const items = ((data as Array<Record<string, unknown>> | undefined) ?? []);
+  const items = Array.isArray(data) ? (data as Array<Record<string, unknown>>) : [];
 
   return (
     <div className="space-y-6">

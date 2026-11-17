@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { DeviceType, DeviceStatus } from '@caratflow/shared-types';
@@ -67,20 +68,20 @@ export default function HardwareSettingsPage() {
 
       {/* Quick Links */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <a
+        <Link
           href="/settings/hardware/labels"
           className="rounded-lg border p-4 hover:bg-muted/50"
         >
           <h3 className="text-sm font-semibold">Label Templates</h3>
           <p className="text-xs text-muted-foreground">Manage jewelry label designs</p>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/settings/hardware/rfid"
           className="rounded-lg border p-4 hover:bg-muted/50"
         >
           <h3 className="text-sm font-semibold">RFID Management</h3>
           <p className="text-xs text-muted-foreground">Stock take, tag encoding, anti-theft</p>
-        </a>
+        </Link>
         <div className="rounded-lg border p-4">
           <h3 className="text-sm font-semibold">Device Status</h3>
           <p className="text-xs text-muted-foreground">
@@ -168,13 +169,13 @@ export default function HardwareSettingsPage() {
                 </span>
               </div>
               <div className="flex border-t">
-                <a
+                <Link
                   href={`/settings/hardware/${device.id}`}
                   className="flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50"
                 >
                   <Settings2 className="h-3.5 w-3.5" />
                   Configure
-                </a>
+                </Link>
                 <button
                   onClick={() => handleRemove(device.id)}
                   disabled={removeMutation.isPending}

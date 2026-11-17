@@ -1,9 +1,23 @@
-import { describe, it, expect } from "vitest";
-import { screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
 import Footer from "@/components/Footer";
+import { resetNavCategoryCache } from "@/components/MegaMenu";
 import { render } from "./test-utils";
+import { installCatalogFetch } from "../../__tests__/fixtures/api-catalog";
+
+function shopColumnHrefs(): string[] {
+  const heading = screen.getByText("Shop Jewelry");
+  const column = heading.closest("div") as HTMLElement;
+  return Array.from(column.querySelectorAll("a")).map((a) => a.getAttribute("href") ?? "");
+}
 
 describe("Footer", () => {
+  beforeEach(() => {
+    resetNavCategoryCache();
+    installCatalogFetch();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
   it("renders all section headings", () => {
     render(<Footer />);
     expect(screen.getByText("Shop Jewelry")).toBeInTheDocument();
@@ -11,11 +25,29 @@ describe("Footer", () => {
     expect(screen.getByText("Company")).toBeInTheDocument();
   });
 
-  it("renders jewelry category links", () => {
+  it("renders shop links from the API categories", async () => {
     render(<Footer />);
-    expect(screen.getAllByText("Rings").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Necklaces").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Earrings").length).toBeGreaterThan(0);
+    await waitFor(() => expect(shopColumnHrefs()).toContain("/category/gold"));
+    expect(shopColumnHrefs()).toContain("/category/silver");
+    expect(shopColumnHrefs()).not.toContain("/category/rings");
+  });
+
+  it("every shop link resolves to a search, all-products page, or API slug", async () => {
+    render(<Footer />);
+    await waitFor(() => expect(shopColumnHrefs()).toContain("/category/gold"));
+    for (const href of shopColumnHrefs()) {
+      const ok = /^\/search\?q=/.test(href) || /^\/category\/all(\?|$)/.test(href) || ["/category/gold", "/category/silver"].includes(href);
+      expect(ok, `unexpected footer href: ${href}`).toBe(true);
+    }
+  });
+
+  it("falls back to search links in the shop column when the API fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500, json: async () => null })));
+    render(<Footer />);
+    await waitFor(() => expect(shopColumnHrefs()).toContain("/search?q=Rings"));
+    for (const href of shopColumnHrefs()) {
+      expect(href.startsWith("/search?q=")).toBe(true);
+    }
   });
 
   it("renders trust badges", () => {

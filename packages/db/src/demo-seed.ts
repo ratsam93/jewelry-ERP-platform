@@ -17,6 +17,12 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as bcrypt from 'bcryptjs';
 import * as path from 'path';
+import {
+  categoryNameFor,
+  ensureStockForProducts,
+  ensureStorefrontCategories,
+  seedMetalRates,
+} from './seed-storefront-helpers';
 
 // Load DATABASE_URL from repo-root .env if not already set.
 if (!process.env.DATABASE_URL) {
@@ -255,12 +261,8 @@ async function main() {
   console.warn('  ✓ Customers (50)');
 
   // ─── Categories (resolve or create minimal ones) ──────────
-  let ringCat = await prisma.category.findFirst({ where: { tenantId, name: 'Ring' } });
-  if (!ringCat) {
-    // Fallback: use any existing category
-    ringCat = await prisma.category.findFirst({ where: { tenantId } });
-  }
-  const defaultCategoryId = ringCat?.id ?? null;
+  const categoryIds = await ensureStorefrontCategories(prisma, tenantId);
+  const defaultCategoryId = categoryIds['Ring'] ?? null;
 
   // ─── Products (80) ────────────────────────────────────────
   const productIds: string[] = [];
@@ -279,14 +281,15 @@ async function main() {
     const huid = crypto.createHash('sha1').update(sku).digest('hex').slice(0, 6).toUpperCase();
     const id = did(`prod-${tenantId}-${sku}`);
     productIds.push(id);
+    const productCategoryId = categoryIds[categoryNameFor(def.cat)] ?? defaultCategoryId;
     await prisma.product.upsert({
       where: { id },
-      update: {},
+      update: { categoryId: productCategoryId },
       create: {
         id, tenantId, sku,
         name: `${purityLabel} ${def.baseName} ${String.fromCharCode(65 + (i % 26))}${(i % 10) + 1}`,
         description: `Finely crafted ${purityLabel} ${def.baseName.toLowerCase()} with BIS hallmark.`,
-        categoryId: defaultCategoryId,
+        categoryId: productCategoryId,
         productType: 'GOLD',
         metalPurity: purity,
         grossWeightMg: grossMg,
@@ -324,6 +327,14 @@ async function main() {
     });
   }
   console.warn('  ✓ Stock items (30)');
+
+  // Storefront stock: every product gets a varied on-hand quantity at the main showroom.
+  await ensureStockForProducts(prisma, tenantId, primaryLocId, productIds);
+  console.warn(`  ✓ Storefront stock (${productIds.length} products, varied qty)`);
+
+  // Storefront metal rates (tenant.settings.metalRates, paise per 10g).
+  await seedMetalRates(prisma, tenantId);
+  console.warn('  ✓ Metal rates');
 
   // ─── HUID records (15) ────────────────────────────────────
   for (let i = 0; i < 15; i++) {
@@ -950,6 +961,34 @@ async function main() {
     }
   }
   console.warn('  ✓ Metal rates (10)');
+
+  // ─── Current spot rates (GOLD 999/916, SILVER 999) ─────────
+  // Digital gold + the public rates endpoint read the LATEST GOLD/999 row,
+  // so make sure one always exists. Deterministic ids keep this idempotent;
+  // `update` refreshes the timestamp so these stay the most recent rows.
+  // metal_rate_history is global (no tenantId), shared by all tenants.
+  const currentRates = [
+    { metal: 'GOLD', purity: 999, perG: 7350 },
+    { metal: 'GOLD', purity: 916, perG: 6735 },
+    { metal: 'SILVER', purity: 999, perG: 92 },
+  ];
+  for (const r of currentRates) {
+    const id = did(`current-rate-${r.metal}-${r.purity}`);
+    const data = {
+      ratePerGramPaise: BigInt(r.perG * 100),
+      ratePer10gPaise: BigInt(r.perG * 1000),
+      ratePerTolaPaise: BigInt(Math.floor(r.perG * 11.664 * 100)),
+      ratePerTroyOzPaise: BigInt(Math.floor(r.perG * 31.1035 * 100)),
+      source: 'MANUAL',
+      recordedAt: new Date(),
+    };
+    await prisma.metalRateHistory.upsert({
+      where: { id },
+      update: data,
+      create: { id, metalType: r.metal, purity: r.purity, ...data },
+    });
+  }
+  console.warn('  ✓ Current spot rates (GOLD 999/916, SILVER 999)');
 
   // ─── Video consultations (8) ──────────────────────────────
   const vcStatuses = ['REQUESTED', 'REQUESTED', 'SCHEDULED', 'SCHEDULED', 'SCHEDULED', 'COMPLETED', 'COMPLETED', 'COMPLETED'];

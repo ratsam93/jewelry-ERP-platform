@@ -11,7 +11,7 @@ const CUSTOMER_ID = 'cust-1';
 function model() {
   return {
     findFirst: vi.fn(),
-    findFirstOrThrow: vi.fn(),
+    findFirst: vi.fn(),
     findUnique: vi.fn(),
     findMany: vi.fn(),
     create: vi.fn(),
@@ -51,7 +51,7 @@ describe('CrmNotificationService (coverage)', () => {
     prisma.notificationLog.findUnique.mockResolvedValue(null);
     prisma.notificationLog.findMany.mockResolvedValue([]);
     prisma.notificationLog.count.mockResolvedValue(0);
-    prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1', body: 'Hello {{firstName}}', subject: 'Subj {{firstName}}', channel: 'EMAIL' });
+    prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-1', body: 'Hello {{firstName}}', subject: 'Subj {{firstName}}', channel: 'EMAIL' });
     prisma.customer.findFirst.mockResolvedValue({ id: CUSTOMER_ID, phone: '+919999999999', email: 'a@b.com' });
 
     eventBus = createMockEventBusService();
@@ -121,10 +121,10 @@ describe('CrmNotificationService (coverage)', () => {
     });
 
     it('updateTemplate verifies tenant ownership before updating', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1' });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-1' });
       prisma.notificationTemplate.update.mockResolvedValue({ id: 't-1', name: 'New' });
       const r = await service.updateTemplate(tenantId, userId, 't-1', { name: 'New' } as any);
-      expect(prisma.notificationTemplate.findFirstOrThrow).toHaveBeenCalledWith({
+      expect(prisma.notificationTemplate.findFirst).toHaveBeenCalledWith({
         where: { id: 't-1', tenantId },
       });
       expect(prisma.notificationTemplate.update).toHaveBeenCalledWith({
@@ -135,23 +135,23 @@ describe('CrmNotificationService (coverage)', () => {
     });
 
     it('updateTemplate passes variables through when supplied', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1' });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-1' });
       prisma.notificationTemplate.update.mockResolvedValue({ id: 't-1' });
       await service.updateTemplate(tenantId, userId, 't-1', { variables: ['a', 'b'] } as any);
       expect(prisma.notificationTemplate.update.mock.calls[0][0].data.variables).toEqual(['a', 'b']);
     });
 
     it('updateTemplate rejects when the template is not in this tenant', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockRejectedValue(new Error('NotFound'));
+      prisma.notificationTemplate.findFirst.mockRejectedValue(new Error('NotFound'));
       await expect(service.updateTemplate(tenantId, userId, 'other', {} as any)).rejects.toThrow('NotFound');
       expect(prisma.notificationTemplate.update).not.toHaveBeenCalled();
     });
 
     it('getTemplate scopes lookup by tenant', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-9' });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-9' });
       const r = await service.getTemplate(tenantId, 't-9');
       expect(r).toEqual({ id: 't-9' });
-      expect(prisma.notificationTemplate.findFirstOrThrow).toHaveBeenCalledWith({
+      expect(prisma.notificationTemplate.findFirst).toHaveBeenCalledWith({
         where: { id: 't-9', tenantId },
       });
     });
@@ -167,18 +167,18 @@ describe('CrmNotificationService (coverage)', () => {
     });
 
     it('deleteTemplate verifies tenant ownership then deletes', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1' });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-1' });
       prisma.notificationTemplate.delete.mockResolvedValue({ id: 't-1' });
       const r = await service.deleteTemplate(tenantId, 't-1');
       expect(r).toEqual({ id: 't-1' });
-      expect(prisma.notificationTemplate.findFirstOrThrow).toHaveBeenCalledWith({
+      expect(prisma.notificationTemplate.findFirst).toHaveBeenCalledWith({
         where: { id: 't-1', tenantId },
       });
       expect(prisma.notificationTemplate.delete).toHaveBeenCalledWith({ where: { id: 't-1' } });
     });
 
     it('deleteTemplate does not delete when the template is missing', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockRejectedValue(new Error('NotFound'));
+      prisma.notificationTemplate.findFirst.mockRejectedValue(new Error('NotFound'));
       await expect(service.deleteTemplate(tenantId, 'missing')).rejects.toThrow('NotFound');
       expect(prisma.notificationTemplate.delete).not.toHaveBeenCalled();
     });
@@ -217,7 +217,7 @@ describe('CrmNotificationService (coverage)', () => {
         templateId: 't-1',
         variables,
       } as any);
-      expect(prisma.notificationTemplate.findFirstOrThrow).toHaveBeenCalledWith({
+      expect(prisma.notificationTemplate.findFirst).toHaveBeenCalledWith({
         where: { id: 't-1', tenantId },
       });
       expect(prisma.notificationLog.create).toHaveBeenCalledWith({
@@ -231,7 +231,7 @@ describe('CrmNotificationService (coverage)', () => {
     });
 
     it('leaves unknown placeholders intact and falls back to input subject when template has none', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({
+      prisma.notificationTemplate.findFirst.mockResolvedValue({
         id: 't-2',
         body: 'Hi {{firstName}} from {{store}}',
         subject: null,
@@ -252,7 +252,7 @@ describe('CrmNotificationService (coverage)', () => {
     });
 
     it('treats missing variables as an empty map when resolving a template', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-3', body: 'Plain {{x}}', subject: null });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-3', body: 'Plain {{x}}', subject: null });
       await service.sendNotification(tenantId, userId, {
         customerId: CUSTOMER_ID,
         channel: 'EMAIL',
@@ -271,14 +271,14 @@ describe('CrmNotificationService (coverage)', () => {
     });
 
     it('throws when the template body resolves to empty', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-4', body: '', subject: null });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-4', body: '', subject: null });
       await expect(
         service.sendNotification(tenantId, userId, { customerId: CUSTOMER_ID, channel: 'SMS', templateId: 't-4' } as any),
       ).rejects.toThrow('Notification body is required');
     });
 
     it('propagates template lookup failure (tenant mismatch)', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockRejectedValue(new Error('NotFound'));
+      prisma.notificationTemplate.findFirst.mockRejectedValue(new Error('NotFound'));
       await expect(
         service.sendNotification(tenantId, userId, { customerId: CUSTOMER_ID, channel: 'SMS', templateId: 'x' } as any),
       ).rejects.toThrow('NotFound');
@@ -506,7 +506,7 @@ describe('CrmNotificationService (coverage)', () => {
 
   describe('bulkSend', () => {
     it('counts a failed send when the template cannot be resolved', async () => {
-      prisma.notificationTemplate.findFirstOrThrow
+      prisma.notificationTemplate.findFirst
         .mockRejectedValueOnce(new Error('NotFound'))
         .mockResolvedValueOnce({ id: 't-1', body: 'Hi', subject: 'S' });
       const r = await service.bulkSend(tenantId, userId, ['c1', 'c2'], 'EMAIL', 't-1', { firstName: 'T' });
@@ -514,7 +514,7 @@ describe('CrmNotificationService (coverage)', () => {
     });
 
     it('counts a failed send when resolved body is empty', async () => {
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1', body: '', subject: null });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-1', body: '', subject: null });
       const r = await service.bulkSend(tenantId, userId, ['c1'], 'SMS', 't-1', {});
       expect(r).toEqual({ queued: 0, failed: 1 });
     });
@@ -546,8 +546,8 @@ describe('CrmNotificationService (coverage)', () => {
 
     it('sends a reminder when today is the reminder date', async () => {
       prisma.customerOccasion.findMany.mockResolvedValue([occasion()]);
-      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-r', channel: 'WHATSAPP' });
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({
+      prisma.notificationTemplate.findFirst.mockResolvedValueOnce({ id: 't-r', channel: 'WHATSAPP' });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({
         id: 't-r',
         body: 'Happy {{occasionType}} {{firstName}}',
         subject: null,
@@ -606,7 +606,7 @@ describe('CrmNotificationService (coverage)', () => {
     it('logs and continues when sending a reminder throws', async () => {
       prisma.customerOccasion.findMany.mockResolvedValue([occasion()]);
       prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-r', channel: 'SMS' });
-      prisma.notificationTemplate.findFirstOrThrow.mockRejectedValue(new Error('template gone'));
+      prisma.notificationTemplate.findFirst.mockRejectedValue(new Error('template gone'));
       const count = await service.sendOccasionReminders(tenantId);
       expect(count).toBe(0);
       expect(loggerError).toHaveBeenCalledWith(expect.stringContaining('Failed to send occasion reminder for occ-1'));
@@ -618,7 +618,7 @@ describe('CrmNotificationService (coverage)', () => {
         occasion({ id: 'occ-miss', reminderDaysBefore: 1 }),
       ]);
       prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-r', channel: 'SMS' });
-      prisma.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-r', body: 'Hi', subject: null });
+      prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 't-r', body: 'Hi', subject: null });
       const count = await service.sendOccasionReminders(tenantId);
       expect(count).toBe(1);
     });

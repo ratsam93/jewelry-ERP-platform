@@ -2,7 +2,7 @@
 // Template CRUD, send notifications (WhatsApp/SMS/Email),
 // occasion reminders, bulk send, delivery tracking.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
@@ -50,9 +50,10 @@ export class CrmNotificationService extends TenantAwareService {
   }
 
   async updateTemplate(tenantId: string, userId: string, templateId: string, input: Partial<NotificationTemplateInput>) {
-    await this.prisma.notificationTemplate.findFirstOrThrow({
+    const found = await this.prisma.notificationTemplate.findFirst({
       where: { id: templateId, tenantId },
     });
+    if (!found) throw new NotFoundException('Notification template not found');
     return this.prisma.notificationTemplate.update({
       where: { id: templateId },
       data: {
@@ -64,9 +65,11 @@ export class CrmNotificationService extends TenantAwareService {
   }
 
   async getTemplate(tenantId: string, templateId: string) {
-    return this.prisma.notificationTemplate.findFirstOrThrow({
+    const found = await this.prisma.notificationTemplate.findFirst({
       where: { id: templateId, tenantId },
     });
+    if (!found) throw new NotFoundException('Notification template not found');
+    return found;
   }
 
   async listTemplates(tenantId: string, channel?: string) {
@@ -80,9 +83,10 @@ export class CrmNotificationService extends TenantAwareService {
   }
 
   async deleteTemplate(tenantId: string, templateId: string) {
-    await this.prisma.notificationTemplate.findFirstOrThrow({
+    const found = await this.prisma.notificationTemplate.findFirst({
       where: { id: templateId, tenantId },
     });
+    if (!found) throw new NotFoundException('Notification template not found');
     return this.prisma.notificationTemplate.delete({
       where: { id: templateId },
     });
@@ -96,16 +100,17 @@ export class CrmNotificationService extends TenantAwareService {
 
     // If template is provided, resolve it
     if (input.templateId) {
-      const template = await this.prisma.notificationTemplate.findFirstOrThrow({
+      const template = await this.prisma.notificationTemplate.findFirst({
         where: { id: input.templateId, tenantId },
       });
+      if (!template) throw new NotFoundException('Notification template not found');
       body = this.interpolateTemplate(template.body, input.variables ?? {});
       subject = template.subject
         ? this.interpolateTemplate(template.subject, input.variables ?? {})
         : subject;
     }
 
-    if (!body) throw new Error('Notification body is required');
+    if (!body) throw new BadRequestException('Notification body is required');
 
     // Create notification log entry (QUEUED)
     const log = await this.prisma.notificationLog.create({
@@ -390,7 +395,7 @@ export class CrmNotificationService extends TenantAwareService {
           select: { phone: true },
         });
         if (!customer?.phone) {
-          throw new Error(`Customer ${payload.customerId} has no phone for WhatsApp`);
+          throw new BadRequestException(`Customer ${payload.customerId} has no phone for WhatsApp`);
         }
         try {
           await this.whatsapp.sendTextMessage(
@@ -415,7 +420,7 @@ export class CrmNotificationService extends TenantAwareService {
           select: { phone: true },
         });
         if (!customer?.phone) {
-          throw new Error(`Customer ${payload.customerId} has no phone for SMS`);
+          throw new BadRequestException(`Customer ${payload.customerId} has no phone for SMS`);
         }
         const result = await this.smsService.sendSms(payload.tenantId, {
           to: customer.phone,
@@ -441,7 +446,7 @@ export class CrmNotificationService extends TenantAwareService {
           select: { email: true },
         });
         if (!customer?.email) {
-          throw new Error(`Customer ${payload.customerId} has no email`);
+          throw new BadRequestException(`Customer ${payload.customerId} has no email`);
         }
         const result = await this.emailService.sendEmail(payload.tenantId, {
           to: customer.email,
@@ -467,7 +472,7 @@ export class CrmNotificationService extends TenantAwareService {
         return;
       }
       default:
-        throw new Error(`Unsupported notification channel: ${channel}`);
+        throw new BadRequestException(`Unsupported notification channel: ${channel}`);
     }
   }
 
@@ -517,7 +522,7 @@ export class CrmNotificationService extends TenantAwareService {
     });
 
     if (!customer) {
-      throw new Error(`Customer ${payload.customerId} not found`);
+      throw new NotFoundException(`Customer ${payload.customerId} not found`);
     }
 
     const tokens = this.extractFcmTokens(customer.preferences);

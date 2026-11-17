@@ -4,15 +4,24 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { formatDate } from '@/components/format';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function LeadDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading, refetch } = trpc.crm.leadGet.useQuery({ id }, { enabled: Boolean(id) });
+  const { data, isLoading, error, refetch } = trpc.crm.leadGet.useQuery({ id }, { enabled: Boolean(id) });
   const { data: activities } = trpc.crm.leadActivities.useQuery({ leadId: id }, { enabled: Boolean(id) });
   const convert = trpc.crm.leadConvert.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading,
+    error,
+    data,
+    entity: 'Lead',
+    backHref: '/crm/leads',
+    onRetry: () => void refetch(),
+  });
+  if (state) return state;
   const l = data as Record<string, unknown>;
   const acts = (activities as Array<Record<string, unknown>> | undefined) ?? [];
 

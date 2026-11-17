@@ -5,13 +5,22 @@ import { PageHeader, StatCard } from '@caratflow/ui';
 import { User, IndianRupee, Gift, Calendar } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { formatPaise } from '@/components/format';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading } = trpc.crm.customer360.useQuery({ customerId: id }, { enabled: Boolean(id) });
+  const { data, isLoading, error, refetch } = trpc.crm.customer360.useQuery({ customerId: id }, { enabled: Boolean(id) });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading,
+    error,
+    data,
+    entity: 'Customer',
+    backHref: '/crm/customers',
+    onRetry: () => void refetch(),
+  });
+  if (state) return state;
   const d = data as Record<string, unknown>;
   const customer = (d.customer as Record<string, unknown> | undefined) ?? {};
   const stats = (d.stats as Record<string, unknown> | undefined) ?? {};

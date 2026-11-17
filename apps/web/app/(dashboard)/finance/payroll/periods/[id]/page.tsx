@@ -4,11 +4,12 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant, EmptyState } from '@caratflow/ui';
 import { FileText } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise } from '@/components/format';
 
 export default function PayrollPeriodDetailPage() {
   const params = useParams<{ id: string }>();
-  const { data: period } = trpc.payroll.payrollPeriods.get.useQuery(
+  const { data: period, isLoading, error, refetch } = trpc.payroll.payrollPeriods.get.useQuery(
     { id: params.id! },
     { enabled: !!params.id },
   );
@@ -16,10 +17,13 @@ export default function PayrollPeriodDetailPage() {
     { payrollPeriodId: params.id! },
     { enabled: !!params.id },
   );
-  const p = period as Record<string, unknown> | undefined;
+  const p = period as Record<string, unknown>;
   const items = ((slips as Array<Record<string, unknown>> | undefined) ?? []);
 
-  if (!p) return <div className="p-8 text-sm text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading, error, data: period, entity: 'Payroll period', backHref: '/finance/payroll/periods', onRetry: () => refetch(),
+  });
+  if (state) return state;
 
   return (
     <div className="space-y-6">

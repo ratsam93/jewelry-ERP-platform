@@ -11,6 +11,7 @@ import {
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { IndiaRatesService } from '../india/india.rates.service';
+import { requireCustomerScope } from './digital-gold.scope';
 import type {
   RedeemGoldResponse,
   GoldRedemptionType,
@@ -288,6 +289,7 @@ export class DigitalGoldRedemptionService extends TenantAwareService {
   // ─── Get Customer Redemptions ─────────────────────────────────
 
   async getRedemptions(tenantId: string, customerId: string): Promise<RedeemGoldResponse[]> {
+    requireCustomerScope(tenantId, customerId);
     const vault = await this.prisma.goldVault.findUnique({
       where: { tenantId_customerId: { tenantId, customerId } },
     });
@@ -347,6 +349,7 @@ export class DigitalGoldRedemptionService extends TenantAwareService {
   // ─── Private Helpers ──────────────────────────────────────────
 
   private async getActiveVault(tenantId: string, customerId: string) {
+    requireCustomerScope(tenantId, customerId);
     const vault = await this.prisma.goldVault.findUnique({
       where: { tenantId_customerId: { tenantId, customerId } },
     });

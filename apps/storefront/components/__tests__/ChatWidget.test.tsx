@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor, act } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ChatWidget from "@/components/ChatWidget";
 import { render } from "./test-utils";
@@ -23,9 +23,7 @@ describe("ChatWidget", () => {
   it("opens chat panel on button click", async () => {
     const user = userEvent.setup();
     render(<ChatWidget />);
-    await act(async () => {
-      await user.click(screen.getByLabelText("Open chat"));
-    });
+    await user.click(screen.getByLabelText("Open chat"));
     await waitFor(() => {
       expect(screen.getByText("CaratFlow Assistant")).toBeInTheDocument();
     }, { timeout: 3000 });
@@ -34,9 +32,7 @@ describe("ChatWidget", () => {
   it("shows message input when opened", async () => {
     const user = userEvent.setup();
     render(<ChatWidget />);
-    await act(async () => {
-      await user.click(screen.getByLabelText("Open chat"));
-    });
+    await user.click(screen.getByLabelText("Open chat"));
     await waitFor(() => {
       expect(screen.getByPlaceholderText("Type your message...")).toBeInTheDocument();
     }, { timeout: 3000 });
@@ -45,9 +41,7 @@ describe("ChatWidget", () => {
   it("shows send button when opened", async () => {
     const user = userEvent.setup();
     render(<ChatWidget />);
-    await act(async () => {
-      await user.click(screen.getByLabelText("Open chat"));
-    });
+    await user.click(screen.getByLabelText("Open chat"));
     await waitFor(() => {
       expect(screen.getByLabelText("Send message")).toBeInTheDocument();
     }, { timeout: 3000 });
@@ -56,9 +50,7 @@ describe("ChatWidget", () => {
   it("has close button in opened state", async () => {
     const user = userEvent.setup();
     render(<ChatWidget />);
-    await act(async () => {
-      await user.click(screen.getByLabelText("Open chat"));
-    });
+    await user.click(screen.getByLabelText("Open chat"));
     await waitFor(() => {
       expect(screen.getByLabelText("Close chat")).toBeInTheDocument();
     }, { timeout: 3000 });
@@ -67,9 +59,7 @@ describe("ChatWidget", () => {
   it("shows fallback greeting when API is unavailable", async () => {
     const user = userEvent.setup();
     render(<ChatWidget />);
-    await act(async () => {
-      await user.click(screen.getByLabelText("Open chat"));
-    });
+    await user.click(screen.getByLabelText("Open chat"));
     await waitFor(() => {
       expect(screen.getByText(/Welcome to CaratFlow/)).toBeInTheDocument();
     }, { timeout: 3000 });

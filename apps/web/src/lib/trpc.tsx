@@ -5,6 +5,7 @@ import { createTRPCReact } from '@trpc/react-query';
 import { httpBatchLink } from '@trpc/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppRouter } from '../../../api/src/trpc/trpc.router';
+import { shouldRetryQuery } from './query-retry';
 
 /**
  * Real tRPC v11 React client wired against the NestJS backend at /trpc.
@@ -71,7 +72,7 @@ export function TrpcProvider({
       queryClient ??
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 5 * 60 * 1000, retry: 1 },
+          queries: { staleTime: 5 * 60 * 1000, retry: shouldRetryQuery },
         },
       }),
   );

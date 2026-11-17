@@ -2,15 +2,32 @@
 
 import { useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
+import type { BalanceSheetReport } from '@caratflow/shared-types';
 import { trpc } from '@/lib/trpc';
 import { formatPaise } from '@/components/format';
 
+type Line = { accountId?: string; accountName?: string; amount?: number };
+
+function Section({ title, lines, total, totalLabel }: { title: string; lines: Line[]; total: unknown; totalLabel: string }) {
+  return (
+    <div className="rounded-lg border p-4">
+      <h3 className="mb-3 font-semibold">{title}</h3>
+      {lines.length === 0 && <div className="py-1 text-sm text-muted-foreground">No accounts</div>}
+      {lines.map((l, idx) => (
+        <div key={l.accountId ?? idx} className="flex justify-between py-1 text-sm"><span className="text-muted-foreground">{l.accountName ?? '-'}</span><span>{formatPaise(l.amount)}</span></div>
+      ))}
+      <div className="mt-2 flex justify-between border-t pt-2 text-base font-bold"><span>{totalLabel}</span><span>{formatPaise(total ?? 0)}</span></div>
+    </div>
+  );
+}
+
 export default function BalanceSheetPage() {
   const [asOf, setAsOf] = useState(new Date().toISOString().slice(0, 10));
-  const { data, isLoading } = trpc.financial.reports.balanceSheet.useQuery({ asOfDate: new Date(asOf) });
-  const bs = (data as Record<string, unknown> | undefined) ?? {};
-  const assets = (bs.assets as Array<Record<string, unknown>>) ?? [];
-  const liabilities = (bs.liabilities as Array<Record<string, unknown>>) ?? [];
+  const { data, isLoading, isError } = trpc.financial.reports.balanceSheet.useQuery({ asOfDate: new Date(asOf) });
+  const bs = data as Partial<BalanceSheetReport> | undefined;
+  const assets = Array.isArray(bs?.assets) ? bs.assets : [];
+  const liabilities = Array.isArray(bs?.liabilities) ? bs.liabilities : [];
+  const equity = Array.isArray(bs?.equity) ? bs.equity : [];
 
   return (
     <div className="space-y-6">
@@ -25,26 +42,17 @@ export default function BalanceSheetPage() {
         ]}
       />
 
-      <input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} className="h-9 rounded-md border px-2 text-sm" />
+      <input type="date" aria-label="As of date" value={asOf} onChange={(e) => setAsOf(e.target.value)} className="h-9 rounded-md border px-2 text-sm" />
 
       {isLoading ? (
         <div className="py-12 text-center text-muted-foreground">Loading...</div>
+      ) : isError ? (
+        <div className="py-12 text-center text-sm text-destructive">Failed to load balance sheet.</div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-lg border p-4">
-            <h3 className="mb-3 font-semibold">Assets</h3>
-            {assets.map((a, idx) => (
-              <div key={idx} className="flex justify-between text-sm py-1"><span className="text-muted-foreground">{(a.accountName as string) ?? '-'}</span><span>{formatPaise(a.balancePaise)}</span></div>
-            ))}
-            <div className="flex justify-between border-t pt-2 mt-2 text-base font-bold"><span>Total Assets</span><span>{formatPaise(bs.totalAssetsPaise)}</span></div>
-          </div>
-          <div className="rounded-lg border p-4">
-            <h3 className="mb-3 font-semibold">Liabilities</h3>
-            {liabilities.map((l, idx) => (
-              <div key={idx} className="flex justify-between text-sm py-1"><span className="text-muted-foreground">{(l.accountName as string) ?? '-'}</span><span>{formatPaise(l.balancePaise)}</span></div>
-            ))}
-            <div className="flex justify-between border-t pt-2 mt-2 text-base font-bold"><span>Total Liabilities</span><span>{formatPaise(bs.totalLiabilitiesPaise)}</span></div>
-          </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          <Section title="Assets" lines={assets} total={bs?.totalAssets} totalLabel="Total Assets" />
+          <Section title="Liabilities" lines={liabilities} total={bs?.totalLiabilities} totalLabel="Total Liabilities" />
+          <Section title="Equity" lines={equity} total={bs?.totalEquity} totalLabel="Total Equity" />
         </div>
       )}
     </div>

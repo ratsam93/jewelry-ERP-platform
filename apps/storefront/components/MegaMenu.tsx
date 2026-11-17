@@ -1,12 +1,95 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { mockCategories } from "@/lib/mock-data";
-import { METAL_TYPES, OCCASIONS } from "@/lib/constants";
+import { CATALOG_REVALIDATE_SECONDS, getCategories } from "@/lib/catalog";
+import { METAL_TYPES, NAV_FALLBACK_CATEGORIES, OCCASIONS } from "@/lib/constants";
+import type { Category } from "@/lib/types";
+
+// ─── Category navigation (API-driven) ────────────────────────────────
+
+export interface NavCategoryLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+/**
+ * Top-level API categories as nav links. The slug comes from lib/catalog.ts
+ * (slugify of the category name), the same value the category page resolves.
+ */
+export function categoryLinksFromTree(tree: Category[]): NavCategoryLink[] {
+  const seen = new Set<string>();
+  const links: NavCategoryLink[] = [];
+  for (const c of tree) {
+    if (!c.slug || seen.has(c.slug)) continue;
+    seen.add(c.slug);
+    links.push({ id: c.id, name: c.name, href: `/category/${c.slug}` });
+  }
+  return links;
+}
+
+const FALLBACK_LINKS: NavCategoryLink[] = NAV_FALLBACK_CATEGORIES.map((c) => ({
+  id: c.href,
+  name: c.name,
+  href: c.href,
+}));
+
+// Shared across Header, MegaMenu and Footer so one page load makes one request.
+const NAV_CACHE_MS = CATALOG_REVALIDATE_SECONDS * 1000;
+let navCache: { at: number; request: Promise<Category[]> } | null = null;
+
+function requestCategories(): Promise<Category[]> {
+  if (navCache && Date.now() - navCache.at < NAV_CACHE_MS) return navCache.request;
+  const request = getCategories();
+  const entry = { at: Date.now(), request };
+  navCache = entry;
+  // Failed requests are not cached, so the next mount retries.
+  request.catch(() => {
+    if (navCache === entry) navCache = null;
+  });
+  return request;
+}
+
+/** Test helper: forget the cached categories request. */
+export function resetNavCategoryCache() {
+  navCache = null;
+}
+
+/**
+ * Category links from the API. While loading, `links` is empty. If the API
+ * fails or returns no categories, `links` falls back to NAV_FALLBACK_CATEGORIES,
+ * which only link to /search?q=... so they never 404.
+ */
+export function useNavCategories(): { loading: boolean; links: NavCategoryLink[] } {
+  const [state, setState] = useState<{ loading: boolean; links: NavCategoryLink[] }>({
+    loading: true,
+    links: [],
+  });
+
+  useEffect(() => {
+    let active = true;
+    requestCategories()
+      .then((tree) => {
+        const links = categoryLinksFromTree(tree);
+        if (active) setState({ loading: false, links: links.length > 0 ? links : FALLBACK_LINKS });
+      })
+      .catch(() => {
+        if (active) setState({ loading: false, links: FALLBACK_LINKS });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return state;
+}
+
+// ─── Mega menu ────────────────────────────────────────────────────────
 
 export default function MegaMenu() {
   const [isOpen, setIsOpen] = useState(false);
+  const categories = useNavCategories();
 
   return (
     <div
@@ -34,17 +117,18 @@ export default function MegaMenu() {
             <div>
               <h3 className="text-xs font-semibold text-navy/40 uppercase tracking-wider mb-3">Jewelry Type</h3>
               <div className="space-y-1">
-                {mockCategories.slice(0, 10).map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/category/${cat.slug}`}
-                    className="flex items-center gap-2 py-1.5 text-sm text-navy/70 hover:text-gold transition-colors"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <span>{cat.name}</span>
-                    <span className="text-[10px] text-navy/30">({cat.productCount})</span>
-                  </Link>
-                ))}
+                {categories.loading && <NavSkeleton rows={6} />}
+                {!categories.loading &&
+                  categories.links.slice(0, 10).map((cat) => (
+                    <Link
+                      key={cat.id}
+                      href={cat.href}
+                      className="flex items-center gap-2 py-1.5 text-sm text-navy/70 hover:text-gold transition-colors"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <span>{cat.name}</span>
+                    </Link>
+                  ))}
               </div>
             </div>
 
@@ -55,7 +139,7 @@ export default function MegaMenu() {
                 {METAL_TYPES.map((metal) => (
                   <Link
                     key={metal.value}
-                    href={`/category/all?metal=${metal.value}`}
+                    href={`/search?q=${encodeURIComponent(metal.label)}`}
                     className="flex items-center gap-2 py-1.5 text-sm text-navy/70 hover:text-gold transition-colors"
                     onClick={() => setIsOpen(false)}
                   >
@@ -94,7 +178,7 @@ export default function MegaMenu() {
                 </p>
               </div>
               <Link
-                href="/category/all?metal=DIAMOND"
+                href="/search?q=diamond"
                 className="inline-block bg-gold text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-gold-dark transition-colors text-center"
                 onClick={() => setIsOpen(false)}
               >
@@ -104,6 +188,16 @@ export default function MegaMenu() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function NavSkeleton({ rows }: { rows: number }) {
+  return (
+    <div aria-hidden="true" className="space-y-2 py-1.5">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="h-3 w-24 rounded bg-navy/10 animate-pulse" />
+      ))}
     </div>
   );
 }

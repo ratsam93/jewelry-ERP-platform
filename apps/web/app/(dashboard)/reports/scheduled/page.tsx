@@ -7,7 +7,7 @@ import { trpc } from '@/lib/trpc';
 export default function ScheduledReportsPage() {
   const { data, isLoading, refetch } = trpc.reporting.listScheduledReports.useQuery();
   const toggle = trpc.reporting.toggleScheduledReport.useMutation({ onSuccess: () => refetch() });
-  const items = ((data as Array<Record<string, unknown>> | undefined) ?? []);
+  const items = Array.isArray(data) ? (data as Array<Record<string, unknown>>) : [];
 
   return (
     <div className="space-y-6">

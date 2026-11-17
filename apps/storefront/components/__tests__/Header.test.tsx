@@ -1,10 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Header from "@/components/Header";
+import { resetNavCategoryCache } from "@/components/MegaMenu";
 import { renderWithStore } from "./test-utils";
+import { installCatalogFetch } from "../../__tests__/fixtures/api-catalog";
 
 describe("Header", () => {
+  beforeEach(() => {
+    resetNavCategoryCache();
+    installCatalogFetch();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
   it("renders the logo text", () => {
     renderWithStore(<Header />);
     expect(screen.getByText("Carat")).toBeInTheDocument();
@@ -40,13 +48,13 @@ describe("Header", () => {
     expect(screen.getByText("Login / Register")).toBeInTheDocument();
   });
 
-  it("shows category links in mobile menu", async () => {
+  it("shows API category links in mobile menu", async () => {
     const user = userEvent.setup();
     renderWithStore(<Header />);
     await user.click(screen.getByLabelText("Toggle menu"));
-    expect(screen.getByText("Rings")).toBeInTheDocument();
-    expect(screen.getByText("Necklaces")).toBeInTheDocument();
-    expect(screen.getByText("Earrings")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Gold" })).toHaveAttribute("href", "/category/gold");
+    expect(screen.getByRole("link", { name: "Silver" })).toHaveAttribute("href", "/category/silver");
+    expect(screen.queryByRole("link", { name: "Rings" })).toBeNull();
   });
 
   it("renders account link", () => {

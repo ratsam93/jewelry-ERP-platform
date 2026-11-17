@@ -41,7 +41,7 @@ function headerValue(req: HeaderBearingRequest, name: string): string | undefine
  * unexpired, B2C token. The secret lookup happens outside the try block so a
  * server misconfiguration (missing JWT_SECRET in production) surfaces as an error.
  */
-function verifyB2CToken(token: string): { tenantId: string; customerId: string } | null {
+export function verifyB2CToken(token: string): { tenantId: string; customerId: string } | null {
   const secret = getJwtSecret();
   let decoded: unknown;
   try {

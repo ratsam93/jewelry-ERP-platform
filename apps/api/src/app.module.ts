@@ -7,6 +7,7 @@ import { TrpcModule } from './trpc/trpc.module';
 import { EventBusModule } from './event-bus/event-bus.module';
 import { CommonModule } from './common/common.module';
 import { TenantMiddleware } from './common/tenant.middleware';
+import { resolveThrottleConfig } from './common/throttle-config';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ManufacturingModule } from './modules/manufacturing/manufacturing.module';
 import { FinancialModule } from './modules/financial/financial.module';
@@ -38,9 +39,12 @@ import { PayrollModule } from './modules/payroll/payroll.module';
 
 @Module({
   imports: [
-    // Single default bucket: 100 requests per 60s per IP. Hot endpoints tighten
-    // it with a per-route @Throttle({ default: { limit, ttl } }) override.
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 100 }]),
+    // Single default bucket per IP (defaults: 100 requests per 60s, overridable via
+    // THROTTLE_LIMIT / THROTTLE_TTL_MS). Hot endpoints tighten it with a per-route
+    // @Throttle({ default: { limit, ttl } }) override.
+    ThrottlerModule.forRoot([
+      { name: 'default', ...resolveThrottleConfig(process.env) },
+    ]),
     CommonModule,
     AuthModule,
     HealthModule,

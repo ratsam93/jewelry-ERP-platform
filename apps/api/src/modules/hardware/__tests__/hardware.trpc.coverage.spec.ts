@@ -641,6 +641,21 @@ describe('HardwareTrpcRouter (procedure coverage)', () => {
       await caller.biometric.getSummary({ date: '2026-11-01', deviceId: DEVICE_ID_2 });
       expect(biometricService.getAttendanceSummary).toHaveBeenCalledWith('tenant-1', '2026-11-01', DEVICE_ID_2);
     });
+
+    it('rejects a malformed date before it reaches the service', async () => {
+      biometricService.getAttendanceSummary.mockClear();
+      await expect(caller.biometric.getSummary({ date: 'not-a-date' })).rejects.toThrow();
+      await expect(caller.biometric.getSummary({ date: '2026-02-30' })).rejects.toThrow();
+      expect(biometricService.getAttendanceSummary).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('biometric.getAttendance date validation', () => {
+    it('rejects a malformed date before it reaches the service', async () => {
+      biometricService.getAttendance.mockClear();
+      await expect(caller.biometric.getAttendance({ date: 'bad' })).rejects.toThrow();
+      expect(biometricService.getAttendance).not.toHaveBeenCalled();
+    });
   });
 
   // ─── Authorization negatives ───────────────────────────

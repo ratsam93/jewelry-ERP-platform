@@ -1,7 +1,7 @@
 // ─── AML Alert Service ─────────────────────────────────────────
 // Alert lifecycle management: create, review, escalate, clear, report.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
@@ -22,12 +22,14 @@ export class AmlAlertService extends TenantAwareService {
   // ─── Alert Management ───────────────────────────────────────────
 
   async getAlert(tenantId: string, alertId: string) {
-    return this.prisma.amlAlert.findFirstOrThrow({
+    const found = await this.prisma.amlAlert.findFirst({
       where: { id: alertId, tenantId },
       include: {
         rule: { select: { ruleName: true, ruleType: true } },
       },
     });
+    if (!found) throw new NotFoundException('Aml alert not found');
+    return found;
   }
 
   async listAlerts(
@@ -78,12 +80,13 @@ export class AmlAlertService extends TenantAwareService {
 
   /** Review an alert -- set it to UNDER_REVIEW */
   async reviewAlert(tenantId: string, userId: string, alertId: string, notes?: string) {
-    const alert = await this.prisma.amlAlert.findFirstOrThrow({
+    const alert = await this.prisma.amlAlert.findFirst({
       where: { id: alertId, tenantId },
     });
+    if (!alert) throw new NotFoundException('Aml alert not found');
 
     if (alert.status !== 'NEW' && alert.status !== 'UNDER_REVIEW') {
-      throw new Error(`Alert cannot be reviewed in status: ${alert.status}`);
+      throw new BadRequestException(`Alert cannot be reviewed in status: ${alert.status}`);
     }
 
     return this.prisma.amlAlert.update({
@@ -99,9 +102,10 @@ export class AmlAlertService extends TenantAwareService {
 
   /** Escalate an alert */
   async escalateAlert(tenantId: string, userId: string, alertId: string, notes?: string) {
-    await this.prisma.amlAlert.findFirstOrThrow({
+    const found = await this.prisma.amlAlert.findFirst({
       where: { id: alertId, tenantId },
     });
+    if (!found) throw new NotFoundException('Aml alert not found');
 
     const updated = await this.prisma.amlAlert.update({
       where: { id: alertId },
@@ -131,9 +135,10 @@ export class AmlAlertService extends TenantAwareService {
 
   /** Clear an alert (false positive / resolved) */
   async clearAlert(tenantId: string, userId: string, alertId: string, notes: string) {
-    await this.prisma.amlAlert.findFirstOrThrow({
+    const found = await this.prisma.amlAlert.findFirst({
       where: { id: alertId, tenantId },
     });
+    if (!found) throw new NotFoundException('Aml alert not found');
 
     return this.prisma.amlAlert.update({
       where: { id: alertId },
@@ -148,9 +153,10 @@ export class AmlAlertService extends TenantAwareService {
 
   /** Report alert to FIU (Financial Intelligence Unit) */
   async reportToFiu(tenantId: string, userId: string, alertId: string) {
-    await this.prisma.amlAlert.findFirstOrThrow({
+    const found = await this.prisma.amlAlert.findFirst({
       where: { id: alertId, tenantId },
     });
+    if (!found) throw new NotFoundException('Aml alert not found');
 
     return this.prisma.amlAlert.update({
       where: { id: alertId },
@@ -181,9 +187,10 @@ export class AmlAlertService extends TenantAwareService {
   }
 
   async fileSarReport(tenantId: string, userId: string, reportId: string, referenceNumber: string) {
-    await this.prisma.amlSarReport.findFirstOrThrow({
+    const found = await this.prisma.amlSarReport.findFirst({
       where: { id: reportId, tenantId },
     });
+    if (!found) throw new NotFoundException('Aml sar report not found');
 
     return this.prisma.amlSarReport.update({
       where: { id: reportId },
@@ -197,9 +204,10 @@ export class AmlAlertService extends TenantAwareService {
   }
 
   async acknowledgeSarReport(tenantId: string, reportId: string) {
-    await this.prisma.amlSarReport.findFirstOrThrow({
+    const found = await this.prisma.amlSarReport.findFirst({
       where: { id: reportId, tenantId },
     });
+    if (!found) throw new NotFoundException('Aml sar report not found');
 
     return this.prisma.amlSarReport.update({
       where: { id: reportId },

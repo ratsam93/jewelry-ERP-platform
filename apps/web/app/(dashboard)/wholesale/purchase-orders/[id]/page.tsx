@@ -4,22 +4,22 @@ import { useParams, useRouter } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { Send, XCircle } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const poId = params?.id ?? '';
-  const { data: po, isLoading, refetch } = trpc.wholesale.getPurchaseOrder.useQuery(
+  const { data: po, isLoading, error, refetch } = trpc.wholesale.getPurchaseOrder.useQuery(
     { poId },
     { enabled: Boolean(poId) },
   );
   const send = trpc.wholesale.sendPurchaseOrder.useMutation({ onSuccess: () => refetch() });
   const cancel = trpc.wholesale.cancelPurchaseOrder.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !po) {
-    return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
-  }
+  const state = renderDetailState({ isLoading, error, data: po, entity: 'Purchase order', backHref: '/wholesale/purchase-orders', onRetry: () => refetch() });
+  if (state) return state;
 
   const p = po as unknown as Record<string, unknown>;
   const items = ((p.items as Array<Record<string, unknown>>) ?? []);

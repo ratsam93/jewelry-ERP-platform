@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
-import type { ForecastResult } from '@caratflow/shared-types';
+import type { ForecastResult, SeasonalPattern } from '@caratflow/shared-types';
 import { trpc } from '@/lib/trpc';
 import { ForecastChart } from '@/features/reporting/ForecastChart';
 
@@ -102,16 +102,19 @@ export default function ForecastReportsPage() {
     { enabled: tab === 'reorder' && !!productId },
   );
 
-  const forecastResult = forecastQuery.data as ForecastResult | undefined;
+  const rawForecast = forecastQuery.data as Partial<ForecastResult> | undefined;
+  const forecastResult: ForecastResult | undefined = rawForecast
+    ? ({ ...rawForecast, predictions: Array.isArray(rawForecast.predictions) ? rawForecast.predictions : [] } as ForecastResult)
+    : undefined;
 
   const seasonalityPoints = useMemo(() => {
-    const d = seasonalityQuery.data as
-      | { months?: Array<{ month?: number | string; index?: number; factor?: number }> }
-      | undefined;
-    const series = d?.months ?? [];
+    // The API returns SeasonalPattern[] (a bare array), not { months }.
+    const series = Array.isArray(seasonalityQuery.data)
+      ? (seasonalityQuery.data as Array<Partial<SeasonalPattern>>)
+      : [];
     return {
-      values: series.map((p) => p.index ?? p.factor ?? 0),
-      labels: series.map((p) => String(p.month ?? '')),
+      values: series.map((p) => p.seasonalIndex ?? 0),
+      labels: series.map((p) => String(p.monthName ?? p.month ?? '')),
     };
   }, [seasonalityQuery.data]);
 

@@ -5,12 +5,13 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { formatDate } from '@/components/format';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function ConsultationDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
 
-  const { data, isLoading, refetch } = trpc.crm.videoConsultation.get.useQuery(
+  const { data, isLoading, error, refetch } = trpc.crm.videoConsultation.get.useQuery(
     { id },
     { enabled: Boolean(id) },
   );
@@ -26,9 +27,15 @@ export default function ConsultationDetailPage() {
   const [completeNotes, setCompleteNotes] = useState('');
   const [cancelReason, setCancelReason] = useState('');
 
-  if (isLoading || !data) {
-    return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
-  }
+  const state = renderDetailState({
+    isLoading,
+    error,
+    data,
+    entity: 'Consultation',
+    backHref: '/crm/consultations',
+    onRetry: () => void refetch(),
+  });
+  if (state) return state;
 
   const c = data as unknown as Record<string, unknown>;
   const status = c.status as string;

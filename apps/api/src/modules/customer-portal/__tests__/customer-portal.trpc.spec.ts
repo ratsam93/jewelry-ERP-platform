@@ -44,6 +44,7 @@ describe('CustomerPortalTrpcRouter', () => {
     tenantId: 'tenant-1',
     userId: 'user-1',
     userRole: 'customer',
+    principal: 'customer' as const,
     userPermissions: ['*'],
   };
 

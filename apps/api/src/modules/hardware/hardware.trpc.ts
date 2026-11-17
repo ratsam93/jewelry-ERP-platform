@@ -34,6 +34,15 @@ import {
   BiometricAttendanceQuerySchema,
 } from '@caratflow/shared-types';
 
+/** A calendar date in YYYY-MM-DD form. Rejects strings Prisma/Date cannot use (e.g. 'not-a-date', '2026-02-30'). */
+const IsoDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
+  .refine((v) => {
+    const d = new Date(`${v}T00:00:00Z`);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  }, 'date is not a valid calendar date');
+
 @Injectable()
 export class HardwareTrpcRouter {
   constructor(
@@ -286,14 +295,14 @@ export class HardwareTrpcRouter {
           ),
 
         getAttendance: this.trpc.authedProcedure
-          .input(BiometricAttendanceQuerySchema)
+          .input(BiometricAttendanceQuerySchema.extend({ date: IsoDateSchema.optional() }))
           .query(({ ctx, input }) =>
             this.biometricService.getAttendance(ctx.tenantId, input),
           ),
 
         getSummary: this.trpc.authedProcedure
           .input(z.object({
-            date: z.string(),
+            date: IsoDateSchema,
             deviceId: z.string().uuid().optional(),
           }))
           .query(({ ctx, input }) =>

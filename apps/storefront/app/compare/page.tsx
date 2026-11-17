@@ -2,16 +2,22 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { mockProducts } from "@/lib/mock-data";
+import { useProductsByIds } from "@/lib/product-lookup";
 import { calculateProductPrice, formatRupees, cn } from "@/lib/utils";
 import RatingStars from "@/components/RatingStars";
 
 export default function ComparePage() {
   const { compareIds, removeFromCompare, addToCart } = useStore();
 
-  const products = compareIds
-    .map((id) => mockProducts.find((p) => p.id === id))
-    .filter(Boolean);
+  const { products, loading } = useProductsByIds(compareIds);
+
+  if (loading && products.length === 0 && compareIds.length > 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 text-center text-sm text-navy/40">
+        Loading products...
+      </div>
+    );
+  }
 
   if (products.length < 2) {
     return (

@@ -3,13 +3,17 @@
 import { useParams } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function ExportInvoiceDetailPage() {
   const params = useParams<{ id: string }>();
   const invoiceId = params?.id ?? '';
-  const { data, isLoading } = trpc.export.getInvoice.useQuery({ invoiceId }, { enabled: Boolean(invoiceId) });
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const { data, isLoading, error, refetch } = trpc.export.getInvoice.useQuery({ invoiceId }, { enabled: Boolean(invoiceId) });
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Export invoice', backHref: '/export/invoices', onRetry: () => refetch(),
+  });
+  if (state) return state;
   const i: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
 
   return (

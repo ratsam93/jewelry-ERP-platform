@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { RefreshCw, Eye } from 'lucide-react';
 import { useState } from 'react';
@@ -198,13 +199,13 @@ export default function AmlCustomersPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-1">
-                        <a
-                          href={`/retail/customers/${customer.customerId}`}
+                        <Link
+                          href={`/crm/customers/${customer.customerId}`}
                           className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent"
                           title="View Customer"
                         >
                           <Eye className="h-4 w-4" />
-                        </a>
+                        </Link>
                         <button
                           type="button"
                           onClick={() => recalculateMutation.mutate({ customerId: customer.customerId })}

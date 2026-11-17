@@ -57,10 +57,13 @@ services:
     volumes:
       - meili-data:/meili_data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+      # Use 127.0.0.1, not localhost: in this Alpine image localhost resolves to ::1
+      # first and Meilisearch only listens on IPv4, so wget failed with "Connection refused".
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://127.0.0.1:7700/health"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z

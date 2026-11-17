@@ -1,17 +1,23 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { PageHeader, StatCard } from '@caratflow/ui';
 import { BarChart, Package, Factory, Users, TrendingUp, FileText, Clock, Calendar } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { formatPaise } from '@/components/format';
+import type { AnalyticsDashboardResponse } from '@caratflow/shared-types';
 
 export default function ReportsDashboardPage() {
-  const today = new Date();
-  const { data } = trpc.reporting.getAnalyticsDashboard.useQuery({
-    dateRange: { from: new Date(today.getFullYear(), today.getMonth(), 1), to: today },
-  });
-  const d = (data as Record<string, unknown> | undefined) ?? {};
+  // Memoised once per mount: a fresh `new Date()` each render changed the query key
+  // every render and caused an endless refetch loop.
+  const input = useMemo(() => {
+    const today = new Date();
+    return { dateRange: { from: new Date(today.getFullYear(), today.getMonth(), 1), to: today } };
+  }, []);
+  const { data } = trpc.reporting.getAnalyticsDashboard.useQuery(input);
+  const dash = data as Partial<AnalyticsDashboardResponse> | undefined;
+  const kpis = Array.isArray(dash?.kpis) ? dash.kpis : [];
+  const kpi = (label: string): string => kpis.find((k) => k?.label === label)?.formattedValue ?? '-';
 
   const links = [
     { label: 'Sales Reports', href: '/reports/sales', icon: BarChart },
@@ -27,10 +33,10 @@ export default function ReportsDashboardPage() {
     <div className="space-y-6">
       <PageHeader title="Reports & Analytics" breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Reports' }]} />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="MTD Revenue" value={formatPaise(d.mtdRevenuePaise)} icon={<Calendar className="h-4 w-4" />} />
-        <StatCard title="MTD Orders" value={String((d.mtdOrders as number) ?? 0)} icon={<BarChart className="h-4 w-4" />} />
-        <StatCard title="Stock Value" value={formatPaise(d.stockValuePaise)} icon={<Package className="h-4 w-4" />} />
-        <StatCard title="Active Customers" value={String((d.activeCustomers as number) ?? 0)} icon={<Users className="h-4 w-4" />} />
+        <StatCard title="Total Revenue" value={kpi('Total Revenue')} icon={<Calendar className="h-4 w-4" />} />
+        <StatCard title="Sales Count" value={kpi('Sales Count')} icon={<BarChart className="h-4 w-4" />} />
+        <StatCard title="Average Ticket" value={kpi('Average Ticket')} icon={<Package className="h-4 w-4" />} />
+        <StatCard title="New Customers" value={kpi('New Customers')} icon={<Users className="h-4 w-4" />} />
       </div>
       <div className="space-y-2">
         {links.map((l) => (

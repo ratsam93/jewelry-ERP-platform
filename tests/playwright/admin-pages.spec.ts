@@ -119,12 +119,14 @@ test.describe('Admin Dashboard - Content Checks', () => {
     expect(body?.toLowerCase()).toContain('caratflow');
   });
 
-  test('Admin login has demo credentials', async ({ page }) => {
+  test('Admin login has tenant/email/password fields and does not leak demo credentials', async ({ page }) => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     const body = await page.locator('body').textContent();
-    expect(body?.toLowerCase()).toContain('demo');
+    expect(body?.toLowerCase()).toContain('email');
+    expect(body?.toLowerCase()).toContain('password');
+    expect(body).not.toContain('admin123');
   });
 
   test('Admin login returns valid HTML', async ({ page }) => {

@@ -44,39 +44,41 @@ export class StorefrontTrpcRouter {
   ) {}
 
   get router() {
-    const authed = this.trpc.authedProcedure;
+    const anyPrincipal = this.trpc.anyPrincipalProcedure;
+    // Customer-bound procedures (ctx.userId is the B2C customerId): B2C token only.
+    const customer = this.trpc.customerProcedure;
 
     return this.trpc.router({
       // ─── Home ────────────────────────────────────────────
-      home: authed.query(({ ctx }) =>
+      home: anyPrincipal.query(({ ctx }) =>
         this.homeService.getHomepageData(ctx.tenantId),
       ),
 
       // ─── Catalog ─────────────────────────────────────────
       catalog: this.trpc.router({
-        list: authed
+        list: anyPrincipal
           .input(ProductListInputSchema)
           .query(({ ctx, input }) =>
             this.catalogService.getProducts(ctx.tenantId, input),
           ),
 
-        getById: authed
+        getById: anyPrincipal
           .input(z.object({ id: z.string().uuid() }))
           .query(({ ctx, input }) =>
             this.catalogService.getProductById(ctx.tenantId, input.id),
           ),
 
-        search: authed
+        search: anyPrincipal
           .input(z.object({ query: z.string().min(1), limit: z.number().int().min(1).max(100).default(20) }))
           .query(({ ctx, input }) =>
             this.catalogService.searchProducts(ctx.tenantId, input.query, ctx.userId, input.limit),
           ),
 
-        categories: authed.query(({ ctx }) =>
+        categories: anyPrincipal.query(({ ctx }) =>
           this.catalogService.getCategories(ctx.tenantId),
         ),
 
-        compare: authed
+        compare: anyPrincipal
           .input(z.object({ productIds: z.array(z.string().uuid()).min(2).max(4) }))
           .query(({ ctx, input }) =>
             this.catalogService.compareProducts(ctx.tenantId, input.productIds),
@@ -85,13 +87,13 @@ export class StorefrontTrpcRouter {
 
       // ─── Cart ────────────────────────────────────────────
       cart: this.trpc.router({
-        get: authed
+        get: customer
           .input(z.object({ sessionId: z.string().min(1) }))
           .query(({ ctx, input }) =>
             this.cartService.getOrCreateCart(ctx.tenantId, ctx.userId, input.sessionId),
           ),
 
-        addItem: authed
+        addItem: customer
           .input(z.object({ sessionId: z.string().min(1) }).merge(CartItemInputSchema))
           .mutation(async ({ ctx, input }) => {
             const cart = await this.cartService.getOrCreateCart(
@@ -102,7 +104,7 @@ export class StorefrontTrpcRouter {
             );
           }),
 
-        updateItem: authed
+        updateItem: customer
           .input(z.object({
             sessionId: z.string().min(1),
             itemId: z.string().uuid(),
@@ -117,7 +119,7 @@ export class StorefrontTrpcRouter {
             );
           }),
 
-        removeItem: authed
+        removeItem: customer
           .input(z.object({ sessionId: z.string().min(1), itemId: z.string().uuid() }))
           .mutation(async ({ ctx, input }) => {
             const cart = await this.cartService.getOrCreateCart(
@@ -126,7 +128,7 @@ export class StorefrontTrpcRouter {
             return this.cartService.removeItem(ctx.tenantId, cart.id, input.itemId);
           }),
 
-        clear: authed
+        clear: customer
           .input(z.object({ sessionId: z.string().min(1) }))
           .mutation(async ({ ctx, input }) => {
             const cart = await this.cartService.getOrCreateCart(
@@ -135,13 +137,13 @@ export class StorefrontTrpcRouter {
             return this.cartService.clearCart(ctx.tenantId, cart.id);
           }),
 
-        merge: authed
+        merge: customer
           .input(z.object({ sessionId: z.string().min(1) }))
           .mutation(({ ctx, input }) =>
             this.cartService.mergeGuestCart(ctx.tenantId, input.sessionId, ctx.userId),
           ),
 
-        applyCoupon: authed
+        applyCoupon: customer
           .input(z.object({ sessionId: z.string().min(1), couponCode: z.string().min(1) }))
           .mutation(async ({ ctx, input }) => {
             const cart = await this.cartService.getOrCreateCart(
@@ -155,23 +157,23 @@ export class StorefrontTrpcRouter {
 
       // ─── Wishlist ────────────────────────────────────────
       wishlist: this.trpc.router({
-        add: authed
+        add: customer
           .input(z.object({ productId: z.string().uuid() }))
           .mutation(({ ctx, input }) =>
             this.wishlistService.add(ctx.tenantId, ctx.userId, input.productId),
           ),
 
-        get: authed.query(({ ctx }) =>
+        get: customer.query(({ ctx }) =>
           this.wishlistService.getWishlist(ctx.tenantId, ctx.userId),
         ),
 
-        remove: authed
+        remove: customer
           .input(z.object({ productId: z.string().uuid() }))
           .mutation(({ ctx, input }) =>
             this.wishlistService.remove(ctx.tenantId, ctx.userId, input.productId),
           ),
 
-        enablePriceAlert: authed
+        enablePriceAlert: customer
           .input(z.object({ productId: z.string().uuid(), targetPricePaise: z.number().int().nonnegative() }))
           .mutation(({ ctx, input }) =>
             this.wishlistService.enablePriceAlert(
@@ -182,13 +184,13 @@ export class StorefrontTrpcRouter {
 
       // ─── Checkout ────────────────────────────────────────
       checkout: this.trpc.router({
-        initiate: authed
+        initiate: customer
           .input(CheckoutInputSchema)
           .mutation(({ ctx, input }) =>
             this.checkoutService.initiateCheckout(ctx.tenantId, ctx.userId, input),
           ),
 
-        complete: authed
+        complete: customer
           .input(z.object({
             orderId: z.string().uuid(),
             externalPaymentId: z.string().min(1),
@@ -209,19 +211,19 @@ export class StorefrontTrpcRouter {
 
       // ─── Orders ──────────────────────────────────────────
       orders: this.trpc.router({
-        list: authed
+        list: customer
           .input(PaginationSchema)
           .query(({ ctx, input }) =>
             this.orderService.getMyOrders(ctx.tenantId, ctx.userId, input),
           ),
 
-        getById: authed
+        getById: customer
           .input(z.object({ id: z.string().uuid() }))
           .query(({ ctx, input }) =>
             this.orderService.getOrderById(ctx.tenantId, ctx.userId, input.id),
           ),
 
-        requestReturn: authed
+        requestReturn: customer
           .input(z.object({
             id: z.string().uuid(),
             items: z.array(z.object({
@@ -237,13 +239,13 @@ export class StorefrontTrpcRouter {
             ),
           ),
 
-        cancel: authed
+        cancel: customer
           .input(z.object({ id: z.string().uuid(), reason: z.string().min(1) }))
           .mutation(({ ctx, input }) =>
             this.checkoutService.cancelOrder(ctx.tenantId, ctx.userId, input.id, input.reason),
           ),
 
-        reorder: authed
+        reorder: customer
           .input(z.object({ id: z.string().uuid() }))
           .mutation(({ ctx, input }) =>
             this.orderService.reorder(ctx.tenantId, ctx.userId, input.id),
@@ -252,19 +254,19 @@ export class StorefrontTrpcRouter {
 
       // ─── Reviews ─────────────────────────────────────────
       reviews: this.trpc.router({
-        submit: authed
+        submit: customer
           .input(ReviewInputSchema)
           .mutation(({ ctx, input }) =>
             this.reviewService.submitReview(ctx.tenantId, ctx.userId, input),
           ),
 
-        list: authed
+        list: anyPrincipal
           .input(ReviewListInputSchema)
           .query(({ ctx, input }) =>
             this.reviewService.getReviews(ctx.tenantId, input),
           ),
 
-        markHelpful: authed
+        markHelpful: anyPrincipal
           .input(z.object({ reviewId: z.string().uuid() }))
           .mutation(({ ctx, input }) =>
             this.reviewService.markHelpful(ctx.tenantId, input.reviewId),
@@ -273,23 +275,23 @@ export class StorefrontTrpcRouter {
 
       // ─── Addresses ───────────────────────────────────────
       addresses: this.trpc.router({
-        list: authed.query(({ ctx }) =>
+        list: customer.query(({ ctx }) =>
           this.addressService.listAddresses(ctx.tenantId, ctx.userId),
         ),
 
-        get: authed
+        get: customer
           .input(z.object({ id: z.string().uuid() }))
           .query(({ ctx, input }) =>
             this.addressService.getAddress(ctx.tenantId, ctx.userId, input.id),
           ),
 
-        create: authed
+        create: customer
           .input(AddressInputSchema)
           .mutation(({ ctx, input }) =>
             this.addressService.createAddress(ctx.tenantId, ctx.userId, input),
           ),
 
-        update: authed
+        update: customer
           .input(z.object({ id: z.string().uuid(), data: partialUpdate(AddressInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.addressService.updateAddress(
@@ -297,7 +299,7 @@ export class StorefrontTrpcRouter {
             ),
           ),
 
-        delete: authed
+        delete: customer
           .input(z.object({ id: z.string().uuid() }))
           .mutation(({ ctx, input }) =>
             this.addressService.deleteAddress(ctx.tenantId, ctx.userId, input.id),
@@ -306,7 +308,7 @@ export class StorefrontTrpcRouter {
 
       // ─── Coupons ─────────────────────────────────────────
       coupons: this.trpc.router({
-        validate: authed
+        validate: customer
           .input(CouponValidationInputSchema)
           .mutation(({ ctx, input }) =>
             this.couponService.validateCoupon(

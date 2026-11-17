@@ -4,36 +4,21 @@ import { useParams } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { TraceabilityTimeline, HuidBadge } from '@/features/compliance';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function ProductTraceabilityPage() {
   const { productId } = useParams<{ productId: string }>();
-  const { data, isLoading } = trpc.compliance.traceability.getChain.useQuery({ productId });
+  const { data, isLoading, error, refetch } = trpc.compliance.traceability.getChain.useQuery({ productId });
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Traceability Chain" breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Compliance', href: '/compliance' },
-          { label: 'Traceability', href: '/compliance/traceability' },
-          { label: 'Loading...' },
-        ]} />
-        <div className="animate-pulse space-y-4">
-          <div className="h-24 rounded-lg bg-muted" />
-          <div className="h-64 rounded-lg bg-muted" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Product Not Found" />
-        <p className="text-muted-foreground">Could not load traceability data for this product.</p>
-      </div>
-    );
-  }
+  const state = renderDetailState({
+    isLoading,
+    error,
+    data,
+    entity: 'Product',
+    backHref: '/compliance/traceability',
+    onRetry: () => void refetch(),
+  });
+  if (state || !data) return state ?? null;
 
   const product = data.product as { id: string; sku: string; name: string };
   const huid = data.huidRecord as { huidNumber: string; status: string } | null;

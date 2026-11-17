@@ -1,7 +1,7 @@
 // ─── Reporting Custom Service ─────────────────────────────────
 // Custom report builder: dynamic queries against supported entities.
 
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import type {
@@ -120,14 +120,14 @@ export class ReportingCustomService extends TenantAwareService {
     const startTime = Date.now();
     const entity = ENTITY_REGISTRY[request.entityType];
     if (!entity) {
-      throw new Error(`Unsupported entity type: ${request.entityType}`);
+      throw new BadRequestException(`Unsupported entity type: ${request.entityType}`);
     }
 
     // Validate columns and build SELECT
     const validFields = entity.fields.map((f) => f.name);
     const selectedColumns = request.columns.filter((c) => validFields.includes(c));
     if (selectedColumns.length === 0) {
-      throw new Error('No valid columns selected');
+      throw new BadRequestException('No valid columns selected');
     }
 
     const fieldMap = new Map(entity.fields.map((f) => [f.name, f]));

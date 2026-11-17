@@ -1,3 +1,4 @@
+import { loginSlot } from './helpers/auth';
 import { test, expect } from '@playwright/test';
 
 const API = '/api/v1';
@@ -5,6 +6,7 @@ const CREDS = { email: 'admin@sharmajewellers.com', password: 'admin123', tenant
 
 test.describe('API - Auth Endpoints', () => {
   test('POST /auth/login - valid credentials returns tokens', async ({ request }) => {
+    await loginSlot();
     const res = await request.post(`${API}/auth/login`, { data: CREDS });
     expect(res.status()).toBe(200);
     const body = await res.json();
@@ -15,15 +17,19 @@ test.describe('API - Auth Endpoints', () => {
   });
 
   test('POST /auth/login - wrong password returns 401', async ({ request }) => {
+    await loginSlot();
     const res = await request.post(`${API}/auth/login`, {
       data: { ...CREDS, password: 'wrongpassword' },
     });
     expect(res.status()).toBe(401);
     const body = await res.json();
-    expect(body.message).toContain('Invalid');
+    // Error envelope is now { success:false, error:{ code, message } } (was a flat NestJS { message }).
+    expect(body.success).toBe(false);
+    expect(body.error.message).toContain('Invalid');
   });
 
   test('POST /auth/login - nonexistent tenant returns 401', async ({ request }) => {
+    await loginSlot();
     const res = await request.post(`${API}/auth/login`, {
       data: { ...CREDS, tenantSlug: 'no-such-tenant' },
     });
@@ -31,6 +37,7 @@ test.describe('API - Auth Endpoints', () => {
   });
 
   test('POST /auth/login - nonexistent email returns 401', async ({ request }) => {
+    await loginSlot();
     const res = await request.post(`${API}/auth/login`, {
       data: { ...CREDS, email: 'nobody@nowhere.com' },
     });
@@ -38,14 +45,17 @@ test.describe('API - Auth Endpoints', () => {
   });
 
   test('POST /auth/login - empty body returns 400', async ({ request }) => {
+    await loginSlot();
     const res = await request.post(`${API}/auth/login`, { data: {} });
     expect(res.status()).toBe(400);
     const body = await res.json();
-    expect(body.message).toBeInstanceOf(Array);
-    expect(body.message.length).toBeGreaterThan(0);
+    // Validation errors now live in error.details.validationErrors.
+    expect(body.error.details.validationErrors).toBeInstanceOf(Array);
+    expect(body.error.details.validationErrors.length).toBeGreaterThan(0);
   });
 
   test('POST /auth/login - missing password returns 400', async ({ request }) => {
+    await loginSlot();
     const res = await request.post(`${API}/auth/login`, {
       data: { email: 'admin@sharmajewellers.com', tenantSlug: 'sharma-jewellers' },
     });
@@ -53,6 +63,7 @@ test.describe('API - Auth Endpoints', () => {
   });
 
   test('POST /auth/login - missing tenantSlug returns 400', async ({ request }) => {
+    await loginSlot();
     const res = await request.post(`${API}/auth/login`, {
       data: { email: 'admin@sharmajewellers.com', password: 'admin123' },
     });
@@ -60,15 +71,17 @@ test.describe('API - Auth Endpoints', () => {
   });
 
   test('POST /auth/login - invalid email format returns 400', async ({ request }) => {
+    await loginSlot();
     const res = await request.post(`${API}/auth/login`, {
       data: { email: 'not-an-email', password: 'test', tenantSlug: 'test' },
     });
     expect(res.status()).toBe(400);
     const body = await res.json();
-    expect(body.message.some((m: string) => m.includes('email'))).toBe(true);
+    expect(body.error.details.validationErrors.some((m: string) => m.includes('email'))).toBe(true);
   });
 
   test('POST /auth/refresh - valid refresh token returns new access token', async ({ request }) => {
+    await loginSlot();
     const login = await request.post(`${API}/auth/login`, { data: CREDS });
     const { refreshToken } = (await login.json()).data;
 
@@ -92,6 +105,7 @@ test.describe('API - Auth Endpoints', () => {
   });
 
   test('POST /auth/logout - revokes refresh token', async ({ request }) => {
+    await loginSlot();
     const login = await request.post(`${API}/auth/login`, { data: CREDS });
     const { refreshToken } = (await login.json()).data;
 
@@ -102,6 +116,7 @@ test.describe('API - Auth Endpoints', () => {
   });
 
   test('POST /auth/refresh - revoked token returns 401', async ({ request }) => {
+    await loginSlot();
     const login = await request.post(`${API}/auth/login`, { data: CREDS });
     const { refreshToken } = (await login.json()).data;
 
@@ -118,17 +133,21 @@ test.describe('API - Auth Endpoints', () => {
   });
 });
 
+// Swagger is OFF unless SWAGGER_ENABLED=true (D-026): 404 when disabled, 200 when enabled.
 test.describe('API - Swagger & Health', () => {
-  test('GET /api/docs - Swagger UI loads', async ({ request }) => {
+  test('GET /api/docs - Swagger UI loads (when enabled)', async ({ request }) => {
     const res = await request.get('/api/docs');
-    expect(res.status()).toBe(200);
-    const body = await res.text();
-    expect(body).toContain('swagger');
+    expect([200, 404]).toContain(res.status());
+    if (res.status() === 200) {
+      const body = await res.text();
+      expect(body).toContain('swagger');
+    }
   });
 
-  test('GET /api/docs-json - OpenAPI spec available', async ({ request }) => {
+  test('GET /api/docs-json - OpenAPI spec available (when enabled)', async ({ request }) => {
     const res = await request.get('/api/docs-json');
-    expect(res.status()).toBe(200);
+    expect([200, 404]).toContain(res.status());
+    if (res.status() !== 200) return;
     const body = await res.json();
     expect(body.openapi || body.swagger).toBeTruthy();
     expect(body.info.title).toContain('CaratFlow');
@@ -138,6 +157,7 @@ test.describe('API - Swagger & Health', () => {
 test.describe('API - Token Lifecycle', () => {
   test('Full lifecycle: login -> refresh -> logout -> reject', async ({ request }) => {
     // Step 1: Login
+    await loginSlot();
     const loginRes = await request.post(`${API}/auth/login`, { data: CREDS });
     expect(loginRes.status()).toBe(200);
     const loginBody = await loginRes.json();
@@ -155,7 +175,9 @@ test.describe('API - Token Lifecycle', () => {
   });
 
   test('Multiple logins create independent sessions', async ({ request }) => {
+    await loginSlot();
     const login1 = await request.post(`${API}/auth/login`, { data: CREDS });
+    await loginSlot();
     const login2 = await request.post(`${API}/auth/login`, { data: CREDS });
 
     const token1 = (await login1.json()).data.refreshToken;

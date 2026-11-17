@@ -8,7 +8,7 @@
 //   - whatsapp_access_token
 //   - whatsapp_business_account_id
 
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
@@ -184,7 +184,7 @@ export class WhatsAppService extends TenantAwareService {
     logId?: string,
   ): Promise<WhatsAppSendResult> {
     if (buttons.length === 0 || buttons.length > 3) {
-      throw new Error('Interactive button messages must have 1-3 buttons');
+      throw new BadRequestException('Interactive button messages must have 1-3 buttons');
     }
     const body = {
       messaging_product: 'whatsapp',

@@ -5,10 +5,11 @@ import { PageHeader } from '@caratflow/ui';
 import { Award, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import Link from 'next/link';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function CertificateDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: cert, isLoading } = trpc.compliance.certificates.getById.useQuery({ id });
+  const { data: cert, isLoading, error, refetch } = trpc.compliance.certificates.getById.useQuery({ id });
   const utils = trpc.useUtils();
   const onDone = () => utils.compliance.certificates.getById.invalidate({ id });
   const verifyMutation = trpc.compliance.certificates.verify.useMutation({ onSuccess: onDone });
@@ -31,30 +32,15 @@ export default function CertificateDetailPage() {
     | { status?: string; verificationMode?: string }
     | undefined;
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Certificate Detail" breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Compliance', href: '/compliance' },
-          { label: 'Certificates', href: '/compliance/certificates' },
-          { label: 'Loading...' },
-        ]} />
-        <div className="animate-pulse space-y-4">
-          <div className="h-64 rounded-lg bg-muted" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!cert) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Certificate Not Found" />
-        <p className="text-muted-foreground">The requested certificate could not be found.</p>
-      </div>
-    );
-  }
+  const state = renderDetailState({
+    isLoading,
+    error,
+    data: cert,
+    entity: 'Certificate',
+    backHref: '/compliance/certificates',
+    onRetry: () => void refetch(),
+  });
+  if (state || !cert) return state ?? null;
 
   const product = cert.product as { id: string; sku: string; name: string } | undefined;
 

@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AUTH_API } from "@/lib/constants";
+import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens } from "@/lib/api";
+
+/** API error text: class-validator sends `message` as a string[]; join it for display. */
+function apiErrorText(data: { error?: { message?: unknown }; message?: unknown } | null): string {
+  const raw = data?.error?.message ?? data?.message;
+  if (Array.isArray(raw)) return raw.join(", ");
+  return typeof raw === "string" ? raw : "";
+}
 
 type AuthTokens = { accessToken?: string; refreshToken?: string };
 
@@ -25,11 +32,11 @@ export default function LoginPage() {
       const res = await fetch(`${AUTH_API}/login/email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, tenantSlug: TENANT_SLUG }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.success) {
-        throw new Error(data?.error?.message || data?.message || "Login failed");
+        throw new Error(apiErrorText(data) || "Login failed");
       }
       const tokens = data.data as AuthTokens | undefined;
       if (tokens?.accessToken) {

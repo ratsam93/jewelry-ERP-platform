@@ -101,3 +101,65 @@ describe('ConfirmModal', () => {
     expect(handleConfirm).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Dialog accessibility', () => {
+  it('links DialogDescription to the dialog via aria-describedby', () => {
+    render(
+      <ConfirmModal
+        open={true}
+        onOpenChange={vi.fn()}
+        title="Delete Item?"
+        description="This action cannot be undone."
+        onConfirm={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Delete Item?');
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription('This action cannot be undone.');
+  });
+
+  it('uses the description prop as a visually hidden accessible description', () => {
+    render(
+      <Dialog open={true} onOpenChange={vi.fn()}>
+        <DialogContent description="Enter the stock movement details">
+          <DialogTitle>Stock movement</DialogTitle>
+        </DialogContent>
+      </Dialog>,
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAccessibleDescription('Enter the stock movement details');
+    expect(screen.getByText('Enter the stock movement details')).toHaveClass('sr-only');
+  });
+
+  it('links a DialogDescription placed inside DialogContent', () => {
+    render(
+      <Dialog open={true} onOpenChange={vi.fn()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transfer</DialogTitle>
+            <DialogDescription>Move stock between locations</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>,
+    );
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription('Move stock between locations');
+  });
+
+  it('does not warn about a missing description when there is nothing to describe', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      render(
+        <Dialog open={true} onOpenChange={vi.fn()}>
+          <DialogContent>
+            <DialogTitle>Title only</DialogTitle>
+          </DialogContent>
+        </Dialog>,
+      );
+      const descriptionWarnings = warn.mock.calls.filter((args) =>
+        String(args[0]).includes('Missing `Description`'),
+      );
+      expect(descriptionWarnings).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});

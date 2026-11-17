@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { E2E_CUSTOMER, loginSlot } from './helpers/auth';
 
 // ─── Homepage Flow ─────────────────────────────────────────────
 
@@ -139,18 +140,24 @@ test.describe('Auth Flow', () => {
     }
   });
 
-  test('login with demo credentials shows success message', async ({ page }) => {
+  async function signIn(page: import('@playwright/test').Page) {
     await page.goto('/auth/login');
     await page.waitForLoadState('networkidle');
-    await page.click('button:has-text("Sign In")');
-    await expect(page.locator('text=Login successful')).toBeVisible({ timeout: 10000 });
+    await page.locator('input[type="email"]').first().fill(E2E_CUSTOMER.email);
+    await page.locator('input[type="password"]').first().fill(E2E_CUSTOMER.password);
+    await loginSlot();
+    await page.click('button[type="submit"]:has-text("Sign In")');
+  }
+
+  // No pre-filled creds / success toast any more: after a successful login the app routes to /account.
+  test('login with demo credentials succeeds and routes to /account', async ({ page }) => {
+    await signIn(page);
+    await expect(page).toHaveURL(/\/account/, { timeout: 15000 });
   });
 
   test('login stores token in localStorage', async ({ page }) => {
-    await page.goto('/auth/login');
-    await page.waitForLoadState('networkidle');
-    await page.click('button:has-text("Sign In")');
-    await page.waitForTimeout(4000);
+    await signIn(page);
+    await expect.poll(() => page.evaluate(() => !!localStorage.getItem('accessToken')), { timeout: 15000 }).toBe(true);
     const token = await page.evaluate(() => localStorage.getItem('accessToken'));
     expect(token).toBeTruthy();
     expect(token!.startsWith('eyJ')).toBe(true);
@@ -330,7 +337,8 @@ test.describe('Navigation Flow', () => {
     const categoryLink = page.locator('a[href*="/category/"]').first();
     if (await categoryLink.isVisible()) {
       await categoryLink.click();
-      await page.waitForLoadState('networkidle');
+      // Client-side (soft) navigation: wait for the URL rather than relying on networkidle.
+      await page.waitForURL(/\/category\//,{ timeout: 15000 });
       expect(page.url()).toContain('/category/');
     }
   });

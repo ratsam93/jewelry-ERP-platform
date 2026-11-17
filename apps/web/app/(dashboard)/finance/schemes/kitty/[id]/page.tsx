@@ -3,12 +3,16 @@
 import { useParams } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function KittyDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading } = trpc.india.schemes.kitty.getById.useQuery({ id }, { enabled: Boolean(id) });
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const { data, isLoading, error, refetch } = trpc.india.schemes.kitty.getById.useQuery({ id }, { enabled: Boolean(id) });
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Kitty scheme', backHref: '/finance/schemes/kitty', onRetry: () => refetch(),
+  });
+  if (state) return state;
   const s = data as Record<string, unknown>;
 
   return (

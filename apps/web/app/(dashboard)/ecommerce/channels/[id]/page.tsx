@@ -3,14 +3,18 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatDateTime } from '@/components/format';
 
 export default function ChannelDetailPage() {
   const params = useParams<{ id: string }>();
   const channelId = params?.id ?? '';
-  const { data, isLoading } = trpc.ecommerce.getChannel.useQuery({ channelId }, { enabled: Boolean(channelId) });
+  const { data, isLoading, error, refetch } = trpc.ecommerce.getChannel.useQuery({ channelId }, { enabled: Boolean(channelId) });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Channel', backHref: '/ecommerce/channels', onRetry: () => refetch(),
+  });
+  if (state) return state;
   const c: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
 
   return (

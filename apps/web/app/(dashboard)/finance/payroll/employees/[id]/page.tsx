@@ -3,17 +3,21 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise } from '@/components/format';
 
 export default function EmployeeDetailPage() {
   const params = useParams<{ id: string }>();
-  const { data, isLoading } = trpc.payroll.employees.get.useQuery(
+  const { data, isLoading, error, refetch } = trpc.payroll.employees.get.useQuery(
     { id: params.id! },
     { enabled: !!params.id },
   );
-  const e = data as Record<string, unknown> | undefined;
+  const e = data as Record<string, unknown>;
 
-  if (isLoading || !e) return <div className="p-8 text-sm text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Employee', backHref: '/finance/payroll/employees', onRetry: () => refetch(),
+  });
+  if (state) return state;
 
   return (
     <div className="space-y-6">

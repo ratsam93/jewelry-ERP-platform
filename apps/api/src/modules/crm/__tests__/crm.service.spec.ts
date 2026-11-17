@@ -9,9 +9,9 @@ describe('CrmService', () => {
     prisma = createMockPrismaService();
     resetMocks(prisma);
     ['loyaltyTransaction','customerOccasion','customerInteraction','feedback','digitalPassbook','invoice','lead','customerSegment'].forEach(m => {
-      (prisma as any)[m] = { findFirst: vi.fn(), findFirstOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn(), aggregate: vi.fn(), groupBy: vi.fn() };
+      (prisma as any)[m] = { findFirst: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn(), aggregate: vi.fn(), groupBy: vi.fn() };
     });
-    prisma.customer.findFirstOrThrow = vi.fn() as any;
+    prisma.customer.findFirst = vi.fn() as any;
     prisma.customer.findMany = vi.fn() as any;
     prisma.customer.findFirst = vi.fn() as any;
     prisma.customer.count = vi.fn() as any;
@@ -21,7 +21,7 @@ describe('CrmService', () => {
 
   describe('getCustomer360', () => {
     it('should aggregate customer data', async () => {
-      prisma.customer.findFirstOrThrow = vi.fn().mockResolvedValue({ id: 'c1', firstName: 'A', lastName: 'B', loyaltyPoints: 100, loyaltyTier: 'SILVER', email: 'a@b.com', phone: '123', alternatePhone: null, address: null, city: 'Mumbai', state: 'MH', country: 'IN', postalCode: '400001', customerType: 'RETAIL', panNumber: null, aadhaarNumber: null, gstinNumber: null, dateOfBirth: null, anniversary: null, createdAt: new Date() }) as any;
+      prisma.customer.findFirst = vi.fn().mockResolvedValue({ id: 'c1', firstName: 'A', lastName: 'B', loyaltyPoints: 100, loyaltyTier: 'SILVER', email: 'a@b.com', phone: '123', alternatePhone: null, address: null, city: 'Mumbai', state: 'MH', country: 'IN', postalCode: '400001', customerType: 'RETAIL', panNumber: null, aadhaarNumber: null, gstinNumber: null, dateOfBirth: null, anniversary: null, createdAt: new Date() }) as any;
       (prisma as any).loyaltyTransaction.findMany.mockResolvedValue([]);
       (prisma as any).customerOccasion.findMany.mockResolvedValue([]);
       (prisma as any).customerInteraction.findMany.mockResolvedValue([]);

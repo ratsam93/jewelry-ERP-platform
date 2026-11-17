@@ -4,15 +4,24 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { sanitizeHtml } from '@/lib/sanitize-html';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function BlogPostDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading, refetch } = trpc.cms.blog.getById.useQuery({ id }, { enabled: Boolean(id) });
+  const { data, isLoading, error, refetch } = trpc.cms.blog.getById.useQuery({ id }, { enabled: Boolean(id) });
   const publish = trpc.cms.blog.publish.useMutation({ onSuccess: () => refetch() });
   const unpublish = trpc.cms.blog.unpublish.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading,
+    error,
+    data,
+    entity: 'Blog post',
+    backHref: '/cms/blog',
+    onRetry: () => void refetch(),
+  });
+  if (state) return state;
   const p: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
   const safeContent = sanitizeHtml((p.content as string) ?? '');
 

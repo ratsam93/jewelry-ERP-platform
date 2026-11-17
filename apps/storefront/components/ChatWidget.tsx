@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { STORE_API } from "@/lib/constants";
+import { STORE_API, TENANT_ID } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -50,7 +50,6 @@ interface BudgetSliderMeta {
 // ─── Constants ──────────────────────────────────────────────────
 
 const STORAGE_KEY = "caratflow_chat_session";
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID ?? "default";
 
 const OCCASION_ICONS: Record<string, string> = {
   rings: "\uD83D\uDC8D",

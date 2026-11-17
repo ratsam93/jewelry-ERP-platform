@@ -8,7 +8,7 @@ import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "@/app/auth/login/page";
 import RegisterPage from "@/app/auth/register/page";
-import { AUTH_API } from "@/lib/constants";
+import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 
 vi.mock("next/navigation", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("next/navigation");
@@ -85,7 +85,7 @@ describe("Auth Flow - Register", () => {
     expect(screen.getByPlaceholderText("Priya Sharma")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("98765 43210")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Min 8 characters")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Min 10 characters")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Confirm your password")).toBeInTheDocument();
   });
 
@@ -122,8 +122,8 @@ describe("Auth Flow - Register", () => {
     await user.type(screen.getByPlaceholderText("Priya Sharma"), "Test User");
     await user.type(screen.getByPlaceholderText("you@example.com"), "test@example.com");
     await user.type(screen.getByPlaceholderText("98765 43210"), "9876543210");
-    await user.type(screen.getByPlaceholderText("Min 8 characters"), "password123");
-    await user.type(screen.getByPlaceholderText("Confirm your password"), "password123");
+    await user.type(screen.getByPlaceholderText("Min 10 characters"), "Password#1234");
+    await user.type(screen.getByPlaceholderText("Confirm your password"), "Password#1234");
     // Check the terms checkbox
     const checkbox = screen.getByRole("checkbox");
     await user.click(checkbox);
@@ -138,12 +138,107 @@ describe("Auth Flow - Register", () => {
     const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
     expect(body).toMatchObject({
       email: "test@example.com",
-      password: "password123",
+      password: "Password#1234",
       firstName: "Test",
       lastName: "User",
     });
     await waitFor(() => {
       expect(window.localStorage.getItem("accessToken")).toBe("test-access-token");
     });
+  });
+});
+
+describe("Auth Flow - API contract", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.localStorage.clear();
+  });
+
+  it("login sends tenantSlug with email and password", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { accessToken: "a", refreshToken: "r" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<LoginPage />);
+    await user.type(screen.getByPlaceholderText("you@example.com"), "a@b.co");
+    await user.type(screen.getByPlaceholderText("Enter your password"), "Password#1234");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock.mock.calls[0]![0]).toBe(`${AUTH_API}/login/email`);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body as string)).toEqual({
+      email: "a@b.co",
+      password: "Password#1234",
+      tenantSlug: TENANT_SLUG,
+    });
+  });
+
+  it("login shows joined validation messages from the API", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({ message: ["tenantSlug should not be empty", "email must be an email"] }),
+      }),
+    );
+    render(<LoginPage />);
+    await user.type(screen.getByPlaceholderText("you@example.com"), "a@b.co");
+    await user.type(screen.getByPlaceholderText("Enter your password"), "x");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+    expect(await screen.findByText(/tenantSlug should not be empty, email must be an email/)).toBeInTheDocument();
+  });
+
+  async function fillRegister(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByPlaceholderText("Priya Sharma"), "Test User");
+    await user.type(screen.getByPlaceholderText("you@example.com"), "test@example.com");
+    await user.type(screen.getByPlaceholderText("98765 43210"), "9876543210");
+    await user.type(screen.getByPlaceholderText("Min 10 characters"), "Password#1234");
+    await user.type(screen.getByPlaceholderText("Confirm your password"), "Password#1234");
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /create account/i }));
+  }
+
+  it("register sends the REGISTRATION otp purpose and saves the phone on the profile", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () =>
+        String(url).includes("/register/email")
+          ? { success: true, data: { accessToken: "tok", refreshToken: "r" } }
+          : { success: true, data: {} },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<RegisterPage />);
+    await fillRegister(user);
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/otp/send"))).toBe(true),
+    );
+    const otpCall = fetchMock.mock.calls.find((c) => String(c[0]).includes("/otp/send"))!;
+    expect(JSON.parse(otpCall[1].body as string)).toEqual({ identifier: "+919876543210", purpose: "REGISTRATION" });
+    const profileCall = fetchMock.mock.calls.find((c) => String(c[0]).includes("/store/account/profile"))!;
+    expect(profileCall[1].method).toBe("PUT");
+    expect(JSON.parse(profileCall[1].body as string)).toEqual({ phone: "+919876543210" });
+  });
+
+  it("register surfaces an OTP send failure instead of swallowing it", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes("/otp/send")) {
+          return { ok: false, status: 400, json: async () => ({ message: ["purpose must be one of the following values"] }) };
+        }
+        return { ok: true, status: 200, json: async () => ({ success: true, data: { accessToken: "tok" } }) };
+      }),
+    );
+    render(<RegisterPage />);
+    await fillRegister(user);
+    expect(await screen.findByText(/could not send the verification code: purpose must be one of/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /continue to my account/i })).toHaveAttribute("href", "/account");
   });
 });

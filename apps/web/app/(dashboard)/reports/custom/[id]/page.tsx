@@ -3,13 +3,15 @@
 import { useParams } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function CustomReportDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading } = trpc.reporting.getSavedReport.useQuery({ id }, { enabled: Boolean(id) });
+  const { data, isLoading, error } = trpc.reporting.getSavedReport.useQuery({ id }, { enabled: Boolean(id) });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({ isLoading, error, data, entity: 'Custom report', backHref: '/reports/custom' });
+  if (state) return state;
   const r: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
 
   return (

@@ -297,6 +297,9 @@ export class StorefrontCartService extends TenantAwareService {
     couponCode: string,
     customerId: string | null,
   ): Promise<CartResponse> {
+    if (typeof couponCode !== 'string' || couponCode.trim() === '') {
+      throw new BadRequestException('Coupon code is required');
+    }
     const cart = await this.prisma.cart.findFirst({
       where: { id: cartId, tenantId },
       include: { items: true },

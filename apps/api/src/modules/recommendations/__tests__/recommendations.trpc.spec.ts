@@ -22,6 +22,7 @@ describe('RecommendationsTrpcRouter', () => {
     tenantId: 'tenant-1',
     userId: 'user-1',
     userRole: 'customer',
+    principal: 'customer' as const,
     userPermissions: ['*'],
   };
 
@@ -31,6 +32,7 @@ describe('RecommendationsTrpcRouter', () => {
     behaviorService as never,
   );
   const caller = routerInstance.router.createCaller(ctx);
+  const staffCaller = routerInstance.router.createCaller({ ...ctx, principal: 'staff' as const });
 
   beforeEach(() => vi.clearAllMocks());
 
@@ -66,14 +68,14 @@ describe('RecommendationsTrpcRouter', () => {
   describe('similar', () => {
     it('delegates to recommendationsService.getSimilarProducts', async () => {
       recommendationsService.getSimilarProducts.mockResolvedValue([]);
-      await caller.similar({ productId: PRODUCT_ID, limit: 5 });
+      await staffCaller.similar({ productId: PRODUCT_ID, limit: 5 });
       expect(recommendationsService.getSimilarProducts).toHaveBeenCalledWith(
         'tenant-1', PRODUCT_ID, 5,
       );
     });
 
     it('rejects invalid productId', async () => {
-      await expect(caller.similar({ productId: 'bogus', limit: 5 })).rejects.toThrow();
+      await expect(staffCaller.similar({ productId: 'bogus', limit: 5 })).rejects.toThrow();
     });
   });
 
@@ -81,7 +83,7 @@ describe('RecommendationsTrpcRouter', () => {
   describe('boughtTogether', () => {
     it('delegates to recommendationsService.getBoughtTogether', async () => {
       recommendationsService.getBoughtTogether.mockResolvedValue([]);
-      await caller.boughtTogether({ productId: PRODUCT_ID, limit: 6 });
+      await staffCaller.boughtTogether({ productId: PRODUCT_ID, limit: 6 });
       expect(recommendationsService.getBoughtTogether).toHaveBeenCalledWith(
         'tenant-1', PRODUCT_ID, 6,
       );
@@ -92,13 +94,13 @@ describe('RecommendationsTrpcRouter', () => {
   describe('trending', () => {
     it('uses defaults when no input', async () => {
       recommendationsService.getTrending.mockResolvedValue([]);
-      await caller.trending();
+      await staffCaller.trending();
       expect(recommendationsService.getTrending).toHaveBeenCalledWith('tenant-1', 12, 7);
     });
 
     it('forwards explicit limit and period', async () => {
       recommendationsService.getTrending.mockResolvedValue([]);
-      await caller.trending({ limit: 30, period: 14 });
+      await staffCaller.trending({ limit: 30, period: 14 });
       expect(recommendationsService.getTrending).toHaveBeenCalledWith('tenant-1', 30, 14);
     });
   });
@@ -107,7 +109,7 @@ describe('RecommendationsTrpcRouter', () => {
   describe('popularInCategory', () => {
     it('delegates to recommendationsService.getPopularInCategory', async () => {
       recommendationsService.getPopularInCategory.mockResolvedValue([]);
-      await caller.popularInCategory({ categoryId: CATEGORY_ID, limit: 10 });
+      await staffCaller.popularInCategory({ categoryId: CATEGORY_ID, limit: 10 });
       expect(recommendationsService.getPopularInCategory).toHaveBeenCalledWith(
         'tenant-1', CATEGORY_ID, 10,
       );
@@ -164,5 +166,18 @@ describe('RecommendationsTrpcRouter', () => {
   it('rejects unauthenticated calls', async () => {
     const unauth = routerInstance.router.createCaller({});
     await expect(unauth.forYou()).rejects.toThrow();
+  });
+
+  describe('principal access', () => {
+    it('read-only procedures accept staff and customer, reject no token', async () => {
+      recommendationsService.getTrending.mockResolvedValue([]);
+      await expect(staffCaller.trending()).resolves.toBeDefined();
+      await expect(caller.trending()).resolves.toBeDefined();
+      const anon = routerInstance.router.createCaller({});
+      await expect(anon.trending()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    });
+    it('personalized rejects staff tokens', async () => {
+      await expect(staffCaller.personalized()).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
   });
 });

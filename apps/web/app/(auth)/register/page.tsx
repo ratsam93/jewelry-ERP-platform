@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 
 export default function RegisterPage() {
   const [form, setForm] = React.useState({
@@ -105,9 +106,9 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <a href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary hover:underline">
               Sign in
-            </a>
+            </Link>
           </p>
         </form>
       </div>
