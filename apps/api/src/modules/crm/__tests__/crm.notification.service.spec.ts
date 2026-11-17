@@ -11,7 +11,7 @@ describe('CrmNotificationService', () => {
     prisma = createMockPrismaService();
     resetMocks(prisma);
     eventBus = createMockEventBusService();
-    ['notificationTemplate','notificationLog','customerOccasion'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirstOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() }; });
+    ['notificationTemplate','notificationLog','customerOccasion'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() }; });
     const whatsapp = { sendTextMessage: vi.fn() } as any;
     const emailService = { sendEmail: vi.fn().mockResolvedValue({ success: true, externalId: 'em-1', statusCode: 202 }) } as any;
     const smsService = { sendSms: vi.fn().mockResolvedValue({ success: true, provider: 'MSG91', externalId: 'sm-1', statusCode: 200 }) } as any;
@@ -34,7 +34,7 @@ describe('CrmNotificationService', () => {
       expect((prisma as any).notificationLog.create).toHaveBeenCalled();
     });
     it('should interpolate template variables', async () => {
-      (prisma as any).notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1', body: 'Hello {{firstName}}!', subject: 'Hi {{firstName}}' });
+      (prisma as any).notificationTemplate.findFirst.mockResolvedValue({ id: 't-1', body: 'Hello {{firstName}}!', subject: 'Hi {{firstName}}' });
       (prisma as any).notificationLog.create.mockResolvedValue({ id: 'nl-1' });
       (prisma as any).notificationLog.update.mockResolvedValue({ id: 'nl-1' });
       await service.sendNotification(tenantId, userId, { customerId: 'c1', channel: 'EMAIL', templateId: 't-1', variables: { firstName: 'Rajesh' } } as any);
@@ -47,7 +47,7 @@ describe('CrmNotificationService', () => {
 
   describe('bulkSend', () => {
     it('should send to multiple customers', async () => {
-      (prisma as any).notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1', body: 'Hi', subject: 'Hello' });
+      (prisma as any).notificationTemplate.findFirst.mockResolvedValue({ id: 't-1', body: 'Hi', subject: 'Hello' });
       (prisma as any).notificationLog.create.mockResolvedValue({ id: 'nl-1' });
       (prisma as any).notificationLog.update.mockResolvedValue({ id: 'nl-1' });
       const r = await service.bulkSend(tenantId, userId, ['c1', 'c2'], 'EMAIL', 't-1', { firstName: 'Test' });
@@ -67,7 +67,7 @@ describe('CrmNotificationService', () => {
 
   describe('deleteTemplate', () => {
     it('should delete template', async () => {
-      (prisma as any).notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1' });
+      (prisma as any).notificationTemplate.findFirst.mockResolvedValue({ id: 't-1' });
       (prisma as any).notificationTemplate.delete.mockResolvedValue({});
       await service.deleteTemplate(tenantId, 't-1');
       expect((prisma as any).notificationTemplate.delete).toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('CrmNotificationService', () => {
         },
       ]);
       n.notificationTemplate.findFirst.mockResolvedValue({ id: 't-1', channel: 'EMAIL', category: 'REMINDER' });
-      n.notificationTemplate.findFirstOrThrow.mockResolvedValue({ id: 't-1', body: 'Hi {{firstName}}', subject: 'Reminder' });
+      n.notificationTemplate.findFirst.mockResolvedValue({ id: 't-1', body: 'Hi {{firstName}}', subject: 'Reminder' });
       n.notificationLog.create.mockImplementation(async ({ data }: any) => {
         const row = {
           id: `nl-${++idSeq}`,

@@ -18,6 +18,7 @@ import {
   Gem,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useRenderLink, type RenderLink } from './link-context';
 
 export interface SidebarItem {
   label: string;
@@ -208,8 +209,8 @@ interface SidebarProps {
   onToggle: () => void;
   items?: SidebarItem[];
   currentPath?: string;
-  /** Render prop for navigation links (to integrate with Next.js Link) */
-  renderLink?: (props: { href: string; children: React.ReactNode; className: string }) => React.ReactNode;
+  /** Overrides the link renderer from LinkProvider for this sidebar only. */
+  renderLink?: RenderLink;
 }
 
 export function Sidebar({
@@ -235,9 +236,8 @@ export function Sidebar({
 
   const isActive = (href: string) => currentPath === href || currentPath.startsWith(href + '/');
 
-  const Link = renderLink ?? (({ href, children, className }) => (
-    <a href={href} className={className}>{children}</a>
-  ));
+  const contextRenderLink = useRenderLink();
+  const Link = renderLink ?? contextRenderLink;
 
   return (
     <aside
@@ -282,16 +282,10 @@ export function Sidebar({
                     />
                   </button>
                 ) : (
-                  Link({
-                    href: item.href,
-                    className: cn('flex items-center gap-2', collapsed && 'justify-center'),
-                    children: (
-                      <>
-                        {item.icon}
-                        {!collapsed && <span>{item.label}</span>}
-                      </>
-                    ),
-                  })
+                  <Link href={item.href} className={cn('flex items-center gap-2', collapsed && 'justify-center')}>
+                    {item.icon}
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
                 )}
               </div>
 
@@ -300,16 +294,17 @@ export function Sidebar({
                 <div className="ml-6 mt-0.5 space-y-0.5">
                   {item.children!.map((child) => (
                     <div key={child.href}>
-                      {Link({
-                        href: child.href,
-                        className: cn(
+                      <Link
+                        href={child.href}
+                        className={cn(
                           'mx-2 block rounded-md px-2 py-1 text-sm transition-colors',
                           isActive(child.href)
                             ? 'bg-primary/10 text-primary font-medium'
                             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                        ),
-                        children: child.label,
-                      })}
+                        )}
+                      >
+                        {child.label}
+                      </Link>
                     </div>
                   ))}
                 </div>

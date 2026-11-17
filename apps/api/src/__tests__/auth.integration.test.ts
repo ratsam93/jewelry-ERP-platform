@@ -497,6 +497,14 @@ describe('Auth Integration Tests', () => {
       expect(res.body.data).toHaveProperty('customerId');
     });
 
+    it('returns 401 when x-tenant-id differs from the token tenant', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/b2c/auth/me')
+        .set('Authorization', `Bearer ${generateB2CToken()}`)
+        .set('x-tenant-id', '0b8f6c2e-3d4a-4f1b-8a7c-5e9d1c2b3a40');
+      expect(res.status).toBe(401);
+    });
+
     it('returns 401 without token', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/b2c/auth/me');

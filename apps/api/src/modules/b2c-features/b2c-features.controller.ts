@@ -7,7 +7,7 @@
 // subscriptions stay public and rely on tenantId from TenantMiddleware plus
 // an optional sessionId.
 
-import { UUID_RE } from '../../common/customer-identity';
+import { UUID_RE, resolveCustomer } from '../../common/customer-identity';
 import {
   Controller,
   Get,
@@ -24,11 +24,21 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { IsEmail, IsUUID, MaxLength } from 'class-validator';
 import { B2CAuthGuard } from '../../auth/b2c-auth.guard';
 import { WishlistService } from './wishlist.service';
 import { CompareService } from './compare.service';
 import { CouponService } from './coupon.service';
 import { BackInStockService } from './back-in-stock.service';
+
+class SubscribeBackInStockDto {
+  @IsUUID()
+  productId!: string;
+
+  @IsEmail()
+  @MaxLength(255)
+  email!: string;
+}
 
 @Controller('api/v1/store')
 export class B2cFeaturesController {
@@ -40,14 +50,8 @@ export class B2cFeaturesController {
   ) {}
 
   // ─── Wishlist (customer) ──────────────────────────────────────
-
-  @Get('wishlist')
-  @UseGuards(B2CAuthGuard)
-  async getWishlist(@Req() req: Request) {
-    const { tenantId, customerId } = this.customerContext(req);
-    const items = await this.wishlistService.getWishlist(tenantId, customerId);
-    return { success: true, data: items };
-  }
+  // GET/POST wishlist, DELETE wishlist/:productId and POST wishlist/:productId/price-alert
+  // are served by StorefrontController (the contract the storefront app calls).
 
   @Get('wishlist/count')
   @UseGuards(B2CAuthGuard)
@@ -55,46 +59,6 @@ export class B2cFeaturesController {
     const { tenantId, customerId } = this.customerContext(req);
     const count = await this.wishlistService.getWishlistCount(tenantId, customerId);
     return { success: true, data: { count } };
-  }
-
-  @Post('wishlist')
-  @HttpCode(HttpStatus.CREATED)
-  @UseGuards(B2CAuthGuard)
-  async addToWishlist(
-    @Req() req: Request,
-    @Body() body: { productId: string },
-  ) {
-    const { tenantId, customerId } = this.customerContext(req);
-    const item = await this.wishlistService.addToWishlist(tenantId, customerId, body.productId);
-    return { success: true, data: item };
-  }
-
-  @Delete('wishlist/:productId')
-  @UseGuards(B2CAuthGuard)
-  async removeFromWishlist(
-    @Req() req: Request,
-    @Param('productId') productId: string,
-  ) {
-    const { tenantId, customerId } = this.customerContext(req);
-    await this.wishlistService.removeFromWishlist(tenantId, customerId, productId);
-    return { success: true };
-  }
-
-  @Post('wishlist/:productId/price-alert')
-  @UseGuards(B2CAuthGuard)
-  async enablePriceAlert(
-    @Req() req: Request,
-    @Param('productId') productId: string,
-    @Body() body: { thresholdPaise: number },
-  ) {
-    const { tenantId, customerId } = this.customerContext(req);
-    const result = await this.wishlistService.enablePriceAlert(
-      tenantId,
-      customerId,
-      productId,
-      body.thresholdPaise,
-    );
-    return { success: true, data: result };
   }
 
   @Delete('wishlist/:productId/price-alert')
@@ -115,10 +79,11 @@ export class B2cFeaturesController {
     @Req() req: Request,
     @Query('sessionId') sessionId?: string,
   ) {
+    const ctx = this.publicContext(req);
     const list = await this.compareService.getCompareList(
-      this.publicTenantOf(req),
-      req.customerId,
-      sessionId,
+      ctx.tenantId,
+      ctx.customerId,
+      this.sessionOf(req, sessionId),
     );
     return { success: true, data: list };
   }
@@ -129,11 +94,12 @@ export class B2cFeaturesController {
     @Req() req: Request,
     @Body() body: { productId: string; sessionId?: string },
   ) {
+    const ctx = this.publicContext(req);
     const result = await this.compareService.addToCompare(
-      this.publicTenantOf(req),
+      ctx.tenantId,
       body.productId,
-      req.customerId,
-      body.sessionId,
+      ctx.customerId,
+      this.sessionOf(req, body.sessionId),
     );
     return { success: true, data: result };
   }
@@ -144,11 +110,12 @@ export class B2cFeaturesController {
     @Param('productId') productId: string,
     @Query('sessionId') sessionId?: string,
   ) {
+    const ctx = this.publicContext(req);
     const result = await this.compareService.removeFromCompare(
-      this.publicTenantOf(req),
+      ctx.tenantId,
       productId,
-      req.customerId,
-      sessionId,
+      ctx.customerId,
+      this.sessionOf(req, sessionId),
     );
     return { success: true, data: result };
   }
@@ -158,38 +125,13 @@ export class B2cFeaturesController {
     @Req() req: Request,
     @Query('sessionId') sessionId?: string,
   ) {
-    await this.compareService.clearCompare(this.publicTenantOf(req), req.customerId, sessionId);
+    const ctx = this.publicContext(req);
+    await this.compareService.clearCompare(ctx.tenantId, ctx.customerId, this.sessionOf(req, sessionId));
     return { success: true };
   }
 
   // ─── Coupons (customer) ───────────────────────────────────────
-
-  @Post('coupons/validate')
-  @UseGuards(B2CAuthGuard)
-  async validateCoupon(
-    @Req() req: Request,
-    @Body() body: {
-      code: string;
-      cartTotalPaise: number;
-      cartItems: Array<{
-        productId: string;
-        categoryId?: string;
-        pricePaise: number;
-        quantity: number;
-      }>;
-    },
-  ) {
-    const { tenantId, customerId } = this.customerContext(req);
-    if (typeof body.code !== 'string' || body.code.trim() === '') {
-      throw new BadRequestException('code is required');
-    }
-    const result = await this.couponService.validateCoupon(tenantId, customerId, {
-      code: body.code.trim().toUpperCase(),
-      cartTotalPaise: body.cartTotalPaise,
-      cartItems: body.cartItems,
-    });
-    return { success: true, data: result };
-  }
+  // POST coupons/validate is served by StorefrontController.
 
   @Post('coupons/auto-apply')
   @UseGuards(B2CAuthGuard)
@@ -222,13 +164,14 @@ export class B2cFeaturesController {
   @HttpCode(HttpStatus.CREATED)
   async subscribeBackInStock(
     @Req() req: Request,
-    @Body() body: { productId: string; email: string },
+    @Body() body: SubscribeBackInStockDto,
   ) {
+    const ctx = this.publicContext(req);
     const result = await this.backInStockService.subscribe(
-      this.publicTenantOf(req),
+      ctx.tenantId,
       body.productId,
       body.email,
-      req.customerId,
+      ctx.customerId,
     );
     return { success: true, data: result };
   }
@@ -238,7 +181,8 @@ export class B2cFeaturesController {
     @Req() req: Request,
     @Param('alertId') alertId: string,
   ) {
-    await this.backInStockService.unsubscribe(this.publicTenantOf(req), alertId, req.customerId);
+    const ctx = this.publicContext(req);
+    await this.backInStockService.unsubscribe(ctx.tenantId, alertId, ctx.customerId);
     return { success: true };
   }
 
@@ -268,7 +212,10 @@ export class B2cFeaturesController {
     // staff requests have the tenant set by TenantMiddleware.
     const header = req.headers['x-tenant-id'];
     const headerTenant = Array.isArray(header) ? header[0] : header;
-    if (headerTenant && UUID_RE.test(headerTenant)) {
+    if (headerTenant) {
+      if (!UUID_RE.test(headerTenant)) {
+        throw new BadRequestException('Invalid tenant id');
+      }
       return headerTenant;
     }
     const tenantId = req.tenantId;
@@ -276,5 +223,30 @@ export class B2cFeaturesController {
       throw new BadRequestException('Tenant context is required');
     }
     return tenantId;
+  }
+
+  /**
+   * Tenant and optional verified customer for public (guest or signed-in)
+   * routes. The customer comes ONLY from a verified B2C Bearer token; the
+   * x-customer-id header and request body are never trusted.
+   */
+  private publicContext(req: Request): { tenantId: string; customerId?: string } {
+    if (req.headers.authorization) {
+      try {
+        const resolved = resolveCustomer(req);
+        return { tenantId: resolved.tenantId, customerId: resolved.customerId };
+      } catch {
+        // Invalid/missing tenant header: fall through to the tenant resolution below.
+      }
+    }
+    return { tenantId: this.publicTenantOf(req) };
+  }
+
+  /** Guest session id: explicit query/body value, else the x-session-id header. */
+  private sessionOf(req: Request, explicit?: string): string | undefined {
+    if (explicit) return explicit;
+    const header = req.headers['x-session-id'];
+    const value = Array.isArray(header) ? header[0] : header;
+    return value || undefined;
   }
 }

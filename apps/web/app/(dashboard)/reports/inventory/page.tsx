@@ -2,13 +2,14 @@
 
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import type { InventoryReportResponse, LowStockItem } from '@caratflow/shared-types';
 import { formatPaise } from '@/components/format';
 
 export default function InventoryReportsPage() {
   const { data: summary } = trpc.reporting.stockSummary.useQuery({});
   const { data: lowStock } = trpc.reporting.lowStockAlert.useQuery();
-  const s = (summary as Record<string, unknown> | undefined) ?? {};
-  const low = ((lowStock as Array<Record<string, unknown>> | undefined) ?? []);
+  const s = (summary as Partial<InventoryReportResponse> | undefined) ?? {};
+  const low = Array.isArray(lowStock) ? (lowStock as LowStockItem[]) : [];
 
   return (
     <div className="space-y-6">
@@ -19,8 +20,9 @@ export default function InventoryReportsPage() {
       ]} />
       <div className="rounded-lg border p-4 space-y-2 text-sm">
         <div className="flex justify-between"><span className="text-muted-foreground">Total Items</span><span>{String(s.totalItems ?? 0)}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Total Value</span><span className="font-semibold">{formatPaise(s.totalValuePaise)}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Low Stock Items</span><span>{String(s.lowStockCount ?? 0)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Total Quantity</span><span>{String(s.totalQuantity ?? 0)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Total Value</span><span className="font-semibold">{formatPaise(s.totalValuePaise ?? 0)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Low Stock Items</span><span>{String(low.length)}</span></div>
       </div>
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Low Stock Alerts</h2>
@@ -29,8 +31,8 @@ export default function InventoryReportsPage() {
             <div className="py-6 text-center text-sm text-muted-foreground">No low-stock items</div>
           ) : (
             low.map((p, idx) => (
-              <div key={idx} className="flex items-center justify-between px-4 py-3 text-sm">
-                <span>{((p.product as { name?: string })?.name) ?? (p.name as string) ?? '-'}</span>
+              <div key={`${p.productId}-${idx}`} className="flex items-center justify-between px-4 py-3 text-sm">
+                <span>{p.productName ?? '-'}{p.locationName ? <span className="ml-2 text-xs text-muted-foreground">{p.locationName}</span> : null}</span>
                 <span className="font-mono text-xs text-muted-foreground">{String(p.quantityOnHand ?? 0)} / {String(p.reorderLevel ?? 0)}</span>
               </div>
             ))

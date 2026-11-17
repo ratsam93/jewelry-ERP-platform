@@ -8,7 +8,8 @@ import { loginAsAdmin } from './helpers/admin-login';
 //  - Page title/header contains the domain keyword
 
 const smokePages: ReadonlyArray<{ path: string; keyword: RegExp }> = [
-  { path: '/admin/inventory/stock', keyword: /Stock|Inventory/i },
+  // /admin/inventory/stock was replaced by /admin/inventory/items
+  { path: '/admin/inventory/items', keyword: /Stock|Inventory|Items/i },
   { path: '/admin/manufacturing/bom', keyword: /BOM|Manufacturing/i },
   { path: '/admin/finance/invoices', keyword: /Invoice|Finance/i },
   { path: '/admin/crm/customers', keyword: /Customer|CRM/i },
@@ -16,7 +17,8 @@ const smokePages: ReadonlyArray<{ path: string; keyword: RegExp }> = [
   { path: '/admin/compliance/huid', keyword: /HUID|Compliance/i },
   { path: '/admin/ecommerce/orders', keyword: /Order|E-Commerce|Ecommerce/i },
   { path: '/admin/export/orders', keyword: /Export|Order/i },
-  { path: '/admin/reports/dashboard', keyword: /Reports|Dashboard/i },
+  // /admin/reports/dashboard was replaced by the /admin/reports index
+  { path: '/admin/reports', keyword: /Reports|Dashboard/i },
   { path: '/admin/cms/banners', keyword: /Banner|CMS|Content/i },
   { path: '/admin/settings/users', keyword: /User|Settings/i },
 ];
@@ -31,7 +33,8 @@ test.describe('Admin Navigation Smoke', () => {
       const res = await page.goto(path);
       expect(res?.status() ?? 500).toBeLessThan(500);
 
-      await page.waitForLoadState('networkidle').catch(() => undefined);
+      // Some pages poll continuously (e.g. /admin/reports) and never go network-idle: cap the wait.
+      await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => undefined);
 
       const body = await page.locator('body').textContent();
       expect(body ?? '').not.toMatch(/Something went wrong/i);

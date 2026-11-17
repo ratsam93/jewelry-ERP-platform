@@ -46,7 +46,7 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  QueryClient: vi.fn(() => ({})),
+  QueryClient: vi.fn(function () { return {}; }),
   QueryClientProvider: ({ children }: any) => children,
 }));
 

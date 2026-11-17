@@ -18,7 +18,7 @@ import {
   BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { IsInt, IsString, IsOptional, Min, Max, IsNotEmpty } from 'class-validator';
+import { IsInt, IsString, IsOptional, Min, Max, MaxLength, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /** Max quantity per cart line — mirrors storefront.cart.service. */
@@ -43,6 +43,24 @@ class UpdateCartItemDto {
   @Min(1, { message: 'quantity must be at least 1' })
   @Max(MAX_LINE_QUANTITY, { message: `quantity must be ${MAX_LINE_QUANTITY} or less` })
   quantity!: number;
+}
+class ApplyCartCouponDto {
+  @IsString({ message: 'couponCode is required' })
+  @IsNotEmpty({ message: 'couponCode is required' })
+  @MaxLength(50, { message: 'couponCode must be 50 characters or fewer' })
+  couponCode!: string;
+}
+
+class ValidateCouponDto {
+  @IsString({ message: 'code is required' })
+  @IsNotEmpty({ message: 'code is required' })
+  @MaxLength(50, { message: 'code must be 50 characters or fewer' })
+  code!: string;
+
+  @Type(() => Number)
+  @IsInt({ message: 'cartTotalPaise must be an integer' })
+  @Min(0, { message: 'cartTotalPaise must not be negative' })
+  cartTotalPaise!: number;
 }
 import type { ApiResponse, Pagination } from '@caratflow/shared-types';
 import type {
@@ -157,16 +175,8 @@ export class StorefrontController {
     return success(data);
   }
 
-  @Get('products/:id')
-  async getProductById(
-    @Req() req: HeaderBearingRequest,
-    @Param('id') id: string,
-  ): Promise<ApiResponse<CatalogProductResponse>> {
-    const ctx = extractContext(req);
-    const data = await this.catalogService.getProductById(ctx.tenantId, id);
-    return success(data);
-  }
-
+  // NOTE: static routes must stay above the parameterised products/:id,
+  // otherwise "search" is captured as an id.
   @Get('products/search')
   async searchProducts(
     @Req() req: HeaderBearingRequest,
@@ -181,6 +191,16 @@ export class StorefrontController {
       ctx.customerId,
       parseLimit(limit, 20, 100),
     );
+    return success(data);
+  }
+
+  @Get('products/:id')
+  async getProductById(
+    @Req() req: HeaderBearingRequest,
+    @Param('id') id: string,
+  ): Promise<ApiResponse<CatalogProductResponse>> {
+    const ctx = extractContext(req);
+    const data = await this.catalogService.getProductById(ctx.tenantId, id);
     return success(data);
   }
 
@@ -312,7 +332,7 @@ export class StorefrontController {
   @Post('cart/coupon')
   async applyCoupon(
     @Req() req: HeaderBearingRequest,
-    @Body() body: { couponCode: string },
+    @Body() body: ApplyCartCouponDto,
   ): Promise<ApiResponse<CartResponse>> {
     const ctx = extractContext(req);
     const cart = await this.cartService.getOrCreateCart(
@@ -629,7 +649,7 @@ export class StorefrontController {
   @Post('coupons/validate')
   async validateCoupon(
     @Req() req: HeaderBearingRequest,
-    @Body() body: { code: string; cartTotalPaise: number },
+    @Body() body: ValidateCouponDto,
   ): Promise<ApiResponse<CouponValidationResult>> {
     const ctx = extractContext(req);
     const data = await this.couponService.validateCoupon(

@@ -1008,19 +1008,19 @@ describe('CrmTrpcRouter procedure coverage', () => {
       );
     });
 
-    it('fails when the customer has no email on file', async () => {
+    it('fails with BAD_REQUEST when the customer has no email on file', async () => {
       prisma.customer.findFirst.mockResolvedValue({ email: null });
       await expect(
         caller.email.send({ customerId: CUSTOMER_ID, subject: 'Hi', html: '<p>x</p>' }),
-      ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' });
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: `Customer ${CUSTOMER_ID} has no email` });
       expect(emailService.sendEmail).not.toHaveBeenCalled();
     });
 
-    it('fails when the customer is not found in the tenant', async () => {
+    it('fails with BAD_REQUEST when the customer is not found in the tenant', async () => {
       prisma.customer.findFirst.mockResolvedValue(null);
       await expect(
         caller.email.send({ customerId: CUSTOMER_ID, subject: 'Hi', html: '<p>x</p>' }),
-      ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' });
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     });
   });
 
@@ -1051,11 +1051,11 @@ describe('CrmTrpcRouter procedure coverage', () => {
       });
     });
 
-    it('fails when the customer has no phone', async () => {
+    it('fails with BAD_REQUEST when the customer has no phone', async () => {
       prisma.customer.findFirst.mockResolvedValue({ phone: null });
       await expect(
         caller.sms.send({ customerId: CUSTOMER_ID, body: 'Order ready' }),
-      ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' });
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: `Customer ${CUSTOMER_ID} has no phone` });
       expect(smsService.sendSms).not.toHaveBeenCalled();
     });
   });
@@ -1206,7 +1206,7 @@ describe('CrmTrpcRouter procedure coverage', () => {
       );
     });
 
-    it('fails when the customer has no phone', async () => {
+    it('fails with BAD_REQUEST when the customer has no phone', async () => {
       prisma.customer.findFirst.mockResolvedValue({ phone: null });
       await expect(
         caller.whatsapp.sendTemplate({
@@ -1214,7 +1214,7 @@ describe('CrmTrpcRouter procedure coverage', () => {
           templateName: 'greeting',
           languageCode: 'en',
         }),
-      ).rejects.toMatchObject({ code: 'INTERNAL_SERVER_ERROR' });
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Customer has no phone number' });
       expect(whatsappService.sendTemplateMessage).not.toHaveBeenCalled();
     });
   });

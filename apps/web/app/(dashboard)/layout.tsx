@@ -3,9 +3,16 @@
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AppShell, Sidebar, Topbar } from '@caratflow/ui';
+import { AppShell, LinkProvider, Sidebar, Topbar } from '@caratflow/ui';
 import { useUiStore } from '@/store/ui-store';
 import { useAuthStore } from '@/store/auth-store';
+
+// Next's Link applies the app basePath (/admin) to every href.
+const renderLink = ({ href, children: linkChildren, className }: { href: string; children: React.ReactNode; className: string }) => (
+  <Link href={href} className={className}>
+    {linkChildren}
+  </Link>
+);
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -25,12 +32,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     logout();
     router.push('/login');
   };
-
-  const renderLink = ({ href, children: linkChildren, className }: { href: string; children: React.ReactNode; className: string }) => (
-    <Link href={href} className={className}>
-      {linkChildren}
-    </Link>
-  );
 
   return (
     <AppShell
@@ -59,7 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
       }
     >
-      {children}
+      <LinkProvider renderLink={renderLink}>{children}</LinkProvider>
     </AppShell>
   );
 }

@@ -59,3 +59,53 @@ describe('TrpcService', () => {
     expect(result.userId).toBe('user-1');
   });
 });
+
+describe('TrpcService principal separation', () => {
+  const service = new TrpcService();
+  const router = service.router({
+    customerOnly: service.customerProcedure.query(({ ctx }) => ({ customerId: ctx.userId })),
+    staffOnly: service.authedProcedure.query(({ ctx }) => ({ userId: ctx.userId })),
+  });
+  const staff = { tenantId: 't1', userId: 'staff-1', userPermissions: ['*'], principal: 'staff' as const };
+  const customer = { tenantId: 't1', userId: 'cust-1', userPermissions: [], principal: 'customer' as const };
+
+  it('customerProcedure rejects a staff token with FORBIDDEN', async () => {
+    await expect(router.createCaller(staff).customerOnly()).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+  it('customerProcedure rejects legacy contexts without principal', async () => {
+    const { principal: _p, ...legacy } = staff;
+    await expect(router.createCaller(legacy).customerOnly()).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+  it('customerProcedure rejects unauthenticated with UNAUTHORIZED', async () => {
+    await expect(router.createCaller({}).customerOnly()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
+  it('customerProcedure accepts a B2C customer token', async () => {
+    await expect(router.createCaller(customer).customerOnly()).resolves.toEqual({ customerId: 'cust-1' });
+  });
+  it('authedProcedure rejects a customer token with FORBIDDEN', async () => {
+    await expect(router.createCaller(customer).staffOnly()).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+  it('authedProcedure still accepts staff', async () => {
+    await expect(router.createCaller(staff).staffOnly()).resolves.toEqual({ userId: 'staff-1' });
+  });
+});
+
+describe('TrpcService anyPrincipalProcedure', () => {
+  const service = new TrpcService();
+  const router = service.router({
+    either: service.anyPrincipalProcedure.query(({ ctx }) => ({ id: ctx.userId })),
+  });
+  it('accepts staff', async () => {
+    await expect(
+      router.createCaller({ tenantId: 't1', userId: 's1', userPermissions: ['*'], principal: 'staff' }).either(),
+    ).resolves.toEqual({ id: 's1' });
+  });
+  it('accepts customer', async () => {
+    await expect(
+      router.createCaller({ tenantId: 't1', userId: 'c1', principal: 'customer' }).either(),
+    ).resolves.toEqual({ id: 'c1' });
+  });
+  it('rejects no token', async () => {
+    await expect(router.createCaller({}).either()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
+});

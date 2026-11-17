@@ -3,6 +3,8 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
+import type { DetailStateErrorLike } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function GirviDetailPage() {
@@ -13,11 +15,14 @@ export default function GirviDetailPage() {
     useQuery: (
       input: { id: string },
       opts: { enabled: boolean },
-    ) => { data: unknown; isLoading: boolean };
+    ) => { data: unknown; isLoading: boolean; error: DetailStateErrorLike | null; refetch: () => unknown };
   }).useQuery({ id }, { enabled: Boolean(id) });
-  const { data, isLoading } = query;
+  const { data, isLoading, error, refetch } = query;
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Girvi loan', backHref: '/finance/girvi', onRetry: () => refetch(),
+  });
+  if (state) return state;
   const g = data as Record<string, unknown>;
   const customer = g.customer as { firstName?: string; lastName?: string } | undefined;
 

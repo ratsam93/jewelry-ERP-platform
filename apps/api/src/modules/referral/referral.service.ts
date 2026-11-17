@@ -2,7 +2,7 @@
 // Core referral rewards engine: program config, code generation,
 // referral tracking, reward calculation and issuance.
 
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
@@ -47,9 +47,10 @@ export class ReferralService extends TenantAwareService {
   }
 
   async updateProgram(tenantId: string, userId: string, programId: string, input: Partial<ReferralProgramInput>) {
-    await this.prisma.referralProgram.findFirstOrThrow({
+    const found = await this.prisma.referralProgram.findFirst({
       where: { id: programId, tenantId },
     });
+    if (!found) throw new NotFoundException('Referral program not found');
     return this.prisma.referralProgram.update({
       where: { id: programId },
       data: {
@@ -86,9 +87,11 @@ export class ReferralService extends TenantAwareService {
   }
 
   async getProgram(tenantId: string, programId: string) {
-    return this.prisma.referralProgram.findFirstOrThrow({
+    const found = await this.prisma.referralProgram.findFirst({
       where: { id: programId, tenantId },
     });
+    if (!found) throw new NotFoundException('Referral program not found');
+    return found;
   }
 
   // ─── Referral Code ─────────────────────────────────────────────
@@ -96,7 +99,7 @@ export class ReferralService extends TenantAwareService {
   /** Generate a unique referral code for a customer */
   async generateReferralCode(tenantId: string, customerId: string): Promise<{ code: string; id: string }> {
     const program = await this.getActiveProgram(tenantId);
-    if (!program) throw new Error('No active referral program');
+    if (!program) throw new NotFoundException('No active referral program');
 
     // Check if customer already has an active code for this program
     const existing = await this.prisma.referralCode.findFirst({
@@ -154,19 +157,19 @@ export class ReferralService extends TenantAwareService {
       include: { program: true },
     });
 
-    if (!referralCode) throw new Error('Invalid or inactive referral code');
-    if (referralCode.tenantId !== tenantId) throw new Error('Referral code not valid for this store');
+    if (!referralCode) throw new NotFoundException('Invalid or inactive referral code');
+    if (referralCode.tenantId !== tenantId) throw new BadRequestException('Referral code not valid for this store');
 
     // Validate program is still active
     const now = new Date();
-    if (!referralCode.program.isActive) throw new Error('Referral program is no longer active');
+    if (!referralCode.program.isActive) throw new BadRequestException('Referral program is no longer active');
     if (referralCode.program.validTo && referralCode.program.validTo < now) {
-      throw new Error('Referral program has expired');
+      throw new BadRequestException('Referral program has expired');
     }
 
     // Cannot refer yourself
     if (referralCode.customerId === refereeId) {
-      throw new Error('Cannot use your own referral code');
+      throw new BadRequestException('Cannot use your own referral code');
     }
 
     // Check if referee already has a referral from this referrer
@@ -177,7 +180,7 @@ export class ReferralService extends TenantAwareService {
         referrerId: referralCode.customerId,
       },
     });
-    if (existingReferral) throw new Error('You have already been referred by this customer');
+    if (existingReferral) throw new ConflictException('You have already been referred by this customer');
 
     // Check max referrals limit
     if (referralCode.program.maxReferralsPerCustomer) {
@@ -189,7 +192,7 @@ export class ReferralService extends TenantAwareService {
         },
       });
       if (referralCount >= referralCode.program.maxReferralsPerCustomer) {
-        throw new Error('Referrer has reached maximum referral limit');
+        throw new BadRequestException('Referrer has reached maximum referral limit');
       }
     }
 
@@ -225,18 +228,19 @@ export class ReferralService extends TenantAwareService {
     orderId: string,
     orderAmountPaise: bigint,
   ) {
-    const referral = await this.prisma.referral.findFirstOrThrow({
+    const referral = await this.prisma.referral.findFirst({
       where: { id: referralId, tenantId },
       include: {
         referralCode: { include: { program: true } },
       },
     });
+    if (!referral) throw new NotFoundException('Referral not found');
 
     if (referral.status === 'REWARDED') {
-      throw new Error('Referral has already been rewarded');
+      throw new ConflictException('Referral has already been rewarded');
     }
     if (referral.status === 'EXPIRED') {
-      throw new Error('Referral has expired');
+      throw new BadRequestException('Referral has expired');
     }
 
     const program = referral.referralCode.program;
@@ -456,12 +460,13 @@ export class ReferralService extends TenantAwareService {
 
   /** Credit a payout */
   async creditPayout(tenantId: string, userId: string, payoutId: string) {
-    const payout = await this.prisma.referralPayout.findFirstOrThrow({
+    const payout = await this.prisma.referralPayout.findFirst({
       where: { id: payoutId, tenantId },
     });
+    if (!payout) throw new NotFoundException('Referral payout not found');
 
     if (payout.status !== 'PENDING') {
-      throw new Error(`Payout is already ${payout.status}`);
+      throw new ConflictException(`Payout is already ${payout.status}`);
     }
 
     return this.prisma.referralPayout.update({

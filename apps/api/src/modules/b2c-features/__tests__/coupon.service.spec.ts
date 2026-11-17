@@ -41,9 +41,9 @@ describe('CouponService (B2C)', () => {
 
     (mockPrisma as any).couponCode = {
       findUnique: vi.fn(),
-      findUniqueOrThrow: vi.fn(),
+      findUnique: vi.fn(),
       findFirst: vi.fn(),
-      findFirstOrThrow: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       createMany: vi.fn(),
@@ -251,7 +251,7 @@ describe('CouponService (B2C)', () => {
 
   describe('applyCoupon', () => {
     it('returns discount for valid coupon', async () => {
-      (mockPrisma as any).couponCode.findUniqueOrThrow.mockResolvedValue(baseCoupon);
+      (mockPrisma as any).couponCode.findUnique.mockResolvedValue(baseCoupon);
 
       const discount = await service.applyCoupon(
         TEST_TENANT_ID, 'SAVE10', 5000000, cartItems,

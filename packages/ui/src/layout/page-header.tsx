@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useRenderLink, type RenderLink } from './link-context';
 
 interface Breadcrumb {
   label: string;
@@ -15,7 +16,8 @@ interface PageHeaderProps {
   breadcrumbs?: Breadcrumb[];
   actions?: React.ReactNode;
   className?: string;
-  renderLink?: (props: { href: string; children: React.ReactNode; className: string }) => React.ReactNode;
+  /** Overrides the link renderer from LinkProvider for this header only. */
+  renderLink?: RenderLink;
 }
 
 export function PageHeader({
@@ -26,9 +28,8 @@ export function PageHeader({
   className,
   renderLink,
 }: PageHeaderProps) {
-  const Link = renderLink ?? (({ href, children, className: cls }) => (
-    <a href={href} className={cls}>{children}</a>
-  ));
+  const contextRenderLink = useRenderLink();
+  const Link = renderLink ?? contextRenderLink;
 
   return (
     <div className={cn('space-y-1', className)}>
@@ -39,11 +40,9 @@ export function PageHeader({
             <React.Fragment key={i}>
               {i > 0 && <ChevronRight className="h-3.5 w-3.5" />}
               {crumb.href ? (
-                Link({
-                  href: crumb.href,
-                  className: 'hover:text-foreground transition-colors',
-                  children: crumb.label,
-                })
+                <Link href={crumb.href} className="hover:text-foreground transition-colors">
+                  {crumb.label}
+                </Link>
               ) : (
                 <span className="text-foreground font-medium">{crumb.label}</span>
               )}

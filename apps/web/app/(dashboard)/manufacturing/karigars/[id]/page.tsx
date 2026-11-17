@@ -4,16 +4,18 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatCard, StatusBadge } from '@caratflow/ui';
 import { User, TrendingUp } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatMg } from '@/components/format';
 
 export default function KarigarDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading } = trpc.manufacturing.karigar.getById.useQuery({ id }, { enabled: Boolean(id) });
+  const { data, isLoading, error } = trpc.manufacturing.karigar.getById.useQuery({ id }, { enabled: Boolean(id) });
   const { data: balance } = trpc.manufacturing.karigar.getMetalBalance.useQuery({ karigarId: id }, { enabled: Boolean(id) });
   const { data: performance } = trpc.manufacturing.karigar.getPerformance.useQuery({ karigarId: id }, { enabled: Boolean(id) });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({ isLoading, error, data, entity: 'Karigar', backHref: '/manufacturing/karigars' });
+  if (state) return state;
   const k = data as Record<string, unknown>;
   const bal = (balance as Record<string, unknown> | undefined) ?? {};
   const perf = (performance as Record<string, unknown> | undefined) ?? {};

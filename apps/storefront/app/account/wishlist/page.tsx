@@ -5,34 +5,26 @@ import Link from "next/link";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { formatPrice } from "@/lib/utils";
+import { lookupProducts } from "@/lib/product-lookup";
 
+/** Shape returned by GET /store/wishlist (StorefrontWishlistService.getWishlist). */
 interface WishlistItem {
   id: string;
   productId: string;
-  product?: {
-    id: string;
-    name?: string;
-    title?: string;
-    sku?: string;
-    images?: Array<{ url: string; isPrimary?: boolean } | string>;
-    pricePaise?: number;
-    listingPricePaise?: number;
-  };
+  productName?: string;
+  productSku?: string;
+  productImage?: string | null;
+  productType?: string;
+  currentPricePaise?: number;
+  stockStatus?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
   priceAlertEnabled?: boolean;
-  targetPricePaise?: number;
+  priceAlertThresholdPaise?: number | null;
   addedAt?: string;
 }
 
 interface WishlistResponse {
   items?: WishlistItem[];
   total?: number;
-}
-
-function imageUrl(product: WishlistItem["product"]): string | null {
-  if (!product?.images?.length) return null;
-  const first = product.images[0];
-  if (typeof first === "string") return first;
-  return first?.url ?? null;
 }
 
 export default function AccountWishlistPage() {
@@ -67,10 +59,19 @@ export default function AccountWishlistPage() {
         method: "DELETE",
         tenantHeaders: true,
       });
-      setItems((prev) => (prev ? prev.filter((it) => it.productId !== productId && it.product?.id !== productId) : prev));
+      setItems((prev) => (prev ? prev.filter((it) => it.productId !== productId) : prev));
     } catch (err) {
       alert(err instanceof Error ? err.message : "Could not remove item");
     }
+  }
+
+  async function handleAddToCart(productId: string) {
+    const [product] = await lookupProducts([productId]);
+    if (!product) {
+      setError("Could not load this product. Please try again.");
+      return;
+    }
+    addToCart(product);
   }
 
   if (items === null) {
@@ -101,11 +102,10 @@ export default function AccountWishlistPage() {
       ) : (
         <div className="space-y-4">
           {items.map((item) => {
-            const product = item.product;
-            const productId = product?.id ?? item.productId;
-            const name = product?.name ?? product?.title ?? "Product";
-            const img = imageUrl(product);
-            const price = product?.pricePaise ?? product?.listingPricePaise ?? 0;
+            const productId = item.productId;
+            const name = item.productName || "Product";
+            const img = item.productImage || null;
+            const price = item.currentPricePaise ?? 0;
             return (
               <div key={item.id} className="flex items-center gap-4 bg-white rounded-xl border border-gray-100 p-4">
                 <Link href={`/product/${productId}`} className="w-20 h-20 rounded-lg overflow-hidden bg-warm-gray flex-shrink-0">
@@ -119,22 +119,21 @@ export default function AccountWishlistPage() {
                   <Link href={`/product/${productId}`} className="text-sm font-medium text-navy hover:text-gold transition-colors">
                     {name}
                   </Link>
-                  {product?.sku && <p className="text-xs text-navy/40 mt-0.5">SKU: {product.sku}</p>}
+                  {item.productSku && <p className="text-xs text-navy/40 mt-0.5">SKU: {item.productSku}</p>}
                   {price > 0 && <p className="text-sm font-bold text-navy mt-1">{formatPrice(price)}</p>}
                   {item.priceAlertEnabled && (
                     <p className="text-[10px] text-emerald-600 mt-0.5">Price alert enabled</p>
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
-                  {product && (
-                    <button
-                      type="button"
-                      onClick={() => addToCart(product as Parameters<typeof addToCart>[0])}
-                      className="px-4 py-2 bg-gold text-white text-xs font-semibold rounded-lg hover:bg-gold-dark transition-colors"
-                    >
-                      Add to Cart
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleAddToCart(productId)}
+                    disabled={item.stockStatus === "OUT_OF_STOCK"}
+                    className="px-4 py-2 bg-gold text-white text-xs font-semibold rounded-lg hover:bg-gold-dark transition-colors disabled:opacity-50"
+                  >
+                    {item.stockStatus === "OUT_OF_STOCK" ? "Out of stock" : "Add to Cart"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleRemove(productId)}

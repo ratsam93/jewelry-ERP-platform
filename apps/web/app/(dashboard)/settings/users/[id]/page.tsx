@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { Save, ShieldCheck, Key } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 
 interface UserDetail {
   id: string;
@@ -151,6 +152,16 @@ export default function UserDetailPage() {
     }
   };
 
+  const state = renderDetailState({
+    isLoading: userQuery.isLoading,
+    error: userQuery.error,
+    data: userQuery.data,
+    entity: 'User',
+    backHref: '/settings/users',
+    onRetry: () => void userQuery.refetch(),
+  });
+  if (state) return state;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -174,10 +185,6 @@ export default function UserDetailPage() {
         >
           {banner.message}
         </div>
-      )}
-
-      {userQuery.isLoading && (
-        <div className="rounded-lg border bg-card py-8 text-center text-sm text-muted-foreground">Loading user...</div>
       )}
 
       {/* Profile Section */}

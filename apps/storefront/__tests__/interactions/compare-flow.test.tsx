@@ -3,13 +3,26 @@
  * Covers side-by-side comparison, spec rows, add to cart, and remove.
  */
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ComparePage from "@/app/compare/page";
 import { StoreContext, type StoreState } from "@/lib/store";
-import { mockProducts } from "@/lib/mock-data";
+import { mapProduct } from "@/lib/catalog";
+import { clearProductLookupCache } from "@/lib/product-lookup";
+import { apiProductA, apiProductB } from "../fixtures/api-catalog";
+import { installStoreApi } from "../fixtures/store-api";
+
+const mockProducts = [mapProduct(apiProductA), mapProduct(apiProductB)];
+
+beforeEach(() => {
+  clearProductLookupCache();
+  installStoreApi();
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 vi.mock("next/navigation", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("next/navigation");
@@ -64,24 +77,24 @@ function renderCompare(compareIds: string[], overrides?: Partial<StoreState>) {
 }
 
 describe("Compare Flow", () => {
-  it("shows minimum products message when fewer than 2 products selected", () => {
+  it("shows minimum products message when fewer than 2 products selected", async () => {
     renderCompare([mockProducts[0]!.id]);
-    expect(screen.getByText(/add at least 2 products to compare/i)).toBeInTheDocument();
+    expect(await screen.findByText(/add at least 2 products to compare/i)).toBeInTheDocument();
     expect(screen.getByText(/you have 1 selected/i)).toBeInTheDocument();
   });
 
-  it("renders products side by side when 2+ products are selected", () => {
+  it("renders products side by side when 2+ products are selected", async () => {
     const ids = [mockProducts[0]!.id, mockProducts[1]!.id];
     renderCompare(ids);
-    expect(screen.getByText("Compare Products (2)")).toBeInTheDocument();
+    expect(await screen.findByText("Compare Products (2)")).toBeInTheDocument();
     expect(screen.getByText(mockProducts[0]!.name)).toBeInTheDocument();
     expect(screen.getByText(mockProducts[1]!.name)).toBeInTheDocument();
   });
 
-  it("shows specification rows aligned for both products", () => {
+  it("shows specification rows aligned for both products", async () => {
     const ids = [mockProducts[0]!.id, mockProducts[1]!.id];
     renderCompare(ids);
-    expect(screen.getByText("Metal Type")).toBeInTheDocument();
+    expect(await screen.findByText("Metal Type")).toBeInTheDocument();
     expect(screen.getByText("Purity")).toBeInTheDocument();
     expect(screen.getByText("Gross Weight")).toBeInTheDocument();
     expect(screen.getByText("Net Weight")).toBeInTheDocument();
@@ -92,7 +105,7 @@ describe("Compare Flow", () => {
     const ids = [mockProducts[0]!.id, mockProducts[1]!.id];
     const user = userEvent.setup();
     renderCompare(ids, { addToCart: addToCartFn });
-    const addButtons = screen.getAllByRole("button", { name: /add to cart/i });
+    const addButtons = await screen.findAllByRole("button", { name: /add to cart/i });
     expect(addButtons.length).toBe(2);
     await user.click(addButtons[0]!);
     expect(addToCartFn).toHaveBeenCalledWith(mockProducts[0]);
@@ -103,6 +116,7 @@ describe("Compare Flow", () => {
     const ids = [mockProducts[0]!.id, mockProducts[1]!.id];
     const user = userEvent.setup();
     renderCompare(ids, { removeFromCompare: removeFn });
+    await screen.findByText("Compare Products (2)");
     // Find the close/remove buttons (X icons in the header)
     const removeButtons = screen.getAllByRole("button").filter(
       (btn) => btn.querySelector("svg path[d*='M6 18L18 6']") !== null,

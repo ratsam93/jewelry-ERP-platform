@@ -1,5 +1,6 @@
 'use client';
 
+import { pickDefaultLocation, type PosBranch } from '@/lib/pos-location';
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, User, Printer, AlertCircle, CheckCircle2, Search, X } from 'lucide-react';
@@ -57,12 +58,7 @@ interface CustomerRow {
   email: string | null;
 }
 
-interface BranchRow {
-  id: string;
-  name: string;
-  locationType: string;
-  isActive?: boolean;
-}
+type BranchRow = PosBranch;
 
 // ─── Live metal rates ─────────────────────────────────────────────
 interface LiveRateRow {
@@ -117,13 +113,30 @@ export default function PosPage() {
     () => (branchesQuery.data as BranchRow[] | undefined) ?? [],
     [branchesQuery.data],
   );
-  const [locationId, setLocationId] = React.useState<string>('');
+  const [locationId, setLocationIdState] = React.useState<string>('');
+  const userPickedLocation = React.useRef(false);
+  const setLocationId = (id: string) => {
+    userPickedLocation.current = true;
+    setLocationIdState(id);
+  };
+  // Which locations hold stock (unfiltered query), so we default to one with products.
+  const stockOverviewQuery = trpc.inventory.stockItems.list.useQuery(
+    { page: 1, limit: 100, sortOrder: 'desc' as const },
+    { enabled: branches.length > 0 },
+  );
+  const locationsWithStock = React.useMemo(() => {
+    const data = stockOverviewQuery.data as { items?: StockItemRow[] } | undefined;
+    if (!data?.items) return null;
+    return new Set(
+      data.items.filter((i) => (i.quantityAvailable ?? i.quantityOnHand ?? 0) > 0).map((i) => i.locationId),
+    );
+  }, [stockOverviewQuery.data]);
   React.useEffect(() => {
-    if (!locationId && branches.length > 0) {
-      const showroom = branches.find((b) => b.locationType === 'SHOWROOM') ?? branches[0];
-      setLocationId(showroom.id);
-    }
-  }, [branches, locationId]);
+    if (userPickedLocation.current || branches.length === 0) return;
+    if (stockOverviewQuery.isLoading) return;
+    const next = pickDefaultLocation(branches, locationsWithStock);
+    if (next && next !== locationId) setLocationIdState(next);
+  }, [branches, locationsWithStock, stockOverviewQuery.isLoading, locationId]);
 
   // ─── Product search (debounced) ─────────────────────────────────
   const [productSearch, setProductSearch] = React.useState('');

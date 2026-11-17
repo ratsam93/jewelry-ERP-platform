@@ -3,16 +3,18 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatMg } from '@/components/format';
 
 export default function BomDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading, refetch } = trpc.manufacturing.bom.getById.useQuery({ id }, { enabled: Boolean(id) });
+  const { data, isLoading, error, refetch } = trpc.manufacturing.bom.getById.useQuery({ id }, { enabled: Boolean(id) });
   const activate = trpc.manufacturing.bom.activate.useMutation({ onSuccess: () => refetch() });
   const archive = trpc.manufacturing.bom.archive.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({ isLoading, error, data, entity: 'BOM', backHref: '/manufacturing/bom', onRetry: () => refetch() });
+  if (state) return state;
   const b = data as Record<string, unknown>;
   const components = (b.components as Array<Record<string, unknown>>) ?? [];
   const status = b.status as string;

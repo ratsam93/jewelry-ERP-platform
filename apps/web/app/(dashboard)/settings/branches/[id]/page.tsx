@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { Save } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 
 type LocationType = 'SHOWROOM' | 'WAREHOUSE' | 'WORKSHOP' | 'OFFICE';
 
@@ -102,6 +103,16 @@ export default function BranchDetailPage() {
 
   const isSaving = updateBranchMutation.isPending || updateSettingsMutation.isPending;
 
+  const state = renderDetailState({
+    isLoading: branchQuery.isLoading,
+    error: branchQuery.error,
+    data: branchQuery.data,
+    entity: 'Branch',
+    backHref: '/settings/branches',
+    onRetry: () => void branchQuery.refetch(),
+  });
+  if (state) return state;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -125,10 +136,6 @@ export default function BranchDetailPage() {
         >
           {banner.message}
         </div>
-      )}
-
-      {branchQuery.isLoading && (
-        <div className="rounded-lg border bg-card py-8 text-center text-sm text-muted-foreground">Loading branch...</div>
       )}
 
       {/* General Info */}

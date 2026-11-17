@@ -2,17 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useStore } from "@/lib/store";
+import { useStore, cartSubtotalPaise, itemLinePaise, itemUnitPaise } from "@/lib/store";
 import { calculateProductPrice, formatRupees, cn } from "@/lib/utils";
-import { apiFetch, ApiError } from "@/lib/api";
-
-interface CouponValidationResult {
-  isValid: boolean;
-  reason?: string;
-  discountAmountPaise?: number;
-  discountType?: string;
-  message?: string;
-}
 
 export default function CartPage() {
   const {
@@ -23,20 +14,22 @@ export default function CartPage() {
     couponCode,
     setCouponCode,
     couponDiscount,
-    setCouponDiscount,
+    applyCoupon,
+    cartTotals,
+    cartLoading,
+    cartError,
+    refreshCart,
   } = useStore();
   const [couponMsg, setCouponMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [applying, setApplying] = useState(false);
 
-  const subtotal = cartItems.reduce((sum, item) => {
-    const price = calculateProductPrice(item.product);
-    return sum + price.total * item.quantity;
-  }, 0);
-
-  const discount = couponDiscount;
-  const afterDiscount = subtotal - discount;
-  const shipping = subtotal >= 200000 ? 0 : 49900; // Free shipping over Rs 2000
-  const total = afterDiscount + shipping;
+  // Real totals come from the API cart (integer paise). The API prices include GST and
+  // carry no shipping charge, so shipping is free whenever server totals are present.
+  const subtotal = cartTotals?.subtotalPaise ?? cartSubtotalPaise(cartItems);
+  const discount = cartTotals ? cartTotals.discountPaise : couponDiscount;
+  const shipping = cartTotals ? 0 : subtotal >= 200000 ? 0 : 49900;
+  const total = cartTotals ? cartTotals.totalPaise : subtotal - discount + shipping;
+  const appliedCode = cartTotals?.couponCode ?? null;
 
   async function handleApplyCoupon() {
     setCouponMsg(null);
@@ -44,30 +37,38 @@ export default function CartPage() {
       setCouponMsg({ type: "err", text: "Enter a coupon code." });
       return;
     }
+    if (!applyCoupon) return;
     setApplying(true);
     try {
-      const result = await apiFetch<CouponValidationResult>("/api/v1/store/coupons/validate", {
-        method: "POST",
-        tenantHeaders: true,
-        body: { code: couponCode.trim().toUpperCase(), cartTotalPaise: subtotal },
-      });
-      if (result.isValid) {
-        setCouponDiscount(result.discountAmountPaise ?? 0);
-        setCouponMsg({ type: "ok", text: `Coupon applied: -${formatRupees((result.discountAmountPaise ?? 0) / 100)}` });
-      } else {
-        setCouponDiscount(0);
-        setCouponMsg({ type: "err", text: result.reason || result.message || "Invalid coupon" });
-      }
-    } catch (err) {
-      setCouponDiscount(0);
-      if (err instanceof ApiError && err.status === 401) {
-        setCouponMsg({ type: "err", text: "Please sign in to apply a coupon." });
-      } else {
-        setCouponMsg({ type: "err", text: err instanceof Error ? err.message : "Could not apply coupon" });
-      }
+      const result = await applyCoupon(couponCode);
+      setCouponMsg({ type: result.ok ? "ok" : "err", text: result.message });
     } finally {
       setApplying(false);
     }
+  }
+
+  if (cartItems.length === 0 && cartLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 text-center text-navy/50 text-sm" role="status">
+        Loading your cart...
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0 && cartError) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 text-center">
+        <h1 className="text-2xl font-bold text-navy mb-2">We couldn&apos;t load your cart</h1>
+        <p role="alert" className="text-rose-500 text-sm mb-6">{cartError}</p>
+        <button
+          type="button"
+          onClick={() => void refreshCart?.()}
+          className="inline-block bg-gold text-white font-semibold px-8 py-3 rounded-lg hover:bg-gold-dark transition-colors"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   if (cartItems.length === 0) {
@@ -100,10 +101,15 @@ export default function CartPage() {
         </button>
       </div>
 
+      {cartError && (
+        <p role="alert" className="mb-4 rounded-lg bg-rose-50 text-rose-600 text-sm px-4 py-3">{cartError}</p>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cart items */}
         <div className="lg:col-span-2 space-y-4">
           {cartItems.map((item) => {
+            const hasServerPrice = item.unitPricePaise !== undefined;
             const price = calculateProductPrice(item.product);
             const primaryImage = item.product.images.find((img) => img.isPrimary) ?? item.product.images[0];
 
@@ -127,6 +133,7 @@ export default function CartPage() {
                     <button
                       type="button"
                       onClick={() => removeFromCart(item.id)}
+                      aria-label={`Remove ${item.product.name} from cart`}
                       className="text-navy/30 hover:text-rose-500 transition-colors p-1"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -137,9 +144,15 @@ export default function CartPage() {
 
                   {/* Price breakdown mini */}
                   <div className="mt-2 text-xs text-navy/40">
-                    Metal: {formatRupees(price.metalValue / 100)} + Making: {formatRupees(price.makingCharges / 100)}
-                    {price.stoneCharges > 0 && ` + Stones: ${formatRupees(price.stoneCharges / 100)}`}
-                    {` + GST: ${formatRupees(price.gst / 100)}`}
+                    {hasServerPrice ? (
+                      <>{formatRupees(itemUnitPaise(item) / 100)} each (incl. GST)</>
+                    ) : (
+                      <>
+                        Metal: {formatRupees(price.metalValue / 100)} + Making: {formatRupees(price.makingCharges / 100)}
+                        {price.stoneCharges > 0 && ` + Stones: ${formatRupees(price.stoneCharges / 100)}`}
+                        {` + GST: ${formatRupees(price.gst / 100)}`}
+                      </>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between mt-3">
@@ -161,7 +174,7 @@ export default function CartPage() {
                       </button>
                     </div>
                     <span className="font-bold text-navy">
-                      {formatRupees((price.total * item.quantity) / 100)}
+                      {formatRupees(itemLinePaise(item) / 100)}
                     </span>
                   </div>
                 </div>
@@ -202,6 +215,9 @@ export default function CartPage() {
                   {applying ? "..." : "Apply"}
                 </button>
               </div>
+              {appliedCode && !couponMsg && (
+                <p className="text-xs mt-1.5 text-emerald-600">Coupon {appliedCode} applied.</p>
+              )}
               {couponMsg && (
                 <p className={cn(
                   "text-xs mt-1.5",

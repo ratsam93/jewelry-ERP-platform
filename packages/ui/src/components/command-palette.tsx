@@ -50,6 +50,10 @@ export function CommandPalette({ items, placeholder = 'Type a command or search.
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
         <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-lg border bg-background shadow-lg">
+          <DialogPrimitive.Title className="sr-only">Command palette</DialogPrimitive.Title>
+          <DialogPrimitive.Description className="sr-only">
+            Type a command or search, then use the arrow keys and Enter to run an item.
+          </DialogPrimitive.Description>
           <CommandPrimitive className="flex h-full w-full flex-col overflow-hidden">
             <div className="flex items-center border-b px-3">
               <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />

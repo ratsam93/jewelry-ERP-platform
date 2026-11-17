@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -333,6 +334,11 @@ export class B2CAuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current B2C customer profile' })
   async getProfile(@Req() req: Request) {
+    const header = req.headers['x-tenant-id'];
+    const headerTenant = Array.isArray(header) ? header[0] : header;
+    if (headerTenant && req.b2cTenantId && headerTenant !== req.b2cTenantId) {
+      throw new UnauthorizedException('Token does not belong to this tenant');
+    }
     const customerAuthId = req.customerAuthId!;
     const profile = await this.b2cAuthService.getProfile(customerAuthId);
     return { success: true, data: profile };

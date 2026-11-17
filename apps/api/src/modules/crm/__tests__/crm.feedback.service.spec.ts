@@ -8,7 +8,7 @@ describe('CrmFeedbackService', () => {
   beforeEach(() => {
     prisma = createMockPrismaService();
     resetMocks(prisma);
-    ['feedback'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirstOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn(), aggregate: vi.fn(), groupBy: vi.fn() }; });
+    ['feedback'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn(), aggregate: vi.fn(), groupBy: vi.fn() }; });
     service = new CrmFeedbackService(prisma as never);
   });
 
@@ -22,7 +22,7 @@ describe('CrmFeedbackService', () => {
 
   describe('reviewFeedback', () => {
     it('should set status to REVIEWED', async () => {
-      (prisma as any).feedback.findFirstOrThrow.mockResolvedValue({ id: 'f-1' });
+      (prisma as any).feedback.findFirst.mockResolvedValue({ id: 'f-1' });
       (prisma as any).feedback.update.mockResolvedValue({ id: 'f-1', status: 'REVIEWED' });
       const r = await service.reviewFeedback(tenantId, userId, 'f-1');
       expect(r.status).toBe('REVIEWED');
@@ -31,7 +31,7 @@ describe('CrmFeedbackService', () => {
 
   describe('actionFeedback', () => {
     it('should set status to ACTIONED', async () => {
-      (prisma as any).feedback.findFirstOrThrow.mockResolvedValue({ id: 'f-1' });
+      (prisma as any).feedback.findFirst.mockResolvedValue({ id: 'f-1' });
       (prisma as any).feedback.update.mockResolvedValue({ id: 'f-1', status: 'ACTIONED' });
       const r = await service.actionFeedback(tenantId, userId, 'f-1');
       expect(r.status).toBe('ACTIONED');

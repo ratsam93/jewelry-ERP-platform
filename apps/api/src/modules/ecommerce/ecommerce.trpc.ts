@@ -1,7 +1,7 @@
 // ─── E-Commerce tRPC Router ───────────────────────────────────
 // All tRPC procedures for the e-commerce module.
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { partialUpdate } from '@caratflow/shared-types';
 import { z } from 'zod';
 import { Prisma } from '@caratflow/db';
@@ -110,7 +110,7 @@ export class EcommerceTrpcRouter {
           const channel = await this.prisma.salesChannel.findFirst({
             where: { id: input.channelId, tenantId: ctx.tenantId },
           });
-          if (!channel) throw new Error('Channel not found');
+          if (!channel) throw new NotFoundException('Channel not found');
           return {
             id: channel.id,
             tenantId: channel.tenantId,

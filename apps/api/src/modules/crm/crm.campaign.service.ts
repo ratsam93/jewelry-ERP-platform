@@ -1,7 +1,7 @@
 // ─── CRM Campaign Service ──────────────────────────────────────
 // Campaign management: create, preview audience, schedule, execute, track.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
@@ -42,9 +42,10 @@ export class CrmCampaignService extends TenantAwareService {
   }
 
   async updateCampaign(tenantId: string, userId: string, campaignId: string, input: Partial<CampaignInput>) {
-    await this.prisma.campaign.findFirstOrThrow({
+    const found = await this.prisma.campaign.findFirst({
       where: { id: campaignId, tenantId, status: { in: ['DRAFT', 'SCHEDULED'] } },
     });
+    if (!found) throw new NotFoundException('Campaign not found');
     return this.prisma.campaign.update({
       where: { id: campaignId },
       data: {
@@ -58,10 +59,12 @@ export class CrmCampaignService extends TenantAwareService {
   }
 
   async getCampaign(tenantId: string, campaignId: string) {
-    return this.prisma.campaign.findFirstOrThrow({
+    const found = await this.prisma.campaign.findFirst({
       where: { id: campaignId, tenantId },
       include: { template: true },
     });
+    if (!found) throw new NotFoundException('Campaign not found');
+    return found;
   }
 
   async listCampaigns(tenantId: string, page = 1, limit = 20, status?: string) {
@@ -101,12 +104,13 @@ export class CrmCampaignService extends TenantAwareService {
 
   /** Execute a campaign: send notifications to all matching customers */
   async executeCampaign(tenantId: string, userId: string, campaignId: string) {
-    const campaign = await this.prisma.campaign.findFirstOrThrow({
+    const campaign = await this.prisma.campaign.findFirst({
       where: { id: campaignId, tenantId, status: { in: ['DRAFT', 'SCHEDULED'] } },
     });
+    if (!campaign) throw new NotFoundException('Campaign not found');
 
     if (!campaign.templateId) {
-      throw new Error('Campaign must have a template assigned');
+      throw new BadRequestException('Campaign must have a template assigned');
     }
 
     // Get audience
@@ -167,9 +171,10 @@ export class CrmCampaignService extends TenantAwareService {
 
   /** Pause a running campaign */
   async pauseCampaign(tenantId: string, userId: string, campaignId: string) {
-    await this.prisma.campaign.findFirstOrThrow({
+    const found = await this.prisma.campaign.findFirst({
       where: { id: campaignId, tenantId, status: 'ACTIVE' },
     });
+    if (!found) throw new NotFoundException('Campaign not found');
     return this.prisma.campaign.update({
       where: { id: campaignId },
       data: { status: 'PAUSED', updatedBy: userId },
@@ -178,9 +183,10 @@ export class CrmCampaignService extends TenantAwareService {
 
   /** Cancel a campaign */
   async cancelCampaign(tenantId: string, userId: string, campaignId: string) {
-    await this.prisma.campaign.findFirstOrThrow({
+    const found = await this.prisma.campaign.findFirst({
       where: { id: campaignId, tenantId, status: { in: ['DRAFT', 'SCHEDULED', 'ACTIVE', 'PAUSED'] } },
     });
+    if (!found) throw new NotFoundException('Campaign not found');
     return this.prisma.campaign.update({
       where: { id: campaignId },
       data: { status: 'CANCELLED', updatedBy: userId },

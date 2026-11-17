@@ -11,6 +11,7 @@ import {
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { IndiaRatesService } from '../india/india.rates.service';
+import { requireCustomerScope } from './digital-gold.scope';
 import type {
   GoldPriceAlertInput,
   GoldPriceAlertResponse,
@@ -41,6 +42,7 @@ export class DigitalGoldAlertService extends TenantAwareService {
     customerId: string,
     input: GoldPriceAlertInput,
   ): Promise<GoldPriceAlertResponse> {
+    requireCustomerScope(tenantId, customerId);
     // Check alert limit
     const activeCount = await this.prisma.goldPriceAlert.count({
       where: { tenantId, customerId, status: 'ACTIVE' },
@@ -95,6 +97,7 @@ export class DigitalGoldAlertService extends TenantAwareService {
   // ─── Cancel Alert ─────────────────────────────────────────────
 
   async cancelAlert(tenantId: string, customerId: string, alertId: string): Promise<void> {
+    requireCustomerScope(tenantId, customerId);
     const alert = await this.prisma.goldPriceAlert.findFirst({
       where: { id: alertId, tenantId, customerId, status: 'ACTIVE' },
     });
@@ -117,6 +120,7 @@ export class DigitalGoldAlertService extends TenantAwareService {
     tenantId: string,
     customerId: string,
   ): Promise<GoldPriceAlertResponse[]> {
+    requireCustomerScope(tenantId, customerId);
     const alerts = await this.prisma.goldPriceAlert.findMany({
       where: { tenantId, customerId },
       orderBy: { createdAt: 'desc' },

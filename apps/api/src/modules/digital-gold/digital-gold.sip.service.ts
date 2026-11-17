@@ -2,16 +2,12 @@
 // Systematic Investment Plan: create, pause, resume, cancel, execute.
 // BullMQ cron triggers executeDueSips() daily.
 
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { IndiaRatesService } from '../india/india.rates.service';
 import { DigitalGoldService } from './digital-gold.service';
+import { requireCustomerScope } from './digital-gold.scope';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import {
   PaymentGatewayService,
@@ -59,6 +55,7 @@ export class DigitalGoldSipService extends TenantAwareService {
     customerId: string,
     input: CreateSipInput,
   ): Promise<SipResponse> {
+    requireCustomerScope(tenantId, customerId);
     const vault = await this.digitalGoldService.getOrCreateVault(tenantId, customerId);
 
     const nextDeductionDate = this.calculateNextDeductionDate(
@@ -97,8 +94,8 @@ export class DigitalGoldSipService extends TenantAwareService {
 
   // ─── Pause SIP ────────────────────────────────────────────────
 
-  async pauseSip(tenantId: string, sipId: string): Promise<SipResponse> {
-    const sip = await this.getSipOrThrow(tenantId, sipId);
+  async pauseSip(tenantId: string, customerId: string, sipId: string): Promise<SipResponse> {
+    const sip = await this.getSipOrThrow(tenantId, customerId, sipId);
 
     if (sip.status !== 'ACTIVE') {
       throw new BadRequestException(`Cannot pause SIP in ${sip.status} status`);
@@ -115,8 +112,8 @@ export class DigitalGoldSipService extends TenantAwareService {
 
   // ─── Resume SIP ───────────────────────────────────────────────
 
-  async resumeSip(tenantId: string, sipId: string): Promise<SipResponse> {
-    const sip = await this.getSipOrThrow(tenantId, sipId);
+  async resumeSip(tenantId: string, customerId: string, sipId: string): Promise<SipResponse> {
+    const sip = await this.getSipOrThrow(tenantId, customerId, sipId);
 
     if (sip.status !== 'PAUSED') {
       throw new BadRequestException(`Cannot resume SIP in ${sip.status} status`);
@@ -144,8 +141,8 @@ export class DigitalGoldSipService extends TenantAwareService {
 
   // ─── Cancel SIP ───────────────────────────────────────────────
 
-  async cancelSip(tenantId: string, sipId: string): Promise<SipResponse> {
-    const sip = await this.getSipOrThrow(tenantId, sipId);
+  async cancelSip(tenantId: string, customerId: string, sipId: string): Promise<SipResponse> {
+    const sip = await this.getSipOrThrow(tenantId, customerId, sipId);
 
     if (sip.status === 'CANCELLED' || sip.status === 'COMPLETED') {
       throw new BadRequestException(`SIP is already ${sip.status}`);
@@ -162,14 +159,15 @@ export class DigitalGoldSipService extends TenantAwareService {
 
   // ─── Get SIP Details ──────────────────────────────────────────
 
-  async getSip(tenantId: string, sipId: string): Promise<SipResponse> {
-    const sip = await this.getSipOrThrow(tenantId, sipId);
+  async getSip(tenantId: string, customerId: string, sipId: string): Promise<SipResponse> {
+    const sip = await this.getSipOrThrow(tenantId, customerId, sipId);
     return this.toSipResponse(sip);
   }
 
   // ─── Get Customer SIPs ────────────────────────────────────────
 
   async getCustomerSips(tenantId: string, customerId: string): Promise<SipResponse[]> {
+    requireCustomerScope(tenantId, customerId);
     const sips = await this.prisma.goldSip.findMany({
       where: { tenantId, customerId },
       orderBy: { createdAt: 'desc' },
@@ -179,8 +177,12 @@ export class DigitalGoldSipService extends TenantAwareService {
 
   // ─── Get SIP Execution History ────────────────────────────────
 
-  async getSipHistory(tenantId: string, sipId: string): Promise<SipExecutionResponse[]> {
-    await this.getSipOrThrow(tenantId, sipId);
+  async getSipHistory(
+    tenantId: string,
+    customerId: string,
+    sipId: string,
+  ): Promise<SipExecutionResponse[]> {
+    await this.getSipOrThrow(tenantId, customerId, sipId);
 
     const executions = await this.prisma.sipExecution.findMany({
       where: { tenantId, sipId },
@@ -263,7 +265,7 @@ export class DigitalGoldSipService extends TenantAwareService {
 
         // Update vault balance
         const vault = await tx.goldVault.findUnique({ where: { id: sip.vaultId } });
-        if (!vault) throw new Error('Vault not found');
+        if (!vault) throw new NotFoundException('Vault not found');
 
         const newBalance = Number(vault.balanceMg) + goldWeightMg;
         const newInvested = Number(vault.totalInvestedPaise) + amountPaise;
@@ -479,9 +481,10 @@ export class DigitalGoldSipService extends TenantAwareService {
 
   // ─── Private Helpers ──────────────────────────────────────────
 
-  private async getSipOrThrow(tenantId: string, sipId: string) {
+  private async getSipOrThrow(tenantId: string, customerId: string, sipId: string) {
+    requireCustomerScope(tenantId, customerId);
     const sip = await this.prisma.goldSip.findFirst({
-      where: this.tenantWhere(tenantId, { id: sipId }) as Record<string, unknown>,
+      where: this.tenantWhere(tenantId, { id: sipId, customerId }) as Record<string, unknown>,
     });
 
     if (!sip) {

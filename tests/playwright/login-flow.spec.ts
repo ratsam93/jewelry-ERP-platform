@@ -1,50 +1,59 @@
 import { test, expect } from '@playwright/test';
+import { E2E_CUSTOMER, loginSlot } from './helpers/auth';
 
 test.describe('B2C Login Flow E2E', () => {
-  test('Login page shows demo credentials banner', async ({ page }) => {
+  // Credentials are no longer printed on / pre-filled into the storefront login page.
+  test('Login page shows the form and does not print demo credentials', async ({ page }) => {
     await page.goto('/auth/login');
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('text=Demo Credentials')).toBeVisible();
-    await expect(page.locator('text=admin@sharmajewellers.com')).toBeVisible();
-    await expect(page.locator('text=admin123')).toBeVisible();
+    await expect(page.locator('input[type="email"]').first()).toBeVisible();
+    await expect(page.locator('body')).not.toContainText('admin123');
+    await expect(page.locator('body')).not.toContainText('admin@sharmajewellers.com');
   });
 
-  test('Email field is pre-filled', async ({ page }) => {
+  test('Email field starts empty and accepts input', async ({ page }) => {
     await page.goto('/auth/login');
     await page.waitForLoadState('networkidle');
     const email = page.locator('input[type="email"]').first();
-    await expect(email).toHaveValue('admin@sharmajewellers.com');
+    await expect(email).toHaveValue('');
+    await email.fill(E2E_CUSTOMER.email);
+    await expect(email).toHaveValue(E2E_CUSTOMER.email);
   });
 
-  test('Password field is pre-filled', async ({ page }) => {
+  test('Password field starts empty and accepts input', async ({ page }) => {
     await page.goto('/auth/login');
     await page.waitForLoadState('networkidle');
     const pwd = page.locator('input[type="password"]').first();
-    await expect(pwd).toHaveValue('admin123');
+    await expect(pwd).toHaveValue('');
+    await pwd.fill(E2E_CUSTOMER.password);
+    await expect(pwd).toHaveValue(E2E_CUSTOMER.password);
   });
 
-  test('Clicking Sign In with pre-filled creds shows success', async ({ page }) => {
+  async function signIn(page: import('@playwright/test').Page) {
     await page.goto('/auth/login');
     await page.waitForLoadState('networkidle');
-    await page.click('button:has-text("Sign In")');
-    await expect(page.locator('text=Login successful')).toBeVisible({ timeout: 10000 });
+    await page.locator('input[type="email"]').first().fill(E2E_CUSTOMER.email);
+    await page.locator('input[type="password"]').first().fill(E2E_CUSTOMER.password);
+    await loginSlot();
+    await page.click('button[type="submit"]:has-text("Sign In")');
+  }
+
+  test('Clicking Sign In with entered creds logs in and routes to /account', async ({ page }) => {
+    await signIn(page);
+    await expect(page).toHaveURL(/\/account/, { timeout: 15000 });
   });
 
   test('Login stores token in localStorage', async ({ page }) => {
-    await page.goto('/auth/login');
-    await page.waitForLoadState('networkidle');
-    await page.click('button:has-text("Sign In")');
-    await page.waitForTimeout(4000);
+    await signIn(page);
+    await expect.poll(() => page.evaluate(() => !!localStorage.getItem('accessToken')), { timeout: 15000 }).toBe(true);
     const token = await page.evaluate(() => localStorage.getItem('accessToken'));
     expect(token).toBeTruthy();
     expect(token!.startsWith('eyJ')).toBe(true);
   });
 
   test('Login stores refresh token in localStorage', async ({ page }) => {
-    await page.goto('/auth/login');
-    await page.waitForLoadState('networkidle');
-    await page.click('button:has-text("Sign In")');
-    await page.waitForTimeout(4000);
+    await signIn(page);
+    await expect.poll(() => page.evaluate(() => !!localStorage.getItem('refreshToken')), { timeout: 15000 }).toBe(true);
     const token = await page.evaluate(() => localStorage.getItem('refreshToken'));
     expect(token).toBeTruthy();
   });

@@ -3,14 +3,18 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDateTime } from '@/components/format';
 
 export default function CatalogItemDetailPage() {
   const params = useParams<{ id: string }>();
   const catalogItemId = params?.id ?? '';
-  const { data, isLoading } = trpc.ecommerce.getCatalogItem.useQuery({ catalogItemId }, { enabled: Boolean(catalogItemId) });
+  const { data, isLoading, error, refetch } = trpc.ecommerce.getCatalogItem.useQuery({ catalogItemId }, { enabled: Boolean(catalogItemId) });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Catalog item', backHref: '/ecommerce/catalog', onRetry: () => refetch(),
+  });
+  if (state) return state;
   const c: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
 
   return (

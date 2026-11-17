@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { apiFetch, ApiError, clearTokens } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
+import { signOut } from "@/lib/store";
 
 const navItems = [
   { href: "/account", label: "Dashboard", icon: "M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" },
@@ -55,10 +56,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   }, []);
 
   function handleSignOut() {
-    clearTokens();
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem("sessionId");
-    }
+    signOut();
     router.push("/");
   }
 

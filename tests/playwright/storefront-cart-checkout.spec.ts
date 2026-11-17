@@ -1,20 +1,43 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+// Each test starts with a fresh browser context (empty cart), so seed the cart through the UI first.
+async function addFirstProductToCart(page: Page): Promise<boolean> {
+  await page.goto('/category/gold');
+  await page.waitForLoadState('networkidle').catch(() => undefined);
+  const productLink = page.locator('a[href^="/product/"]').filter({ hasText: /\S/ }).first();
+  if (!(await productLink.isVisible().catch(() => false))) return false;
+  await productLink.click();
+  await page.waitForURL('**/product/**', { timeout: 30000 });
+  await page.waitForLoadState('networkidle').catch(() => undefined);
+  const addBtn = page
+    .locator('button:has-text("Add to Cart"), button:has-text("Add to Bag"), button[aria-label*="add to cart" i]')
+    .first();
+  await addBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined); // PDP data loads async
+  if (!(await addBtn.isVisible().catch(() => false))) return false;
+  await addBtn.click();
+  await page.waitForTimeout(1000);
+  return true;
+}
+
 
 test.describe('Storefront - Cart & Checkout', () => {
   test('add product to cart from product detail', async ({ page }) => {
     await page.goto('/category/gold');
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
-    const productLink = page.locator('a[href^="/product/"]').first();
+    const productLink = page.locator('a[href^="/product/"]').filter({ hasText: /\S/ }).first();
     if (!(await productLink.isVisible().catch(() => false))) {
       test.skip(true, 'No products available to add to cart');
     }
+    // Use the card's text (name/price) link: the image link's centre is covered by the hover-only "Quick Add" overlay.
     await productLink.click();
+    await page.waitForURL('**/product/**', { timeout: 30000 });
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
     const addBtn = page
       .locator('button:has-text("Add to Cart"), button:has-text("Add to Bag"), button[aria-label*="add to cart" i]')
       .first();
+    await addBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined); // PDP data loads async
     if (!(await addBtn.isVisible().catch(() => false))) {
       test.skip(true, 'No add-to-cart button on product detail');
     }
@@ -34,6 +57,7 @@ test.describe('Storefront - Cart & Checkout', () => {
   });
 
   test('update quantity updates total (skips when cart empty)', async ({ page }) => {
+    await addFirstProductToCart(page);
     await page.goto('/cart');
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
@@ -59,11 +83,12 @@ test.describe('Storefront - Cart & Checkout', () => {
   });
 
   test('remove item clears cart (skips when cart empty)', async ({ page }) => {
+    await addFirstProductToCart(page);
     await page.goto('/cart');
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
     const removeBtn = page
-      .locator('button[aria-label*="remove" i], button:has-text("Remove"), button:has-text("Delete")')
+      .locator('button[aria-label*="remove" i], button:has-text("Remove"), button:has-text("Delete"), button:has-text("Clear Cart")')
       .first();
     if (!(await removeBtn.isVisible().catch(() => false))) {
       test.skip(true, 'Cart is empty — no remove button');
@@ -77,12 +102,13 @@ test.describe('Storefront - Cart & Checkout', () => {
   });
 
   test('coupon code field accepts entry', async ({ page }) => {
+    await addFirstProductToCart(page); // the coupon box only renders when the cart has items
     await page.goto('/cart');
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
     const coupon = page
       .locator(
-        'input[placeholder*="coupon" i], input[placeholder*="promo" i], input[name*="coupon" i], input[aria-label*="coupon" i]',
+        'input[placeholder*="coupon" i], input[placeholder*="promo" i], input[placeholder*="code" i], input[name*="coupon" i], input[aria-label*="coupon" i]',
       )
       .first();
     if (!(await coupon.isVisible().catch(() => false))) {
@@ -91,7 +117,7 @@ test.describe('Storefront - Cart & Checkout', () => {
       await page.waitForLoadState('networkidle').catch(() => undefined);
       const coupon2 = page
         .locator(
-          'input[placeholder*="coupon" i], input[placeholder*="promo" i], input[name*="coupon" i], input[aria-label*="coupon" i]',
+          'input[placeholder*="coupon" i], input[placeholder*="promo" i], input[placeholder*="code" i], input[name*="coupon" i], input[aria-label*="coupon" i]',
         )
         .first();
       if (!(await coupon2.isVisible().catch(() => false))) {

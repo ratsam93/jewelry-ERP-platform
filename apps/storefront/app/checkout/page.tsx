@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useStore } from "@/lib/store";
-import { mockAddresses } from "@/lib/mock-data";
-import { calculateProductPrice, formatRupees, cn } from "@/lib/utils";
+import { useStore, cartSubtotalPaise, itemLinePaise } from "@/lib/store";
+import { formatRupees, cn } from "@/lib/utils";
 import AddressForm from "@/components/AddressForm";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, getAccessToken } from "@/lib/api";
 import type { Address } from "@/lib/types";
 
 declare global {
@@ -38,6 +37,7 @@ function loadRazorpayScript(): Promise<boolean> {
 
 type CheckoutStep = 1 | 2 | 3;
 
+/** OrderResponse (shared-types) plus the optional gateway fields a payment-enabled API may add. */
 interface InitiateCheckoutResponse {
   id: string;
   orderNumber?: string;
@@ -52,48 +52,135 @@ interface InitiateCheckoutResponse {
   keyId?: string;
 }
 
+/** AddressResponse (shared-types) as returned by GET /store/addresses. */
+interface ApiAddress {
+  id: string;
+  label?: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  state: string;
+  country?: string;
+  postalCode?: string;
+  pincode?: string;
+  isDefault?: boolean;
+}
+
+function mapApiAddress(a: ApiAddress): Address {
+  return {
+    id: a.id,
+    label: a.label ?? "",
+    fullName: a.fullName ?? `${a.firstName ?? ""} ${a.lastName ?? ""}`.trim(),
+    phone: a.phone,
+    addressLine1: a.addressLine1,
+    addressLine2: a.addressLine2 ?? undefined,
+    city: a.city,
+    state: a.state,
+    pincode: a.postalCode ?? a.pincode ?? "",
+    country: a.country ?? "IN",
+    isDefault: !!a.isDefault,
+  };
+}
+
+function toAddressBody(addr: Address) {
+  const parts = addr.fullName.trim().split(/\s+/);
+  return {
+    label: addr.label || "Home",
+    firstName: parts[0] || "-",
+    lastName: parts.slice(1).join(" ") || "-",
+    phone: addr.phone,
+    addressLine1: addr.addressLine1,
+    addressLine2: addr.addressLine2 || undefined,
+    city: addr.city,
+    state: addr.state,
+    country: "IN",
+    postalCode: addr.pincode,
+    isDefault: addr.isDefault,
+  };
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, couponCode, couponDiscount, clearCart } = useStore();
+  const { cartItems, cartId, cartTotals, cartLoading, couponCode, refreshCart } = useStore();
   const [step, setStep] = useState<CheckoutStep>(1);
-  const [addresses, setAddresses] = useState<Address[]>(mockAddresses);
-  const [selectedAddressId, setSelectedAddressId] = useState<string>(addresses.find((a) => a.isDefault)?.id ?? "");
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [addressError, setAddressError] = useState("");
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>("razorpay");
   const [paymentError, setPaymentError] = useState("");
 
-  // Load saved addresses from backend on mount; fall back to mockAddresses if signed out.
+  // Checkout needs a customer login (the API rejects guests with 401).
   useEffect(() => {
+    setSignedIn(!!getAccessToken());
+  }, []);
+
+  // Load saved addresses from the API for signed-in customers.
+  useEffect(() => {
+    if (!signedIn) {
+      if (signedIn === false) setAddressesLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
+      setAddressesLoading(true);
+      setAddressError("");
       try {
-        const data = await apiFetch<Address[] | { items?: Address[] }>("/api/v1/store/addresses", {
+        const data = await apiFetch<ApiAddress[] | { items?: ApiAddress[] }>("/api/v1/store/addresses", {
           tenantHeaders: true,
         });
         if (cancelled) return;
-        const items = Array.isArray(data) ? data : data.items ?? [];
-        if (items.length > 0) {
-          setAddresses(items);
-          const def = items.find((a) => a.isDefault) ?? items[0];
-          if (def?.id) setSelectedAddressId(def.id);
-        }
-      } catch {
-        // Stay on mock addresses for guest checkout demo
+        const items = (Array.isArray(data) ? data : data.items ?? []).map(mapApiAddress);
+        setAddresses(items);
+        const def = items.find((a) => a.isDefault) ?? items[0];
+        if (def?.id) setSelectedAddressId(def.id);
+        if (items.length === 0) setShowAddressForm(true);
+      } catch (err) {
+        if (cancelled) return;
+        setAddressError(err instanceof Error ? err.message : "Could not load your addresses");
+      } finally {
+        if (!cancelled) setAddressesLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [signedIn]);
 
-  const subtotal = cartItems.reduce((sum, item) => {
-    const price = calculateProductPrice(item.product);
-    return sum + price.total * item.quantity;
-  }, 0);
-  const discount = couponDiscount;
-  const shipping = subtotal >= 200000 ? 0 : 49900;
-  const total = subtotal - discount + shipping;
+  // Real totals from the API cart (paise, GST included, no shipping charge).
+  const subtotal = cartTotals?.subtotalPaise ?? cartSubtotalPaise(cartItems);
+  const discount = cartTotals ? cartTotals.discountPaise : 0;
+  const shipping = 0;
+  const total = cartTotals ? cartTotals.totalPaise : subtotal - discount + shipping;
+  const appliedCoupon = cartTotals?.couponCode ?? (discount > 0 ? couponCode : "");
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+
+  async function handleSaveAddress(addr: Address) {
+    setSavingAddress(true);
+    setAddressError("");
+    try {
+      const created = await apiFetch<ApiAddress>("/api/v1/store/addresses", {
+        method: "POST",
+        tenantHeaders: true,
+        body: toAddressBody(addr),
+      });
+      const mapped = mapApiAddress(created);
+      setAddresses((prev) => [...prev.map((a) => (mapped.isDefault ? { ...a, isDefault: false } : a)), mapped]);
+      setSelectedAddressId(mapped.id);
+      setShowAddressForm(false);
+    } catch (err) {
+      setAddressError(err instanceof Error ? err.message : "Could not save the address");
+    } finally {
+      setSavingAddress(false);
+    }
+  }
 
   async function completeOrder(orderId: string, externalPaymentId: string, gatewayResponse: Record<string, unknown>) {
     await apiFetch(`/api/v1/store/checkout/${orderId}/complete`, {
@@ -101,47 +188,66 @@ export default function CheckoutPage() {
       tenantHeaders: true,
       body: { externalPaymentId, gatewayResponse },
     });
-    clearCart();
+    // The API clears the cart on completion: re-sync the UI with it.
+    await refreshCart?.();
     router.push(`/account/orders/${orderId}`);
   }
 
   async function handlePayment() {
+    if (paymentProcessing) return;
     setPaymentError("");
+    if (!selectedAddressId) {
+      setPaymentError("Please choose a shipping address.");
+      return;
+    }
     setPaymentProcessing(true);
     try {
-      // 1. Fetch current cart from backend to get real cartId
-      const cart = await apiFetch<{ id: string }>("/api/v1/store/cart", { tenantHeaders: true });
+      // 1. Real cart id (from the store, else ask the API)
+      let activeCartId = cartId;
+      if (!activeCartId) {
+        const cart = await apiFetch<{ id: string }>("/api/v1/store/cart", { tenantHeaders: true });
+        activeCartId = cart.id;
+      }
 
-      // 2. Initiate checkout (creates an order in PENDING payment state)
-      const order = await apiFetch<InitiateCheckoutResponse>(
-        "/api/v1/store/checkout",
-        {
-          method: "POST",
-          tenantHeaders: true,
-          body: {
-            cartId: cart.id,
-            addressId: selectedAddressId,
-            paymentMethod,
-            couponCode: couponCode || undefined,
-          },
+      // 2. Initiate checkout (creates the order in PENDING state)
+      const order = await apiFetch<InitiateCheckoutResponse>("/api/v1/store/checkout", {
+        method: "POST",
+        tenantHeaders: true,
+        body: {
+          cartId: activeCartId,
+          addressId: selectedAddressId,
+          paymentMethod,
+          couponCode: cartTotals?.couponCode || undefined,
         },
-      );
+      });
 
-      // 3. Cash on delivery -> mark complete server-side without a gateway round-trip.
+      // 3. Cash on delivery: confirm server-side without a gateway round-trip.
       if (paymentMethod === "cod") {
-        await completeOrder(order.id, `cod_${Date.now()}`, { mode: "cod" });
+        await completeOrder(order.id, `cod_${order.id}`, { mode: "cod" });
         return;
       }
 
-      // 4. Razorpay / UPI / card flow.
+      // 4. Online payment needs gateway details from the API.
       const razorpayOrderId = order.payment?.razorpayOrderId ?? order.razorpayOrderId;
       const keyId = order.payment?.keyId ?? order.keyId;
       const amountPaise = order.payment?.amountPaise ?? order.totalPaise ?? total;
 
       if (!razorpayOrderId || !keyId) {
-        // Backend hasn't returned Razorpay credentials -- fall back to demo completion
-        // so the flow still works in dev environments without payment keys configured.
-        await completeOrder(order.id, `demo_${Date.now()}`, { mode: "demo", method: paymentMethod });
+        // The payment gateway is not configured: never mark the order paid.
+        // Cancel the just-created pending order so nothing is left dangling.
+        try {
+          await apiFetch(`/api/v1/store/orders/${order.id}/cancel`, {
+            method: "POST",
+            tenantHeaders: true,
+            body: { reason: "Online payment unavailable at checkout" },
+          });
+        } catch {
+          // best effort
+        }
+        setPaymentError(
+          "Online payment is not available right now. Please choose Cash on Delivery or try again later. Your cart is unchanged.",
+        );
+        setPaymentProcessing(false);
         return;
       }
 
@@ -186,12 +292,34 @@ export default function CheckoutPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setPaymentError("Please sign in to place an order.");
-        setTimeout(() => router.push("/auth/login"), 1500);
+        setSignedIn(false);
       } else {
         setPaymentError(err instanceof Error ? err.message : "Payment failed. Please try again.");
       }
       setPaymentProcessing(false);
     }
+  }
+
+  if (cartItems.length === 0 && cartLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 text-center text-navy/50 text-sm" role="status">
+        Loading your cart...
+      </div>
+    );
+  }
+
+  if (cartItems.length > 0 && signedIn === false) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 text-center">
+        <h1 className="text-2xl font-bold text-navy mb-2">Sign in to Checkout</h1>
+        <p className="text-navy/50 text-sm mb-6">
+          Please sign in to place your order. Your cart will be waiting for you.
+        </p>
+        <Link href="/auth/login" className="inline-block bg-gold text-white font-semibold px-8 py-3 rounded-lg hover:bg-gold-dark transition-colors">
+          Sign In
+        </Link>
+      </div>
+    );
   }
 
   if (cartItems.length === 0) {
@@ -257,7 +385,15 @@ export default function CheckoutPage() {
             <div>
               <h2 className="text-lg font-bold text-navy mb-4">Shipping Address</h2>
 
-              {!showAddressForm ? (
+              {addressError && (
+                <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">
+                  {addressError}
+                </div>
+              )}
+
+              {addressesLoading ? (
+                <p className="text-sm text-navy/50" role="status">Loading your addresses...</p>
+              ) : !showAddressForm ? (
                 <>
                   <div className="space-y-3 mb-4">
                     {addresses.map((addr) => (
@@ -319,11 +455,7 @@ export default function CheckoutPage() {
                 </>
               ) : (
                 <AddressForm
-                  onSave={(addr) => {
-                    setAddresses((prev) => [...prev, addr]);
-                    setSelectedAddressId(addr.id);
-                    setShowAddressForm(false);
-                  }}
+                  onSave={(addr) => { if (!savingAddress) void handleSaveAddress(addr); }}
                   onCancel={() => setShowAddressForm(false)}
                 />
               )}
@@ -355,7 +487,6 @@ export default function CheckoutPage() {
               {/* Items */}
               <div className="space-y-3 mb-6">
                 {cartItems.map((item) => {
-                  const price = calculateProductPrice(item.product);
                   const img = item.product.images.find((i) => i.isPrimary) ?? item.product.images[0];
                   return (
                     <div key={item.id} className="flex items-center gap-3 bg-white rounded-lg border border-gray-100 p-3">
@@ -366,7 +497,7 @@ export default function CheckoutPage() {
                         <p className="text-sm font-medium text-navy truncate">{item.product.name}</p>
                         <p className="text-xs text-navy/50">Qty: {item.quantity}{item.selectedSize && ` | Size: ${item.selectedSize}`}</p>
                       </div>
-                      <span className="font-semibold text-sm text-navy">{formatRupees((price.total * item.quantity) / 100)}</span>
+                      <span className="font-semibold text-sm text-navy">{formatRupees(itemLinePaise(item) / 100)}</span>
                     </div>
                   );
                 })}
@@ -390,7 +521,7 @@ export default function CheckoutPage() {
                 {[
                   { id: "razorpay", label: "Razorpay (UPI, Cards, NetBanking, Wallets)", desc: "All payment methods" },
                   { id: "upi", label: "UPI (GPay, PhonePe, Paytm)", desc: "Pay using any UPI app" },
-                  { id: "cod", label: "Cash on Delivery", desc: "Pay when you receive (Rs 50 extra)" },
+                  { id: "cod", label: "Cash on Delivery", desc: "Pay when you receive" },
                 ].map((method) => (
                   <label
                     key={method.id}
@@ -448,11 +579,10 @@ export default function CheckoutPage() {
             <h2 className="font-bold text-navy mb-4">Order Summary</h2>
             <div className="space-y-2 text-sm mb-4">
               {cartItems.map((item) => {
-                const price = calculateProductPrice(item.product);
                 return (
                   <div key={item.id} className="flex justify-between">
                     <span className="text-navy/60 truncate mr-2">{item.product.name} x{item.quantity}</span>
-                    <span className="font-medium text-navy flex-shrink-0">{formatRupees((price.total * item.quantity) / 100)}</span>
+                    <span className="font-medium text-navy flex-shrink-0">{formatRupees(itemLinePaise(item) / 100)}</span>
                   </div>
                 );
               })}
@@ -464,7 +594,7 @@ export default function CheckoutPage() {
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-emerald-600">
-                  <span>Discount ({couponCode})</span>
+                  <span>Discount{appliedCoupon ? ` (${appliedCoupon})` : ""}</span>
                   <span>-{formatRupees(discount / 100)}</span>
                 </div>
               )}

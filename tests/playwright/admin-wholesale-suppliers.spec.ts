@@ -25,19 +25,16 @@ test.describe('Admin Wholesale: Suppliers', () => {
     await expect(addBtn).toBeVisible();
   });
 
-  test('Supplier create form: navigate or skip if not built', async ({ page }) => {
+  test('Supplier create form: /new renders a create form with a name field', async ({ page }) => {
     const res = await page.goto('/admin/wholesale/suppliers/new');
-    // If the /new route isn't implemented yet, Next returns 404 — skip gracefully.
-    const status = res?.status() ?? 200;
-    test.skip(status >= 400, `Supplier /new route not built (status ${status})`);
-
+    expect(res?.status() ?? 200).toBeLessThan(500);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('body')).toContainText(/Supplier/i);
-    // Basic fields: name + some identifier. If absent, still allow — form may be partial.
-    const nameInput = page.locator('input[name*="name" i], input[placeholder*="name" i]').first();
-    if (await nameInput.isVisible().catch(() => false)) {
-      await nameInput.fill('QA Supplier E2E');
-    }
+    const body = await page.locator('body').textContent();
+    expect(body).not.toMatch(/Something went wrong|Application error|could not load this record/i);
+    await expect(page.locator('form').first()).toBeVisible();
+    const nameInput = page.getByLabel(/name/i).first();
+    await expect(nameInput).toBeVisible();
+    await nameInput.fill('QA Supplier E2E');
   });
 
   test('Supplier detail page renders performance tiles (if any supplier exists)', async ({ page }) => {
@@ -45,7 +42,7 @@ test.describe('Admin Wholesale: Suppliers', () => {
     await page.waitForLoadState('networkidle');
 
     // Try to click the first supplier row link
-    const firstRowLink = page.locator('a[href*="/admin/wholesale/suppliers/"]').first();
+    const firstRowLink = page.locator('a[href*="/admin/wholesale/suppliers/"]:not([href$="/new"])').first();
     const hasRow = await firstRowLink.isVisible().catch(() => false);
     test.skip(!hasRow, 'No suppliers seeded — detail test skipped.');
 
@@ -62,7 +59,7 @@ test.describe('Admin Wholesale: Suppliers', () => {
   test('Supplier detail page shows recent purchase orders section (if available)', async ({ page }) => {
     await page.goto('/admin/wholesale/suppliers');
     await page.waitForLoadState('networkidle');
-    const firstRowLink = page.locator('a[href*="/admin/wholesale/suppliers/"]').first();
+    const firstRowLink = page.locator('a[href*="/admin/wholesale/suppliers/"]:not([href$="/new"])').first();
     const hasRow = await firstRowLink.isVisible().catch(() => false);
     test.skip(!hasRow, 'No suppliers seeded — PO list test skipped.');
 

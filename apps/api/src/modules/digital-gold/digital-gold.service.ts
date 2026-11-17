@@ -12,6 +12,7 @@ import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { IndiaRatesService } from '../india/india.rates.service';
 import { IndiaKycService } from '../india/india.kyc.service';
+import { requireCustomerScope, requireTenant } from './digital-gold.scope';
 import type { Prisma } from '@caratflow/db';
 import type {
   BuyGoldInput,
@@ -57,6 +58,7 @@ export class DigitalGoldService extends TenantAwareService {
     customerId: string,
     input: BuyGoldInput,
   ): Promise<BuyGoldResponse> {
+    requireCustomerScope(tenantId, customerId);
     await this.ensureKycVerified(tenantId, customerId);
 
     const vault = await this.getOrCreateVault(tenantId, customerId);
@@ -166,6 +168,7 @@ export class DigitalGoldService extends TenantAwareService {
     customerId: string,
     input: SellGoldInput,
   ): Promise<SellGoldResponse> {
+    requireCustomerScope(tenantId, customerId);
     await this.ensureKycVerified(tenantId, customerId);
 
     const vault = await this.getExistingVault(tenantId, customerId);
@@ -235,14 +238,26 @@ export class DigitalGoldService extends TenantAwareService {
   // ─── Get Vault ────────────────────────────────────────────────
 
   async getVault(tenantId: string, customerId: string): Promise<GoldVaultResponse> {
-    const vault = await this.getExistingVault(tenantId, customerId);
-    return this.toVaultResponse(vault);
+    requireCustomerScope(tenantId, customerId);
+    const vault = await this.findActiveVault(tenantId, customerId);
+    return this.toVaultResponse(vault ?? this.emptyVault(customerId));
   }
 
   // ─── Get Portfolio ────────────────────────────────────────────
 
   async getPortfolio(tenantId: string, customerId: string): Promise<GoldPortfolioResponse> {
-    const vault = await this.getExistingVault(tenantId, customerId);
+    requireCustomerScope(tenantId, customerId);
+    const existing = await this.findActiveVault(tenantId, customerId);
+    if (!existing) {
+      return {
+        vault: await this.toVaultResponse(this.emptyVault(customerId)),
+        recentTransactions: [],
+        activeSips: [],
+        pendingRedemptions: [],
+        performanceChart: [],
+      };
+    }
+    const vault = existing;
     const vaultResponse = await this.toVaultResponse(vault);
 
     // Recent transactions (last 20)
@@ -312,7 +327,19 @@ export class DigitalGoldService extends TenantAwareService {
     customerId: string,
     input: GoldTransactionListInput,
   ): Promise<PaginatedResult<GoldTransactionResponse>> {
-    const vault = await this.getExistingVault(tenantId, customerId);
+    requireCustomerScope(tenantId, customerId);
+    const vault = await this.findActiveVault(tenantId, customerId);
+    if (!vault) {
+      return {
+        items: [],
+        total: 0,
+        page: input.page,
+        limit: input.limit,
+        totalPages: 0,
+        hasNext: false,
+        hasPrevious: input.page > 1,
+      };
+    }
 
     const where: Prisma.GoldTransactionWhereInput = {
       tenantId,
@@ -368,6 +395,7 @@ export class DigitalGoldService extends TenantAwareService {
   // ─── Dashboard (admin) ────────────────────────────────────────
 
   async getDashboard(tenantId: string): Promise<import('@caratflow/shared-types').DigitalGoldDashboardResponse> {
+    requireTenant(tenantId);
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -438,6 +466,7 @@ export class DigitalGoldService extends TenantAwareService {
 
   /** Get or create a gold vault for the customer */
   async getOrCreateVault(tenantId: string, customerId: string) {
+    requireCustomerScope(tenantId, customerId);
     let vault = await this.prisma.goldVault.findUnique({
       where: { tenantId_customerId: { tenantId, customerId } },
     });
@@ -458,8 +487,34 @@ export class DigitalGoldService extends TenantAwareService {
     return vault;
   }
 
+  /** Existing vault or null (brand-new customer). Throws 403 for a deactivated vault. */
+  private async findActiveVault(tenantId: string, customerId: string) {
+    const vault = await this.prisma.goldVault.findUnique({
+      where: { tenantId_customerId: { tenantId, customerId } },
+    });
+    if (vault && !vault.isActive) {
+      throw new ForbiddenException('Gold vault is deactivated. Contact support.');
+    }
+    return vault;
+  }
+
+  /** Zero-balance placeholder for customers who have not bought gold yet. */
+  private emptyVault(customerId: string) {
+    return {
+      id: '',
+      customerId,
+      balanceMg: 0n,
+      totalInvestedPaise: 0n,
+      totalSoldPaise: 0n,
+      avgBuyPricePer10gPaise: 0n,
+      kycVerified: false,
+      isActive: true,
+    };
+  }
+
   /** Get an existing vault or throw */
   private async getExistingVault(tenantId: string, customerId: string) {
+    requireCustomerScope(tenantId, customerId);
     const vault = await this.prisma.goldVault.findUnique({
       where: { tenantId_customerId: { tenantId, customerId } },
     });

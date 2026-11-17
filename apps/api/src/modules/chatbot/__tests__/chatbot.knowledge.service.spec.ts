@@ -9,7 +9,7 @@ describe('ChatbotKnowledgeService', () => {
   beforeEach(() => {
     prisma = createMockPrismaService();
     resetMocks(prisma);
-    ['chatFaq','chatTemplate'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirstOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), createMany: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() }; });
+    ['chatFaq','chatTemplate'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), createMany: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() }; });
     service = new ChatbotKnowledgeService(prisma as never);
   });
 
@@ -23,7 +23,7 @@ describe('ChatbotKnowledgeService', () => {
 
   describe('updateFaq', () => {
     it('should update FAQ', async () => {
-      (prisma as any).chatFaq.findFirstOrThrow.mockResolvedValue({ id: 'faq-1' });
+      (prisma as any).chatFaq.findFirst.mockResolvedValue({ id: 'faq-1' });
       (prisma as any).chatFaq.update.mockResolvedValue({ id: 'faq-1', question: 'Updated?', answer: 'A', category: 'general', keywords: [], priority: 5, isActive: true, createdAt: new Date(), updatedAt: new Date() });
       const r = await service.updateFaq(tenantId, 'faq-1', { question: 'Updated?' });
       expect(r.question).toBe('Updated?');

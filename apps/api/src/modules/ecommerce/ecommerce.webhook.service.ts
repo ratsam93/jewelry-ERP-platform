@@ -2,7 +2,7 @@
 // Receive, log, route to appropriate handler (order created,
 // payment captured, etc.), retry failed webhooks.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@caratflow/db';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
@@ -159,7 +159,7 @@ export class EcommerceWebhookService extends TenantAwareService {
     });
 
     if (!log) {
-      throw new Error('Webhook log not found or not in FAILED status');
+      throw new NotFoundException('Webhook log not found or not in FAILED status');
     }
 
     const payload = log.payload as Record<string, unknown>;

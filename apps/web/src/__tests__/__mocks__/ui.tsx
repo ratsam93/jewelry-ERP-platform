@@ -127,3 +127,13 @@ export function DateRangePicker() {
 export function cn(...args: unknown[]) {
   return args.filter(Boolean).join(' ');
 }
+
+export function LinkProvider({ children }: { renderLink?: unknown; children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+export function useRenderLink() {
+  return ({ href, children, className }: { href: string; children: React.ReactNode; className: string }) => (
+    <a href={href} className={className}>{children}</a>
+  );
+}

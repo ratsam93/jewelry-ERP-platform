@@ -12,7 +12,7 @@ function VerifyOtpPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const identifier = params.get("phone") ?? params.get("email") ?? params.get("identifier") ?? "";
-  const purpose = params.get("purpose") ?? "PHONE_VERIFICATION";
+  const purpose = params.get("purpose") ?? "REGISTRATION";
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);

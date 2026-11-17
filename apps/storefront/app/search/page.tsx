@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { mockProducts } from "@/lib/mock-data";
+import { applyProductFilters, searchProducts, type CatalogProduct } from "@/lib/catalog";
 import { SORT_OPTIONS } from "@/lib/constants";
 import { normalizeVoiceQuery } from "@/lib/voice-normalize";
 import type { FilterState } from "@/lib/types";
@@ -36,17 +36,32 @@ function SearchContent() {
     }
   }
 
-  const results = useMemo(() => {
-    if (!query) return [];
-    const lower = query.toLowerCase();
-    return mockProducts.filter(
-      (p) =>
-        p.name.toLowerCase().includes(lower) ||
-        p.categoryName.toLowerCase().includes(lower) ||
-        p.metalType.toLowerCase().includes(lower) ||
-        p.tags.some((t) => t.toLowerCase().includes(lower))
-    );
-  }, [query]);
+  const [fetched, setFetched] = useState<CatalogProduct[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(query ? "loading" : "idle");
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setFetched([]);
+      setStatus("idle");
+      return;
+    }
+    const controller = new AbortController();
+    setStatus("loading");
+    searchProducts(query, 40, { signal: controller.signal })
+      .then((items) => {
+        setFetched(items);
+        setStatus("done");
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) return;
+        setFetched([]);
+        setStatus("error");
+      });
+    return () => controller.abort();
+  }, [query, retryKey]);
+
+  const results = useMemo(() => applyProductFilters(fetched, filters), [fetched, filters]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
@@ -64,9 +79,11 @@ function SearchContent() {
           <h1 className="text-2xl font-bold text-navy" style={{ fontFamily: "var(--font-serif)" }}>
             {query ? `Results for "${query}"` : "Search"}
           </h1>
-          <p className="text-sm text-navy/50 mt-1">
-            {results.length} {results.length === 1 ? "product" : "products"} found
-          </p>
+          {status === "done" && (
+            <p className="text-sm text-navy/50 mt-1">
+              {results.length} {results.length === 1 ? "product" : "products"} found
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-navy/50 hidden sm:inline">Search by voice</span>
@@ -74,7 +91,23 @@ function SearchContent() {
         </div>
       </div>
 
-      {results.length === 0 ? (
+      {status === "loading" ? (
+        <div role="status" className="text-center py-20 text-navy/50">Searching...</div>
+      ) : status === "error" ? (
+        <div role="alert" className="text-center py-20">
+          <h3 className="text-lg font-semibold text-navy mb-2">Search is unavailable right now</h3>
+          <p className="text-sm text-navy/50 mb-4">We couldn&apos;t reach the catalog. Please try again.</p>
+          <button
+            type="button"
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="px-5 py-2.5 bg-gold text-white text-sm font-semibold rounded-lg hover:bg-gold-dark transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      ) : status === "idle" ? (
+        <div className="text-center py-20 text-navy/50 text-sm">Type a search term to find jewelry.</div>
+      ) : results.length === 0 ? (
         <div className="text-center py-20">
           <svg className="w-20 h-20 text-navy/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />

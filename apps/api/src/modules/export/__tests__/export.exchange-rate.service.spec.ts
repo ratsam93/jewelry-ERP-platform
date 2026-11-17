@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NotFoundException } from '@nestjs/common';
 import { ExportExchangeRateService } from '../export.exchange-rate.service';
 import { createMockPrismaService, TEST_TENANT_ID, TEST_USER_ID, resetAllMocks } from '../../../__tests__/setup';
 
@@ -106,7 +107,7 @@ describe('ExportExchangeRateService (Unit)', () => {
 
       await expect(
         service.lockRateForInvoice(TEST_TENANT_ID, 'GBP', 'INR'),
-      ).rejects.toThrow('No exchange rate found');
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

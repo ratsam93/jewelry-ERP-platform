@@ -3,18 +3,20 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function AgentDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading } = trpc.wholesale.getAgent.useQuery({ agentId: id }, { enabled: Boolean(id) });
+  const { data, isLoading, error } = trpc.wholesale.getAgent.useQuery({ agentId: id }, { enabled: Boolean(id) });
   const { data: commissionsData } = trpc.wholesale.listCommissions.useQuery({
     filters: { agentBrokerId: id },
     pagination: { page: 1, limit: 50, sortOrder: 'desc' },
   }, { enabled: Boolean(id) });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({ isLoading, error, data, entity: 'Agent', backHref: '/wholesale/agents' });
+  if (state) return state;
   const a = data as unknown as Record<string, unknown>;
   const commissions = ((commissionsData?.items as unknown as Array<Record<string, unknown>>) ?? []);
 

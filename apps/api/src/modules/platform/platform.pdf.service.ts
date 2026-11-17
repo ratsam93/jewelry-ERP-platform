@@ -52,6 +52,8 @@ export interface RenderOptions {
  */
 const RAW_HTML_PLACEHOLDERS: ReadonlySet<string> = new Set(['lineItemsRows']);
 
+const PAGE_TIMEOUT_MS = 15_000;
+
 const DEFAULT_OPTIONS: RenderOptions = {
   format: 'A4',
   printBackground: true,
@@ -70,7 +72,13 @@ export class PlatformPdfService implements OnModuleDestroy {
    * Subsequent calls reuse the same browser.
    */
   private async getBrowser(): Promise<PuppeteerBrowser> {
-    if (this.browserPromise) return this.browserPromise;
+    if (this.browserPromise) {
+      const cached = await this.browserPromise.catch(() => null);
+      // Drop a crashed/disconnected browser so the next call relaunches
+      // instead of hanging on a dead instance.
+      if (cached && cached.isConnected?.() !== false) return cached;
+      this.browserPromise = null;
+    }
 
     this.browserPromise = (async () => {
       // Dynamic import so vitest mocks can intercept and so tsc doesn't
@@ -160,7 +168,12 @@ export class PlatformPdfService implements OnModuleDestroy {
       });
       // Templates do not need JavaScript; disable it for the page.
       await page.setJavaScriptEnabled(false);
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      // Templates are self-contained and every network request is aborted
+      // above, so there is nothing to wait for. 'networkidle0' can fail to
+      // settle with request interception active and hit the 30s navigation
+      // timeout; 'domcontentloaded' returns as soon as the markup is parsed.
+      page.setDefaultTimeout?.(PAGE_TIMEOUT_MS);
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT_MS });
       const pdf = await page.pdf({
         format: opts.format,
         landscape: opts.landscape,

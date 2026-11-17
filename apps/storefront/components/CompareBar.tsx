@@ -2,16 +2,13 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { mockProducts } from "@/lib/mock-data";
+import { useProductsByIds } from "@/lib/product-lookup";
 
 export default function CompareBar() {
-  const { compareIds, removeFromCompare } = useStore();
+  const { compareIds, removeFromCompare, clearCompare } = useStore();
+  const { products } = useProductsByIds(compareIds);
 
   if (compareIds.length === 0) return null;
-
-  const products = compareIds
-    .map((id) => mockProducts.find((p) => p.id === id))
-    .filter(Boolean);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 compare-bar bg-white border-t border-gray-200 z-40 px-4 py-3">
@@ -53,7 +50,7 @@ export default function CompareBar() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => compareIds.forEach((id) => removeFromCompare(id))}
+            onClick={() => (clearCompare ? clearCompare() : compareIds.forEach((id) => removeFromCompare(id)))}
             className="text-sm text-navy/50 hover:text-navy transition-colors"
           >
             Clear All

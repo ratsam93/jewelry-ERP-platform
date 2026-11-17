@@ -243,7 +243,8 @@ test.describe('Footer Component', () => {
   test('footer has copyright text', async ({ page }) => {
     const footer = page.locator('footer');
     await expect(footer).toContainText(/CaratFlow/i);
-    await expect(footer).toContainText(/All rights reserved/i);
+    // Footer now reads "© <year> CaratFlow by Globussoft Technologies" (no "All rights reserved").
+    await expect(footer).toContainText(/©\s*\d{4}/);
   });
 });
 

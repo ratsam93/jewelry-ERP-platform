@@ -2,7 +2,7 @@
 // Admin CRUD, coupon validation, application, usage tracking,
 // auto-apply discovery, and bulk code generation.
 
-import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
@@ -67,9 +67,10 @@ export class CouponService extends TenantAwareService {
   }
 
   async updateCoupon(tenantId: string, userId: string, couponId: string, input: CouponCodeUpdate) {
-    await this.prisma.couponCode.findFirstOrThrow({
+    const found = await this.prisma.couponCode.findFirst({
       where: { id: couponId, tenantId },
     });
+    if (!found) throw new NotFoundException('Coupon code not found');
 
     return this.prisma.couponCode.update({
       where: { id: couponId },
@@ -87,9 +88,10 @@ export class CouponService extends TenantAwareService {
   }
 
   async deactivateCoupon(tenantId: string, userId: string, couponId: string) {
-    await this.prisma.couponCode.findFirstOrThrow({
+    const found = await this.prisma.couponCode.findFirst({
       where: { id: couponId, tenantId },
     });
+    if (!found) throw new NotFoundException('Coupon code not found');
 
     return this.prisma.couponCode.update({
       where: { id: couponId },
@@ -137,12 +139,14 @@ export class CouponService extends TenantAwareService {
   }
 
   async getCoupon(tenantId: string, couponId: string) {
-    return this.prisma.couponCode.findFirstOrThrow({
+    const found = await this.prisma.couponCode.findFirst({
       where: { id: couponId, tenantId },
       include: {
         _count: { select: { usages: true } },
       },
     });
+    if (!found) throw new NotFoundException('Coupon code not found');
+    return found;
   }
 
   // ─── Validation & Application ──────────────────────────────────
@@ -266,9 +270,10 @@ export class CouponService extends TenantAwareService {
     cartTotalPaise: number,
     cartItems: Array<{ productId: string; categoryId?: string; pricePaise: number; quantity: number }>,
   ): Promise<number> {
-    const coupon = await this.prisma.couponCode.findUniqueOrThrow({
+    const coupon = await this.prisma.couponCode.findUnique({
       where: { tenantId_code: { tenantId, code } },
     });
+    if (!coupon) throw new NotFoundException('Coupon code not found');
 
     const applicableProducts = coupon.applicableProducts as string[] | null;
     const applicableCategories = coupon.applicableCategories as string[] | null;
@@ -304,9 +309,10 @@ export class CouponService extends TenantAwareService {
     orderId: string,
     discountAppliedPaise: number,
   ) {
-    const coupon = await this.prisma.couponCode.findFirstOrThrow({
+    const coupon = await this.prisma.couponCode.findFirst({
       where: { id: couponId, tenantId },
     });
+    if (!coupon) throw new NotFoundException('Coupon code not found');
 
     const [usage] = await this.prisma.$transaction([
       this.prisma.couponUsage.create({

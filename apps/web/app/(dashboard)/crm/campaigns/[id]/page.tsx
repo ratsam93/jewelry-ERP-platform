@@ -4,16 +4,25 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { formatDate } from '@/components/format';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading, refetch } = trpc.crm.campaignGet.useQuery({ id }, { enabled: Boolean(id) });
+  const { data, isLoading, error, refetch } = trpc.crm.campaignGet.useQuery({ id }, { enabled: Boolean(id) });
   const exec = trpc.crm.campaignExecute.useMutation({ onSuccess: () => refetch() });
   const pause = trpc.crm.campaignPause.useMutation({ onSuccess: () => refetch() });
   const cancel = trpc.crm.campaignCancel.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading,
+    error,
+    data,
+    entity: 'Campaign',
+    backHref: '/crm/campaigns',
+    onRetry: () => void refetch(),
+  });
+  if (state) return state;
   const c: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
   const status = c.status as string;
 

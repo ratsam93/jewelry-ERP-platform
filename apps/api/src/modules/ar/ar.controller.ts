@@ -13,17 +13,28 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { IsEnum, IsUUID } from 'class-validator';
 import type { ApiResponse } from '@caratflow/shared-types';
-import type {
-  TryOnConfig,
-  TryOnSessionResponse,
-  Product360Config,
-  ArProductListItem,
+import {
+  ArDeviceType,
+  type TryOnConfig,
+  type TryOnSessionResponse,
+  type Product360Config,
+  type ArProductListItem,
 } from '@caratflow/shared-types';
 import { ArTryOnService } from './ar.tryon.service';
 import { Ar360Service } from './ar.360.service';
 import { ArService } from './ar.service';
 import { extractContext, type HeaderBearingRequest } from '../../common/customer-identity';
+
+/** Body for POST /sessions/start. Decorated so the global ValidationPipe enforces it. */
+class StartTryOnSessionDto {
+  @IsUUID()
+  productId!: string;
+
+  @IsEnum(ArDeviceType)
+  deviceType!: ArDeviceType;
+}
 
 function success<T>(data: T): ApiResponse<T> {
   return { success: true, data };
@@ -74,14 +85,14 @@ export class ArController {
   @Post('sessions/start')
   @HttpCode(HttpStatus.CREATED)
   async startSession(
-    @Body() body: { productId: string; deviceType: string },
+    @Body() body: StartTryOnSessionDto,
     @Req() req: HeaderBearingRequest,
   ): Promise<ApiResponse<TryOnSessionResponse>> {
     const ctx = extractContext(req);
     const session = await this.tryOnService.startSession(ctx.tenantId, {
       productId: body.productId,
       customerId: ctx.customerId ?? undefined,
-      deviceType: body.deviceType as TryOnSessionResponse['deviceType'],
+      deviceType: body.deviceType,
     });
     return success(session);
   }

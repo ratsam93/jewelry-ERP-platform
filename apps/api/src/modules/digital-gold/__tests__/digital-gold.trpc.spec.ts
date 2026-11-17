@@ -42,6 +42,7 @@ describe('DigitalGoldTrpcRouter', () => {
     tenantId: 'tenant-1',
     userId: 'user-1',
     userRole: 'customer',
+    principal: 'customer' as const,
     userPermissions: ['*'],
   };
 
@@ -174,7 +175,7 @@ describe('DigitalGoldTrpcRouter', () => {
     it('delegates to sipService.getSip', async () => {
       sipService.getSip.mockResolvedValue({ id: SIP_ID });
       await caller.sip.get({ sipId: SIP_ID });
-      expect(sipService.getSip).toHaveBeenCalledWith('tenant-1', SIP_ID);
+      expect(sipService.getSip).toHaveBeenCalledWith('tenant-1', 'user-1', SIP_ID);
     });
 
     it('rejects non-uuid sipId', async () => {
@@ -186,7 +187,7 @@ describe('DigitalGoldTrpcRouter', () => {
     it('delegates to sipService.pauseSip', async () => {
       sipService.pauseSip.mockResolvedValue({ id: SIP_ID });
       await caller.sip.pause({ sipId: SIP_ID });
-      expect(sipService.pauseSip).toHaveBeenCalledWith('tenant-1', SIP_ID);
+      expect(sipService.pauseSip).toHaveBeenCalledWith('tenant-1', 'user-1', SIP_ID);
     });
   });
 
@@ -194,7 +195,7 @@ describe('DigitalGoldTrpcRouter', () => {
     it('delegates to sipService.resumeSip', async () => {
       sipService.resumeSip.mockResolvedValue({ id: SIP_ID });
       await caller.sip.resume({ sipId: SIP_ID });
-      expect(sipService.resumeSip).toHaveBeenCalledWith('tenant-1', SIP_ID);
+      expect(sipService.resumeSip).toHaveBeenCalledWith('tenant-1', 'user-1', SIP_ID);
     });
   });
 
@@ -202,7 +203,7 @@ describe('DigitalGoldTrpcRouter', () => {
     it('delegates to sipService.cancelSip', async () => {
       sipService.cancelSip.mockResolvedValue({ id: SIP_ID });
       await caller.sip.cancel({ sipId: SIP_ID });
-      expect(sipService.cancelSip).toHaveBeenCalledWith('tenant-1', SIP_ID);
+      expect(sipService.cancelSip).toHaveBeenCalledWith('tenant-1', 'user-1', SIP_ID);
     });
   });
 
@@ -210,7 +211,7 @@ describe('DigitalGoldTrpcRouter', () => {
     it('delegates to sipService.getSipHistory', async () => {
       sipService.getSipHistory.mockResolvedValue([]);
       await caller.sip.history({ sipId: SIP_ID });
-      expect(sipService.getSipHistory).toHaveBeenCalledWith('tenant-1', SIP_ID);
+      expect(sipService.getSipHistory).toHaveBeenCalledWith('tenant-1', 'user-1', SIP_ID);
     });
   });
 
@@ -255,10 +256,10 @@ describe('DigitalGoldTrpcRouter', () => {
       expect(result).toEqual({ redemptionId: 'r-3' });
     });
 
-    it('rejects invalid redemptionType', async () => {
+    it('rejects invalid redemptionType with BAD_REQUEST', async () => {
       await expect(
         caller.redeem({ redemptionType: 'BOGUS', weightMg: 1, addressId: ADDRESS_ID } as never),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     });
   });
 
@@ -351,5 +352,27 @@ describe('DigitalGoldTrpcRouter', () => {
   it('rejects unauthenticated calls', async () => {
     const unauth = routerInstance.router.createCaller({});
     await expect(unauth.dashboard()).rejects.toThrow();
+  });
+});
+
+describe('DigitalGoldTrpcRouter principal check', () => {
+  const trpc = new TrpcService();
+  const alertService = { createAlert: vi.fn().mockResolvedValue({ id: 'a1' }) };
+  const r = new DigitalGoldTrpcRouter(
+    trpc, {} as never, {} as never, {} as never, alertService as never, {} as never,
+  );
+  const base = { tenantId: 'tenant-1', userId: 'u-1', userPermissions: ['*'] };
+
+  it('rejects a staff token on customer procedures', async () => {
+    const staff = r.router.createCaller({ ...base, userRole: 'admin', principal: 'staff' });
+    await expect(staff.getVault()).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(alertService.createAlert).not.toHaveBeenCalled();
+  });
+  it('accepts a B2C customer token', async () => {
+    const cust = r.router.createCaller({ ...base, userRole: 'customer', principal: 'customer' });
+    const vault = vi.fn().mockResolvedValue({ ok: true });
+    const r2 = new DigitalGoldTrpcRouter(trpc, { getVault: vault } as never, {} as never, {} as never, {} as never, {} as never);
+    await expect(r2.router.createCaller({ ...base, principal: 'customer' }).getVault()).resolves.toEqual({ ok: true });
+    expect(cust).toBeDefined();
   });
 });

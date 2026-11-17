@@ -16,7 +16,7 @@ describe('CrmLeadService (Unit)', () => {
 
   describe('updateLeadStatus', () => {
     it('allows NEW -> CONTACTED transition', async () => {
-      mockPrisma.lead.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.lead.findFirst.mockResolvedValue({
         id: 'lead-1',
         tenantId: TEST_TENANT_ID,
         status: 'NEW',
@@ -36,7 +36,7 @@ describe('CrmLeadService (Unit)', () => {
     });
 
     it('allows CONTACTED -> QUALIFIED transition', async () => {
-      mockPrisma.lead.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.lead.findFirst.mockResolvedValue({
         id: 'lead-1',
         status: 'CONTACTED',
       });
@@ -55,7 +55,7 @@ describe('CrmLeadService (Unit)', () => {
     });
 
     it('allows QUALIFIED -> WON transition', async () => {
-      mockPrisma.lead.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.lead.findFirst.mockResolvedValue({
         id: 'lead-1',
         status: 'QUALIFIED',
       });
@@ -74,7 +74,7 @@ describe('CrmLeadService (Unit)', () => {
     });
 
     it('records lost reason when status is LOST', async () => {
-      mockPrisma.lead.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.lead.findFirst.mockResolvedValue({
         id: 'lead-1',
         status: 'NEGOTIATION',
       });
@@ -101,7 +101,7 @@ describe('CrmLeadService (Unit)', () => {
     });
 
     it('logs status change as activity', async () => {
-      mockPrisma.lead.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.lead.findFirst.mockResolvedValue({
         id: 'lead-1',
         status: 'NEW',
       });
@@ -130,7 +130,7 @@ describe('CrmLeadService (Unit)', () => {
 
   describe('assignLead', () => {
     it('assigns lead to salesperson', async () => {
-      mockPrisma.lead.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.lead.findFirst.mockResolvedValue({
         id: 'lead-1',
         tenantId: TEST_TENANT_ID,
         assignedTo: TEST_USER_ID,
@@ -163,7 +163,7 @@ describe('CrmLeadService (Unit)', () => {
 
   describe('convertToCustomer', () => {
     it('creates customer from lead info on WON', async () => {
-      mockPrisma.lead.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.lead.findFirst.mockResolvedValue({
         id: 'lead-1',
         tenantId: TEST_TENANT_ID,
         firstName: 'Priya',
@@ -204,7 +204,7 @@ describe('CrmLeadService (Unit)', () => {
     });
 
     it('uses existing customer if lead already linked', async () => {
-      mockPrisma.lead.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.lead.findFirst.mockResolvedValue({
         id: 'lead-1',
         tenantId: TEST_TENANT_ID,
         firstName: 'Existing',

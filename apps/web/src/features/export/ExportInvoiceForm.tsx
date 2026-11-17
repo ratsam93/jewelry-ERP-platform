@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { ShippingDetailsForm } from './ShippingDetailsForm';
 
 interface InvoiceItem {
@@ -195,7 +196,7 @@ export function ExportInvoiceForm() {
       </div>
 
       <div className="flex justify-end gap-3">
-        <a href="/export/invoices" className="h-9 rounded-md border px-4 text-sm font-medium hover:bg-accent inline-flex items-center">Cancel</a>
+        <Link href="/export/invoices" className="h-9 rounded-md border px-4 text-sm font-medium hover:bg-accent inline-flex items-center">Cancel</Link>
         <button disabled={!exportOrderId || !buyerId || !ieCode} className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed">
           Create Invoice
         </button>

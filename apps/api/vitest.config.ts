@@ -32,6 +32,7 @@ export default defineConfig({
     environment: 'node',
     include: [
       'src/__tests__/**/*.test.ts',
+      'src/__tests__/**/*.spec.ts',
       'src/modules/**/*.spec.ts',
       'src/auth/**/*.spec.ts',
       'src/common/**/*.spec.ts',

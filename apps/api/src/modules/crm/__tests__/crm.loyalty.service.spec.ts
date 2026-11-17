@@ -19,7 +19,7 @@ describe('CrmLoyaltyService (Unit)', () => {
 
   describe('earnPoints', () => {
     it('converts sale amount to points and updates balance', async () => {
-      mockPrisma.customer.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.customer.findFirst.mockResolvedValue({
         id: 'cust-1',
         tenantId: TEST_TENANT_ID,
         loyaltyPoints: 100,
@@ -67,7 +67,7 @@ describe('CrmLoyaltyService (Unit)', () => {
     });
 
     it('publishes loyalty points earned event', async () => {
-      mockPrisma.customer.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.customer.findFirst.mockResolvedValue({
         id: 'cust-1',
         loyaltyPoints: 0,
       });
@@ -93,7 +93,7 @@ describe('CrmLoyaltyService (Unit)', () => {
 
   describe('redeemPoints', () => {
     it('deducts points from balance', async () => {
-      mockPrisma.customer.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.customer.findFirst.mockResolvedValue({
         id: 'cust-1',
         loyaltyPoints: 500,
       });
@@ -120,7 +120,7 @@ describe('CrmLoyaltyService (Unit)', () => {
     });
 
     it('rejects redemption of more points than available', async () => {
-      mockPrisma.customer.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.customer.findFirst.mockResolvedValue({
         id: 'cust-1',
         loyaltyPoints: 100,
       });
@@ -137,7 +137,7 @@ describe('CrmLoyaltyService (Unit)', () => {
     });
 
     it('throws when no active loyalty program', async () => {
-      mockPrisma.customer.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.customer.findFirst.mockResolvedValue({
         id: 'cust-1',
         loyaltyPoints: 500,
       });
@@ -231,7 +231,7 @@ describe('CrmLoyaltyService (Unit)', () => {
 
     it('upgrades tier when points increase past threshold', async () => {
       setupTierProgram();
-      mockPrisma.customer.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.customer.findFirst.mockResolvedValue({
         id: 'cust-1',
         loyaltyPoints: 400, // Currently BRONZE
       });
@@ -258,7 +258,7 @@ describe('CrmLoyaltyService (Unit)', () => {
 
     it('downgrades tier when points drop below threshold via redemption', async () => {
       setupTierProgram();
-      mockPrisma.customer.findFirstOrThrow.mockResolvedValue({
+      mockPrisma.customer.findFirst.mockResolvedValue({
         id: 'cust-1',
         loyaltyPoints: 600, // SILVER
       });

@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
-import { setTokens } from "@/lib/api";
+import { setTokens, apiFetch } from "@/lib/api";
+
+// API OtpPurpose enum: LOGIN | REGISTRATION | PASSWORD_RESET | TRANSACTION_2FA.
+const PHONE_OTP_PURPOSE = "REGISTRATION";
 
 type AuthTokens = { accessToken: string; refreshToken?: string };
 
@@ -13,6 +16,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [accountCreated, setAccountCreated] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,24 +43,47 @@ export default function RegisterPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data?.error?.message || data?.message || "Registration failed");
+        const raw = data?.error?.message ?? data?.message;
+        throw new Error((Array.isArray(raw) ? raw.join(", ") : raw) || "Registration failed");
       }
       const tokens = data.data as AuthTokens | undefined;
       if (tokens?.accessToken) {
         setTokens(tokens.accessToken, tokens.refreshToken);
       }
-      // Send OTP for phone verification (non-blocking)
+      // The register DTO has no phone field, so store the phone on the profile
+      // (best effort) before asking for verification.
       if (form.phone) {
+        const fullPhone = `+91${form.phone}`;
+        if (tokens?.accessToken) {
+          try {
+            await apiFetch("/api/v1/store/account/profile", { method: "PUT", body: { phone: fullPhone } });
+          } catch {
+            // non-fatal: the account exists, the phone can be added from the profile page
+          }
+        }
         try {
-          await fetch(`${AUTH_API}/otp/send`, {
+          const otpRes = await fetch(`${AUTH_API}/otp/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: form.phone, purpose: "PHONE_VERIFICATION" }),
+            body: JSON.stringify({ identifier: fullPhone, purpose: PHONE_OTP_PURPOSE }),
           });
-          router.push(`/auth/verify-otp?phone=${encodeURIComponent(form.phone)}&purpose=PHONE_VERIFICATION`);
+          const otpData = await otpRes.json().catch(() => null);
+          if (!otpRes.ok || (otpData && otpData.success === false)) {
+            const raw = otpData?.error?.message ?? otpData?.message;
+            throw new Error((Array.isArray(raw) ? raw.join(", ") : raw) || "Could not send OTP");
+          }
+          router.push(
+            `/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=${PHONE_OTP_PURPOSE}`,
+          );
           return;
-        } catch {
-          // non-fatal
+        } catch (otpErr) {
+          setAccountCreated(true);
+          setError(
+            `Your account was created, but we could not send the verification code: ${
+              otpErr instanceof Error ? otpErr.message : "network error"
+            }`,
+          );
+          return;
         }
       }
       router.push("/account");
@@ -81,7 +108,17 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">{error}</div>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">
+              {error}
+              {accountCreated && (
+                <>
+                  {" "}
+                  <Link href="/account" className="font-semibold underline">Continue to my account</Link>
+                </>
+              )}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">Full Name *</label>
@@ -127,10 +164,11 @@ export default function RegisterPage() {
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
-                minLength={8}
-                placeholder="Min 8 characters"
+                minLength={10}
+                placeholder="Min 10 characters"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
               />
+              <p className="text-[11px] text-navy/40 mt-1">Use upper and lower case letters, a number and a symbol.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">Confirm Password *</label>

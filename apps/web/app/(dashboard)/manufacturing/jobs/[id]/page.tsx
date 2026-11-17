@@ -3,15 +3,17 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function JobDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading } = trpc.manufacturing.job.getById.useQuery({ id }, { enabled: Boolean(id) });
+  const { data, isLoading, error } = trpc.manufacturing.job.getById.useQuery({ id }, { enabled: Boolean(id) });
   const { data: cost } = trpc.manufacturing.job.getCost.useQuery({ id }, { enabled: Boolean(id) });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({ isLoading, error, data, entity: 'Job', backHref: '/manufacturing/jobs' });
+  if (state) return state;
 
   const j = data as Record<string, unknown>;
   const status = j.status as string;

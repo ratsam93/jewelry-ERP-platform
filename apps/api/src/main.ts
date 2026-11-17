@@ -8,6 +8,7 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/global-exception.filter';
 import { LoggingInterceptor } from './common/logging.interceptor';
 import { getJwtSecret } from './common/jwt-secret';
+import { installBigIntJson } from './common/bigint-json';
 
 // Swagger is served at /api/docs (ignoreGlobalPrefix). The gate also covers the
 // global-prefixed variants so no docs path is left unprotected.
@@ -62,6 +63,9 @@ function swaggerBasicAuthGate(user: string, password: string) {
 }
 
 async function bootstrap() {
+  // Must run before any response is serialized: REST routes return Prisma BigInt fields.
+  installBigIntJson();
+
   // Fail fast: in production this throws unless JWT_SECRET is set (>= 32 chars).
   getJwtSecret();
 
@@ -79,10 +83,22 @@ async function bootstrap() {
   instance?.disable?.('x-powered-by');
   instance?.set?.('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
+  const swaggerEnabled = process.env.SWAGGER_ENABLED === 'true';
+
   // Security headers (D-038)
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Swagger UI inlines scripts; CSP is enforced on the storefront origin
+      // JSON API: strict CSP. Only relaxed (disabled) while Swagger UI is served, as it inlines scripts.
+      contentSecurityPolicy: swaggerEnabled
+        ? false
+        : {
+            useDefaults: false,
+            directives: {
+              defaultSrc: ["'none'"],
+              frameAncestors: ["'none'"],
+              baseUri: ["'none'"],
+            },
+          },
       crossOriginEmbedderPolicy: false,
     }),
   );
@@ -122,7 +138,6 @@ async function bootstrap() {
 
   // Swagger — OFF unless SWAGGER_ENABLED=true (D-026). In production it also needs
   // SWAGGER_USER/SWAGGER_PASSWORD, otherwise it is refused.
-  const swaggerEnabled = process.env.SWAGGER_ENABLED === 'true';
   const isProd = process.env.NODE_ENV === 'production';
   let docsMounted = false;
   if (swaggerEnabled) {

@@ -2,7 +2,7 @@
 // Lead management: CRUD, pipeline status, activity logging, assignment,
 // follow-up reminders, conversion tracking.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
@@ -44,9 +44,10 @@ export class CrmLeadService extends TenantAwareService {
   }
 
   async updateLead(tenantId: string, userId: string, leadId: string, input: Partial<LeadInput>) {
-    await this.prisma.lead.findFirstOrThrow({
+    const found = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
     });
+    if (!found) throw new NotFoundException('Lead not found');
     return this.prisma.lead.update({
       where: { id: leadId },
       data: {
@@ -60,13 +61,15 @@ export class CrmLeadService extends TenantAwareService {
   }
 
   async getLead(tenantId: string, leadId: string) {
-    return this.prisma.lead.findFirstOrThrow({
+    const found = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
       include: {
         customer: { select: { firstName: true, lastName: true, phone: true, email: true } },
         activities: { orderBy: { createdAt: 'desc' }, take: 20 },
       },
     });
+    if (!found) throw new NotFoundException('Lead not found');
+    return found;
   }
 
   async listLeads(tenantId: string, page = 1, limit = 20, status?: string, assignedTo?: string) {
@@ -133,9 +136,10 @@ export class CrmLeadService extends TenantAwareService {
   // ─── Status Updates ────────────────────────────────────────────
 
   async updateLeadStatus(tenantId: string, userId: string, input: LeadStatusUpdate) {
-    const lead = await this.prisma.lead.findFirstOrThrow({
+    const lead = await this.prisma.lead.findFirst({
       where: { id: input.leadId, tenantId },
     });
+    if (!lead) throw new NotFoundException('Lead not found');
 
     const updateData: Record<string, unknown> = {
       status: input.status,
@@ -170,9 +174,10 @@ export class CrmLeadService extends TenantAwareService {
 
   /** Assign lead to a sales staff member */
   async assignLead(tenantId: string, userId: string, leadId: string, assignToUserId: string) {
-    await this.prisma.lead.findFirstOrThrow({
+    const found = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
     });
+    if (!found) throw new NotFoundException('Lead not found');
 
     const updated = await this.prisma.lead.update({
       where: { id: leadId },
@@ -198,9 +203,10 @@ export class CrmLeadService extends TenantAwareService {
   // ─── Activity Logging ──────────────────────────────────────────
 
   async addActivity(tenantId: string, userId: string, input: LeadActivityInput) {
-    await this.prisma.lead.findFirstOrThrow({
+    const found = await this.prisma.lead.findFirst({
       where: { id: input.leadId, tenantId },
     });
+    if (!found) throw new NotFoundException('Lead not found');
 
     return this.prisma.leadActivity.create({
       data: {
@@ -246,9 +252,10 @@ export class CrmLeadService extends TenantAwareService {
 
   /** Convert a lead to a customer (lead -> customer -> first sale) */
   async convertToCustomer(tenantId: string, userId: string, leadId: string) {
-    const lead = await this.prisma.lead.findFirstOrThrow({
+    const lead = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
     });
+    if (!lead) throw new NotFoundException('Lead not found');
 
     // Check if already linked to a customer
     if (lead.customerId) {

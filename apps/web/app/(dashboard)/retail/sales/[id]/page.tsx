@@ -4,15 +4,17 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { Ban, Printer } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDateTime } from '@/components/format';
 
 export default function SaleDetailPage() {
   const params = useParams<{ id: string }>();
   const saleId = params?.id ?? '';
-  const { data, isLoading, refetch } = trpc.retail.getSale.useQuery({ saleId }, { enabled: Boolean(saleId) });
+  const { data, isLoading, error, refetch } = trpc.retail.getSale.useQuery({ saleId }, { enabled: Boolean(saleId) });
   const voidMut = trpc.retail.voidSale.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({ isLoading, error, data, entity: 'Sale', backHref: '/retail/sales', onRetry: () => refetch() });
+  if (state) return state;
 
   const s = data as Record<string, unknown>;
   const items = (s.items as Array<Record<string, unknown>>) ?? [];

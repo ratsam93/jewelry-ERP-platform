@@ -3,12 +3,16 @@
 import { useParams } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 
 export default function GoldSavingsDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
-  const { data, isLoading } = trpc.india.schemes.goldSavings.getById.useQuery({ id }, { enabled: Boolean(id) });
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const { data, isLoading, error, refetch } = trpc.india.schemes.goldSavings.getById.useQuery({ id }, { enabled: Boolean(id) });
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Gold savings scheme', backHref: '/finance/schemes/gold-savings', onRetry: () => refetch(),
+  });
+  if (state) return state;
   const s = data as Record<string, unknown>;
   return (
     <div className="space-y-6">

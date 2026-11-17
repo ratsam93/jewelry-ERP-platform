@@ -17,7 +17,7 @@ describe('CrmCampaignService', () => {
     prisma = createMockPrismaService();
     createMockEventBusService();
     resetMocks(prisma);
-    ['campaign','notificationTemplate','notificationLog','customerOccasion'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirstOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() }; });
+    ['campaign','notificationTemplate','notificationLog','customerOccasion'].forEach(m => { (prisma as any)[m] = { findFirst: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() }; });
     prisma.customer.count = vi.fn() as any;
     prisma.customer.findMany = vi.fn() as any;
     notifService = { sendNotification: vi.fn().mockResolvedValue({ id: 'nl-1' }) };
@@ -49,7 +49,7 @@ describe('CrmCampaignService', () => {
 
   describe('executeCampaign', () => {
     it('should send notifications and track metrics', async () => {
-      (prisma as any).campaign.findFirstOrThrow.mockResolvedValue({ id: 'c-1', templateId: 't-1', audienceFilter: {}, channel: 'EMAIL' });
+      (prisma as any).campaign.findFirst.mockResolvedValue({ id: 'c-1', templateId: 't-1', audienceFilter: {}, channel: 'EMAIL' });
       prisma.customer.findMany.mockResolvedValue([{ id: 'c1', firstName: 'A', lastName: 'B' }] as any);
       (prisma as any).campaign.update.mockResolvedValue({ id: 'c-1' });
       const r = await service.executeCampaign(tenantId, userId, 'c-1');
@@ -57,11 +57,11 @@ describe('CrmCampaignService', () => {
       expect(r.sentCount).toBe(1);
     });
     it('should throw if no template', async () => {
-      (prisma as any).campaign.findFirstOrThrow.mockResolvedValue({ id: 'c-1', templateId: null, audienceFilter: {} });
+      (prisma as any).campaign.findFirst.mockResolvedValue({ id: 'c-1', templateId: null, audienceFilter: {} });
       await expect(service.executeCampaign(tenantId, userId, 'c-1')).rejects.toThrow('Campaign must have a template');
     });
     it('should track failed sends', async () => {
-      (prisma as any).campaign.findFirstOrThrow.mockResolvedValue({ id: 'c-1', templateId: 't-1', audienceFilter: {}, channel: 'SMS' });
+      (prisma as any).campaign.findFirst.mockResolvedValue({ id: 'c-1', templateId: 't-1', audienceFilter: {}, channel: 'SMS' });
       prisma.customer.findMany.mockResolvedValue([{ id: 'c1', firstName: 'A', lastName: 'B' }, { id: 'c2', firstName: 'C', lastName: 'D' }] as any);
       notifService.sendNotification.mockRejectedValueOnce(new Error('fail')).mockResolvedValueOnce({});
       (prisma as any).campaign.update.mockResolvedValue({});
@@ -73,7 +73,7 @@ describe('CrmCampaignService', () => {
 
   describe('pauseCampaign', () => {
     it('should pause active campaign', async () => {
-      (prisma as any).campaign.findFirstOrThrow.mockResolvedValue({ id: 'c-1', status: 'ACTIVE' });
+      (prisma as any).campaign.findFirst.mockResolvedValue({ id: 'c-1', status: 'ACTIVE' });
       (prisma as any).campaign.update.mockResolvedValue({ id: 'c-1', status: 'PAUSED' });
       const r = await service.pauseCampaign(tenantId, userId, 'c-1');
       expect(r.status).toBe('PAUSED');
@@ -82,7 +82,7 @@ describe('CrmCampaignService', () => {
 
   describe('cancelCampaign', () => {
     it('should cancel campaign', async () => {
-      (prisma as any).campaign.findFirstOrThrow.mockResolvedValue({ id: 'c-1', status: 'DRAFT' });
+      (prisma as any).campaign.findFirst.mockResolvedValue({ id: 'c-1', status: 'DRAFT' });
       (prisma as any).campaign.update.mockResolvedValue({ id: 'c-1', status: 'CANCELLED' });
       const r = await service.cancelCampaign(tenantId, userId, 'c-1');
       expect(r.status).toBe('CANCELLED');

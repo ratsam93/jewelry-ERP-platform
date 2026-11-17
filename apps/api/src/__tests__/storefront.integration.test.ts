@@ -115,6 +115,30 @@ describe('Storefront Integration Tests', () => {
     });
   });
 
+  describe('GET /api/v1/store/products/search', () => {
+    it('is routed to search, not captured by products/:id', async () => {
+      const prisma = testApp.prisma.product.findFirst as unknown as { mockClear: () => void; mock: { calls: unknown[][] } };
+      prisma.mockClear();
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/store/products/search')
+        .query({ q: 'gold' })
+        .set(storefrontHeaders());
+
+      expect(res.status).not.toBe(404);
+      expect(JSON.stringify(res.body)).not.toContain('Product not found');
+      // products/:id would have looked the literal "search" up as an id
+      expect(JSON.stringify(prisma.mock.calls)).not.toContain('"id":"search"');
+    });
+
+    it('returns 400 when q is missing', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/store/products/search')
+        .set(storefrontHeaders());
+
+      expect(res.status).toBe(400);
+    });
+  });
+
   describe('GET /api/v1/store/products/:id', () => {
     it('returns 200 for a valid product ID', async () => {
       const productId = uuid();

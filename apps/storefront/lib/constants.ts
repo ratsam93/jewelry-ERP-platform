@@ -3,15 +3,20 @@
 export const STORE_NAME = "CaratFlow";
 export const STORE_TAGLINE = "Crafting Elegance, Delivering Trust";
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+// The API listens on API_PORT (default 4000). Override with NEXT_PUBLIC_API_URL.
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 export const STORE_API = `${API_BASE_URL}/api/v1/store`;
 export const AUTH_API = `${API_BASE_URL}/api/v1/b2c/auth`;
 export const CRM_API = `${API_BASE_URL}/api/v1/crm`;
 
 // Default tenant for the public storefront. Real B2C signups create
 // customers under this tenant. Staff tenants use a different path.
-export const TENANT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG ?? "sharma-jewellers";
-export const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID ?? "731c8b36-6045-401b-857a-f03b2cfc1a99";
+// The fallbacks point at the seeded demo tenant (slug sharma-jewellers).
+// Tenant ids differ per database, so set NEXT_PUBLIC_TENANT_ID for any other DB.
+export const DEMO_TENANT_SLUG = "sharma-jewellers";
+export const DEMO_TENANT_ID = "69544f8e-fa3c-40b4-8975-643825600ce7";
+export const TENANT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG || DEMO_TENANT_SLUG;
+export const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || DEMO_TENANT_ID;
 
 export const CURRENCY_CODE = "INR";
 export const CURRENCY_SYMBOL = "\u20B9";
@@ -48,6 +53,15 @@ export const CATEGORIES = [
   { name: "Nose Pins", slug: "nose-pins", image: "/categories/nose-pins.jpg" },
   { name: "Anklets", slug: "anklets", image: "/categories/anklets.jpg" },
 ] as const;
+
+// Navigation fallback, used only when the categories API call fails or returns
+// nothing. Navigation normally links to the API's own categories (see
+// MegaMenu's useNavCategories). These hrefs never point at a category page,
+// so they resolve even when the tenant has no matching category.
+export const NAV_FALLBACK_CATEGORIES = CATEGORIES.map((c) => ({
+  name: c.name,
+  href: `/search?q=${encodeURIComponent(c.name)}`,
+}));
 
 export const OCCASIONS = [
   { name: "Wedding", slug: "wedding", image: "/occasions/wedding.jpg" },

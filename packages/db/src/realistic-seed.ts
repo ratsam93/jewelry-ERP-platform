@@ -54,6 +54,13 @@ if (!process.env.DATABASE_URL) {
   }
 }
 
+import {
+  categoryNameFor,
+  ensureStockForProducts,
+  ensureStorefrontCategories,
+  seedMetalRates,
+} from './seed-storefront-helpers';
+
 const prisma = new PrismaClient();
 
 // ─── Deterministic UUID-shaped ID from any key string ─────────
@@ -495,8 +502,8 @@ async function main() {
   console.log(`  ✓ Customers (${custOk}/500) with occasions`);
 
   // ─── Categories (resolve) ─────────────────────────────────
-  let anyCat = await prisma.category.findFirst({ where: { tenantId } });
-  const defaultCategoryId = anyCat?.id ?? null;
+  const categoryIds = await ensureStorefrontCategories(prisma, tenantId);
+  const defaultCategoryId = categoryIds['Necklace'] ?? null;
 
   // ─── Products (500) ───────────────────────────────────────
   rseed(7777);
@@ -547,11 +554,11 @@ async function main() {
 
     await safely(`product ${sku}`, () => prisma.product.upsert({
       where: { id },
-      update: {},
+      update: { categoryId: categoryIds[categoryNameFor(pc.cat)] ?? defaultCategoryId },
       create: {
         id, tenantId, sku, name,
         description: `${design} from the ${col.name} collection. Crafted in ${purityLabel} ${productType === 'SILVER' ? 'silver' : 'gold'}. BIS hallmarked.${hasStones ? ' Premium certified stones with 4C grading.' : ''}`,
-        categoryId: defaultCategoryId,
+        categoryId: categoryIds[categoryNameFor(pc.cat)] ?? defaultCategoryId,
         productType: productType as any,
         metalPurity: purity,
         grossWeightMg: grossMg,
@@ -617,6 +624,11 @@ async function main() {
     }
   }
   console.log(`  ✓ Stock items (${stockOk})`);
+
+  // Storefront: make sure every product is purchasable at the flagship, with varied stock.
+  await safely('storefront stock', () => ensureStockForProducts(prisma, tenantId, primaryLocId, products.map(p => p.id)));
+  await safely('metal rates', () => seedMetalRates(prisma, tenantId));
+  console.log('  ✓ Storefront stock + metal rates');
 
   // ─── Metal Stock ──────────────────────────────────────────
   const metalAllocs: Array<{metal: 'GOLD'|'SILVER'|'PLATINUM'; purity: number; totalKg: number}> = [
@@ -1656,6 +1668,34 @@ async function main() {
     }
   }
   console.log(`  ✓ Metal rates (${rateOk})`);
+
+  // ─── Current spot rates (GOLD 999/916, SILVER 999) ─────────
+  // Digital gold + the public rates endpoint read the LATEST GOLD/999 row,
+  // so make sure one always exists. Deterministic ids keep this idempotent;
+  // `update` refreshes the timestamp so these stay the most recent rows.
+  // metal_rate_history is global (no tenantId), shared by all tenants.
+  const currentRates = [
+    { metal: 'GOLD', purity: 999, perG: 7350 },
+    { metal: 'GOLD', purity: 916, perG: 6735 },
+    { metal: 'SILVER', purity: 999, perG: 92 },
+  ];
+  for (const r of currentRates) {
+    const id = did(`current-rate-${r.metal}-${r.purity}`);
+    const data = {
+      ratePerGramPaise: BigInt(r.perG * 100),
+      ratePer10gPaise: BigInt(r.perG * 1000),
+      ratePerTolaPaise: BigInt(Math.floor(r.perG * 11.664 * 100)),
+      ratePerTroyOzPaise: BigInt(Math.floor(r.perG * 31.1035 * 100)),
+      source: 'MANUAL',
+      recordedAt: new Date(),
+    };
+    await safely(`current-rate ${r.metal}-${r.purity}`, () => prisma.metalRateHistory.upsert({
+      where: { id },
+      update: data,
+      create: { id, metalType: r.metal, purity: r.purity, ...data },
+    }));
+  }
+  console.log('  ✓ Current spot rates (GOLD 999/916, SILVER 999)');
 
   // ─── CMS Banners (10) ─────────────────────────────────────
   const bannerDefs = [

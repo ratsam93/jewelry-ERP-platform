@@ -2,7 +2,7 @@
 // Customer risk scoring: aggregate KYC status, transaction volume,
 // alert history, country risk, and PEP status into a 0-100 score.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 
@@ -29,9 +29,10 @@ export class AmlRiskService extends TenantAwareService {
 
   /** Calculate and update customer risk score */
   async calculateCustomerRisk(tenantId: string, customerId: string) {
-    const customer = await this.prisma.customer.findFirstOrThrow({
+    const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, tenantId },
     });
+    if (!customer) throw new NotFoundException('Customer not found');
 
     const factors: RiskFactor[] = [];
     let totalScore = 0;
@@ -121,10 +122,11 @@ export class AmlRiskService extends TenantAwareService {
       return this.calculateCustomerRisk(tenantId, customerId);
     }
 
-    const customer = await this.prisma.customer.findFirstOrThrow({
+    const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, tenantId },
       select: { firstName: true, lastName: true },
     });
+    if (!customer) throw new NotFoundException('Customer not found');
 
     return {
       customerId,

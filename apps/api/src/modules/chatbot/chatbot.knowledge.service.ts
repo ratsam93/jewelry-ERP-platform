@@ -36,9 +36,10 @@ export class ChatbotKnowledgeService extends TenantAwareService {
   }
 
   async updateFaq(tenantId: string, id: string, input: Partial<ChatFaqInput>): Promise<ChatFaqResponse> {
-    await this.prisma.chatFaq.findFirstOrThrow({
+    const found = await this.prisma.chatFaq.findFirst({
       where: this.tenantWhere(tenantId, { id }),
     });
+    if (!found) throw new NotFoundException('Chat faq not found');
 
     const faq = await this.prisma.chatFaq.update({
       where: { id },
@@ -79,9 +80,10 @@ export class ChatbotKnowledgeService extends TenantAwareService {
   }
 
   async deleteFaq(tenantId: string, id: string): Promise<void> {
-    await this.prisma.chatFaq.findFirstOrThrow({
+    const found = await this.prisma.chatFaq.findFirst({
       where: this.tenantWhere(tenantId, { id }),
     });
+    if (!found) throw new NotFoundException('Chat faq not found');
     await this.prisma.chatFaq.delete({ where: { id } });
   }
 
@@ -105,9 +107,10 @@ export class ChatbotKnowledgeService extends TenantAwareService {
     id: string,
     input: Partial<ChatTemplateInput>,
   ): Promise<ChatTemplateResponse> {
-    await this.prisma.chatTemplate.findFirstOrThrow({
+    const found = await this.prisma.chatTemplate.findFirst({
       where: this.tenantWhere(tenantId, { id }),
     });
+    if (!found) throw new NotFoundException('Chat template not found');
 
     const template = await this.prisma.chatTemplate.update({
       where: { id },
@@ -146,9 +149,10 @@ export class ChatbotKnowledgeService extends TenantAwareService {
   }
 
   async deleteTemplate(tenantId: string, id: string): Promise<void> {
-    await this.prisma.chatTemplate.findFirstOrThrow({
+    const found = await this.prisma.chatTemplate.findFirst({
       where: this.tenantWhere(tenantId, { id }),
     });
+    if (!found) throw new NotFoundException('Chat template not found');
     await this.prisma.chatTemplate.delete({ where: { id } });
   }
 

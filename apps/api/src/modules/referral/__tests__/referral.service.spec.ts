@@ -33,7 +33,7 @@ describe('ReferralService', () => {
 
     (mockPrisma as any).referralProgram = {
       findFirst: vi.fn(),
-      findFirstOrThrow: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       update: vi.fn(),
@@ -46,13 +46,13 @@ describe('ReferralService', () => {
     };
     (mockPrisma as any).referral = {
       findFirst: vi.fn(),
-      findFirstOrThrow: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       count: vi.fn().mockResolvedValue(0),
     };
     (mockPrisma as any).referralPayout = {
-      findFirstOrThrow: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       update: vi.fn(),
@@ -190,7 +190,7 @@ describe('ReferralService', () => {
 
   describe('completeReferral', () => {
     it('calculates rewards and marks as REWARDED', async () => {
-      (mockPrisma as any).referral.findFirstOrThrow.mockResolvedValue({
+      (mockPrisma as any).referral.findFirst.mockResolvedValue({
         id: 'ref-1',
         tenantId: TEST_TENANT_ID,
         referrerId: REFERRER_ID,
@@ -222,7 +222,7 @@ describe('ReferralService', () => {
     });
 
     it('does not reward if order below minimum', async () => {
-      (mockPrisma as any).referral.findFirstOrThrow.mockResolvedValue({
+      (mockPrisma as any).referral.findFirst.mockResolvedValue({
         id: 'ref-1',
         tenantId: TEST_TENANT_ID,
         referrerId: REFERRER_ID,
@@ -251,7 +251,7 @@ describe('ReferralService', () => {
 
   describe('reward calculation', () => {
     it('calculates CASHBACK: 5% of order amount', async () => {
-      (mockPrisma as any).referral.findFirstOrThrow.mockResolvedValue({
+      (mockPrisma as any).referral.findFirst.mockResolvedValue({
         id: 'ref-1', tenantId: TEST_TENANT_ID,
         referrerId: REFERRER_ID, refereeId: REFEREE_ID,
         referralCodeId: 'rc-1', status: 'REGISTERED',

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { DEMO, loginSlot } from './helpers/auth';
 
 test.describe('Admin Login E2E', () => {
   test('Admin login page loads with styled UI', async ({ page }) => {
@@ -17,15 +18,15 @@ test.describe('Admin Login E2E', () => {
     expect(html).toContain('CaratFlow');
   });
 
-  test('Admin login page has demo credentials box', async ({ page }) => {
+  // Credentials are no longer printed on / pre-filled into the login page (security hardening);
+  // the page may show a generic "Demo mode" hint only when NEXT_PUBLIC_DEMO_MODE=true.
+  test('Admin login page does not leak demo credentials', async ({ page }) => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
     const body = await page.locator('body').textContent();
-    expect(body).toContain('Demo Credentials');
-    expect(body).toContain('admin@sharmajewellers.com');
-    expect(body).toContain('admin123');
-    expect(body).toContain('sharma-jewellers');
+    expect(body).not.toContain('admin123');
+    expect(body).not.toContain('admin@sharmajewellers.com');
   });
 
   test('Admin login has 3 input fields (tenant, email, password)', async ({ page }) => {
@@ -36,20 +37,26 @@ test.describe('Admin Login E2E', () => {
     expect(inputs).toBeGreaterThanOrEqual(3);
   });
 
-  test('Admin login tenant field is pre-filled with sharma-jewellers', async ({ page }) => {
+  test('Admin login tenant field is empty with a placeholder and accepts input', async ({ page }) => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
     const tenant = page.locator('input').first();
-    await expect(tenant).toHaveValue('sharma-jewellers');
+    await expect(tenant).toHaveValue('');
+    await expect(tenant).toHaveAttribute('placeholder', 'your-business-slug');
+    await tenant.fill(DEMO.tenantSlug);
+    await expect(tenant).toHaveValue(DEMO.tenantSlug);
   });
 
-  test('Admin login email field is pre-filled', async ({ page }) => {
+  test('Admin login email field is empty with a placeholder and accepts input', async ({ page }) => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
     const email = page.locator('input[type="email"]').first();
-    await expect(email).toHaveValue('admin@sharmajewellers.com');
+    await expect(email).toHaveValue('');
+    await expect(email).toHaveAttribute('placeholder', DEMO.email);
+    await email.fill(DEMO.email);
+    await expect(email).toHaveValue(DEMO.email);
   });
 
   test('Admin login has Sign in button', async ({ page }) => {
@@ -80,6 +87,12 @@ test.describe('Admin Login E2E', () => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
+
+    // Credentials are not pre-filled any more: type them in.
+    await page.locator('#tenant').fill(DEMO.tenantSlug);
+    await page.locator('#email').fill(DEMO.email);
+    await page.locator('#password').fill(DEMO.password);
+    await loginSlot();
 
     // Click sign in
     await page.locator('button[type="submit"]').first().click();

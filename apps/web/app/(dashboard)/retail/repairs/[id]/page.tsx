@@ -3,15 +3,17 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function RepairDetailPage() {
   const params = useParams<{ id: string }>();
   const repairId = params?.id ?? '';
-  const { data, isLoading, refetch } = trpc.retail.getRepairOrder.useQuery({ repairId }, { enabled: Boolean(repairId) });
+  const { data, isLoading, error, refetch } = trpc.retail.getRepairOrder.useQuery({ repairId }, { enabled: Boolean(repairId) });
   const updateStatus = trpc.retail.updateRepairStatus.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({ isLoading, error, data, entity: 'Repair order', backHref: '/retail/repairs', onRetry: () => refetch() });
+  if (state) return state;
   const r = data as Record<string, unknown>;
   const status = r.status as string;
   const customer = r.customer as { firstName?: string; lastName?: string; phone?: string } | undefined;

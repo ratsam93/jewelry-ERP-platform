@@ -17,16 +17,74 @@ export function getAccessToken(): string | null {
   return window.localStorage.getItem("accessToken");
 }
 
+/** Fired on `window` after the customer signs in or out, so the store can re-sync. */
+export const AUTH_CHANGE_EVENT = "cf-auth-change";
+
+function notifyAuthChange(): void {
+  try {
+    window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+  } catch {
+    // non-browser environment
+  }
+}
+
 export function setTokens(accessToken: string, refreshToken?: string): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem("accessToken", accessToken);
   if (refreshToken) window.localStorage.setItem("refreshToken", refreshToken);
+  notifyAuthChange();
 }
 
 export function clearTokens(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem("accessToken");
   window.localStorage.removeItem("refreshToken");
+  notifyAuthChange();
+}
+
+export const SESSION_ID_KEY = "cf_session_id";
+
+function newSessionId(): string {
+  try {
+    const c = (globalThis as { crypto?: Crypto }).crypto;
+    if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  } catch {
+    // fall through
+  }
+  return `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+let memorySessionId: string | null = null;
+
+/**
+ * Guest session id sent as `x-session-id` (guest cart) and `sessionId` (compare list).
+ * Generated once and persisted in localStorage; falls back to an in-memory id when
+ * storage is unavailable. Returns null on the server.
+ */
+export function getSessionId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const existing = window.localStorage.getItem(SESSION_ID_KEY);
+    if (existing) return existing;
+    const id = memorySessionId ?? newSessionId();
+    window.localStorage.setItem(SESSION_ID_KEY, id);
+    memorySessionId = id;
+    return id;
+  } catch {
+    if (!memorySessionId) memorySessionId = newSessionId();
+    return memorySessionId;
+  }
+}
+
+/** Forget the guest session id (memory + storage); the next getSessionId() mints a fresh one. */
+export function resetSessionId(): void {
+  memorySessionId = null;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(SESSION_ID_KEY);
+  } catch {
+    // storage unavailable
+  }
 }
 
 export class ApiError extends Error {
@@ -63,14 +121,8 @@ export async function apiFetch<T>(
 
   if (options.tenantHeaders) {
     headers["x-tenant-id"] = TENANT_ID;
-    if (typeof window !== "undefined") {
-      let sessionId = window.localStorage.getItem("sessionId");
-      if (!sessionId) {
-        sessionId = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        window.localStorage.setItem("sessionId", sessionId);
-      }
-      headers["x-session-id"] = sessionId;
-    }
+    const sessionId = getSessionId();
+    if (sessionId) headers["x-session-id"] = sessionId;
   }
 
   const res = await fetch(url, {

@@ -3,15 +3,19 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
 export default function ExportOrderDetailPage() {
   const params = useParams<{ id: string }>();
   const orderId = params?.id ?? '';
-  const { data, isLoading, refetch } = trpc.export.getOrder.useQuery({ orderId }, { enabled: Boolean(orderId) });
+  const { data, isLoading, error, refetch } = trpc.export.getOrder.useQuery({ orderId }, { enabled: Boolean(orderId) });
   const confirm = trpc.export.confirmOrder.useMutation({ onSuccess: () => refetch() });
 
-  if (isLoading || !data) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  const state = renderDetailState({
+    isLoading, error, data, entity: 'Export order', backHref: '/export/orders', onRetry: () => refetch(),
+  });
+  if (state) return state;
   const o: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
   const status = o.status as string;
 

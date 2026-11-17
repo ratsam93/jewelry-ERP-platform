@@ -8,7 +8,7 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AccountDashboard from "@/app/account/page";
@@ -92,10 +92,17 @@ const mockAddresses = [
   { id: "a-2", label: "Office", firstName: "Priya", lastName: "Sharma", fullName: "Priya Sharma", addressLine1: "5 Nariman Point", city: "Mumbai", state: "Maharashtra", country: "IN", postalCode: "400021", isDefault: false },
 ];
 
+// Real GET /store/wishlist shape (flat product fields).
 const mockWishlistItems = [
-  { id: "w-1", productId: "prod-1", product: { id: "prod-1", name: "Celestial Solitaire Ring", pricePaise: 8500000 } },
-  { id: "w-2", productId: "prod-2", product: { id: "prod-2", name: "Lotus Pendant", pricePaise: 3500000 } },
+  { id: "w-1", productId: "prod-1", productName: "Celestial Solitaire Ring", currentPricePaise: 8500000, stockStatus: "IN_STOCK" },
+  { id: "w-2", productId: "prod-2", productName: "Lotus Pendant", currentPricePaise: 3500000, stockStatus: "IN_STOCK" },
 ];
+const lookedUpProduct = vi.hoisted(() => ({ id: "prod-1", name: "Celestial Solitaire Ring" }));
+vi.mock("@/lib/product-lookup", () => ({
+  lookupProducts: vi.fn(async () => [lookedUpProduct]),
+  useProductsByIds: () => ({ products: [], loading: false }),
+  clearProductLookupCache: () => {},
+}));
 
 const RESPONSES: Record<string, unknown> = {
   "/api/v1/store/account/dashboard": {
@@ -267,7 +274,7 @@ describe("Account Flow - Wishlist", () => {
     renderWithMockStore(<AccountWishlistPage />);
     expect(await screen.findByText("My Wishlist")).toBeInTheDocument();
     for (const item of mockWishlistItems) {
-      expect(await screen.findByText(item.product.name)).toBeInTheDocument();
+      expect(await screen.findByText(item.productName)).toBeInTheDocument();
     }
     const addButtons = screen.getAllByRole("button", { name: /add to cart/i });
     expect(addButtons.length).toBe(mockWishlistItems.length);
@@ -279,7 +286,7 @@ describe("Account Flow - Wishlist", () => {
     renderWithMockStore(<AccountWishlistPage />, { addToCart: addToCartFn });
     const addButtons = await screen.findAllByRole("button", { name: /add to cart/i });
     await user.click(addButtons[0]!);
-    expect(addToCartFn).toHaveBeenCalledWith(mockWishlistItems[0]!.product);
+    await waitFor(() => expect(addToCartFn).toHaveBeenCalledWith(lookedUpProduct));
   });
 });
 
@@ -307,10 +314,12 @@ describe("Account Flow - Profile", () => {
     );
   });
 
-  it("renders change password form", () => {
+  it("renders change password form", async () => {
     render(<ProfilePage />);
     expect(screen.getByText("Change Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /update password/i })).toBeInTheDocument();
+    // wait for the profile request to settle so its state update lands inside the test
+    await screen.findByDisplayValue("Priya");
   });
 });
 

@@ -2,13 +2,18 @@
 // Public storefront API endpoints for consuming CMS content.
 // No authentication required -- these serve the e-commerce frontend.
 
-import { Controller, Get, Param, Query, Req } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { CmsService } from './cms.service';
 import { CmsBlogService } from './cms.blog.service';
 import { CmsHomepageService } from './cms.homepage.service';
 import { CmsSeoService } from './cms.seo.service';
+import { SeoPageType } from '@caratflow/shared-types';
 import type { ApiResponse } from '@caratflow/shared-types';
+import { UUID_RE } from '../../common/customer-identity';
+
+/** Valid SeoPageType values, derived from the shared enum (Prisma rejects anything else). */
+const SEO_PAGE_TYPES: ReadonlySet<string> = new Set(Object.values(SeoPageType));
 
 @Controller('api/v1/store/cms')
 export class CmsController {
@@ -25,7 +30,7 @@ export class CmsController {
    */
   @Get('homepage')
   async getHomepage(@Req() req: Request): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const layout = await this.homepageService.getResolvedHomepage(tenantId);
     return { success: true, data: layout };
   }
@@ -39,7 +44,7 @@ export class CmsController {
     @Req() req: Request,
     @Query('position') position?: string,
   ): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const banners = await this.cmsService.getActiveBannersByPosition(
       tenantId,
       position ?? 'HERO',
@@ -53,7 +58,7 @@ export class CmsController {
    */
   @Get('collections')
   async getCollections(@Req() req: Request): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const result = await this.cmsService.listCollections(
       tenantId,
       { isActive: true },
@@ -71,7 +76,7 @@ export class CmsController {
     @Req() req: Request,
     @Param('slug') slug: string,
   ): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const collection = await this.cmsService.getCollectionBySlug(tenantId, slug);
     return { success: true, data: collection };
   }
@@ -85,7 +90,7 @@ export class CmsController {
     @Req() req: Request,
     @Param('slug') slug: string,
   ): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const page = await this.cmsService.getPageBySlug(tenantId, slug);
     return { success: true, data: page };
   }
@@ -102,7 +107,7 @@ export class CmsController {
     @Query('category') category?: string,
     @Query('tag') tag?: string,
   ): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const result = await this.blogService.listPublishedBlogPosts(
       tenantId,
       { categoryTag: category, tag },
@@ -124,7 +129,7 @@ export class CmsController {
     @Req() req: Request,
     @Param('slug') slug: string,
   ): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const post = await this.blogService.getBlogPostBySlug(tenantId, slug);
 
     // Fire-and-forget view count increment
@@ -141,7 +146,7 @@ export class CmsController {
    */
   @Get('faq')
   async getFaq(@Req() req: Request): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const faqs = await this.cmsService.getPublishedFaqs(tenantId);
 
     // Group by category
@@ -161,7 +166,7 @@ export class CmsController {
    */
   @Get('announcement')
   async getAnnouncement(@Req() req: Request): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
     const announcement = await this.cmsService.getActiveAnnouncement(tenantId);
     return { success: true, data: announcement };
   }
@@ -176,18 +181,32 @@ export class CmsController {
     @Param('pageType') pageType: string,
     @Param('identifier') identifier: string,
   ): Promise<ApiResponse<unknown>> {
-    const tenantId = this.getTenantId(req);
+    const tenantId = this.publicTenantOf(req);
+    if (!SEO_PAGE_TYPES.has(pageType)) {
+      throw new BadRequestException(
+        `Unknown pageType "${pageType}". Expected one of: ${[...SEO_PAGE_TYPES].join(', ')}`,
+      );
+    }
     const metadata = await this.seoService.getSeoMetadata(tenantId, pageType, identifier);
     return { success: true, data: metadata };
   }
 
   // ─── Helpers ────────────────────────────────────────────────
 
-  private getTenantId(req: Request): string {
-    // Tenant ID is extracted by TenantMiddleware
-    const tenantId = (req as unknown as Record<string, unknown>).tenantId as string;
+  /**
+   * Storefront guests send only the `x-tenant-id` header (no staff JWT), so the
+   * header is preferred when it is a valid UUID. Falls back to the tenant set by
+   * TenantMiddleware (staff JWT). Missing tenant context is a client error (400).
+   */
+  private publicTenantOf(req: Request): string {
+    const header = req.headers['x-tenant-id'];
+    const headerTenant = Array.isArray(header) ? header[0] : header;
+    if (headerTenant && UUID_RE.test(headerTenant)) {
+      return headerTenant;
+    }
+    const tenantId = (req as unknown as Record<string, unknown>).tenantId as string | undefined;
     if (!tenantId) {
-      throw new Error('Tenant ID is required');
+      throw new BadRequestException('Tenant context is required');
     }
     return tenantId;
   }

@@ -2,7 +2,7 @@
 // Core AML transaction evaluation engine. Runs all active rules
 // against a transaction and creates alerts when triggered.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
@@ -48,9 +48,10 @@ export class AmlService extends TenantAwareService {
   }
 
   async updateRule(tenantId: string, userId: string, ruleId: string, input: Partial<AmlRuleInput>) {
-    await this.prisma.amlRule.findFirstOrThrow({
+    const found = await this.prisma.amlRule.findFirst({
       where: { id: ruleId, tenantId },
     });
+    if (!found) throw new NotFoundException('Aml rule not found');
     return this.prisma.amlRule.update({
       where: { id: ruleId },
       data: {
@@ -62,9 +63,11 @@ export class AmlService extends TenantAwareService {
   }
 
   async getRule(tenantId: string, ruleId: string) {
-    return this.prisma.amlRule.findFirstOrThrow({
+    const found = await this.prisma.amlRule.findFirst({
       where: { id: ruleId, tenantId },
     });
+    if (!found) throw new NotFoundException('Aml rule not found');
+    return found;
   }
 
   async listRules(tenantId: string) {
@@ -75,9 +78,18 @@ export class AmlService extends TenantAwareService {
   }
 
   async deleteRule(tenantId: string, ruleId: string) {
-    await this.prisma.amlRule.findFirstOrThrow({
+    const found = await this.prisma.amlRule.findFirst({
       where: { id: ruleId, tenantId },
     });
+    if (!found) throw new NotFoundException('Aml rule not found');
+    // The schema has no deletedAt, and isActive=false is also a legitimate
+    // "disabled" state, so ruleList cannot filter on it. Remove the row when
+    // nothing references it; keep it (deactivated) only when alerts exist, as
+    // AmlAlert.ruleId is a required FK and the audit trail must survive.
+    const alertCount = await this.prisma.amlAlert.count({ where: { tenantId, ruleId } });
+    if (alertCount === 0) {
+      return this.prisma.amlRule.delete({ where: { id: ruleId } });
+    }
     return this.prisma.amlRule.update({
       where: { id: ruleId },
       data: { isActive: false },

@@ -1,8 +1,23 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { loginAsAdmin } from './helpers/admin-login';
 
 // End-to-end POS checkout flow: search -> add to cart -> charge -> payment dialog -> sale detail.
 // Tolerant of empty seed data (product grid empty) so it doesn't false-fail in bare environments.
+
+// The POS defaults to the first location, which may hold no stock ("No stock available at this location").
+// Walk the location selector until a location that lists sellable products is found.
+// Product cards live in <main> and show a price; the sidebar nav buttons (e.g. "Manufacturing") are excluded.
+async function findProductCard(page: Page) {
+  const cardLocator = () => page.locator('main button').filter({ hasText: /₹/ }).filter({ hasNotText: /Walk-in/i }).first();
+  const select = page.locator('select').first();
+  const optionCount = await select.locator('option').count().catch(() => 0);
+  for (let i = 0; i < Math.max(optionCount, 1); i++) {
+    if (optionCount > 0) await select.selectOption({ index: i });
+    await page.waitForTimeout(2500);
+    if (await cardLocator().isVisible().catch(() => false)) return cardLocator();
+  }
+  return null;
+}
 
 test.describe('Admin POS checkout', () => {
   test.beforeEach(async ({ page }) => {
@@ -36,31 +51,21 @@ test.describe('Admin POS checkout', () => {
 
   test('Clicking a product adds a line item to the cart (if any products exist)', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    // Product cards in PosProductSearch render as buttons/cards — be forgiving
-    const productCard = page
-      .locator('button, [role="button"]')
-      .filter({ hasText: /SKU|Gold|Silver|Diamond|Necklace|Ring|Bangle|Earring|Pendant/i })
-      .first();
-
-    const hasProduct = await productCard.isVisible().catch(() => false);
-    test.skip(!hasProduct, 'No products seeded for this tenant/location — POS cart test skipped.');
+    const productCard = await findProductCard(page);
+    test.skip(!productCard, 'No products seeded for any location — POS cart test skipped.');
+    if (!productCard) return;
 
     await productCard.click();
 
-    // Cart should now contain at least one line (look for quantity control or a total)
-    await expect(
-      page.locator('text=/total|subtotal|charge|pay/i').first(),
-    ).toBeVisible({ timeout: 5000 });
+    // Cart should now contain at least one line.
+    await expect(page.locator('body')).toContainText(/1 item/i, { timeout: 5000 });
   });
 
   test('Charge button is present and opens the payment dialog when cart has items', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    const productCard = page
-      .locator('button, [role="button"]')
-      .filter({ hasText: /SKU|Gold|Silver|Diamond|Necklace|Ring|Bangle|Earring|Pendant/i })
-      .first();
-    const hasProduct = await productCard.isVisible().catch(() => false);
-    test.skip(!hasProduct, 'No products seeded — skipping charge dialog test.');
+    const productCard = await findProductCard(page);
+    test.skip(!productCard, 'No products seeded — skipping charge dialog test.');
+    if (!productCard) return;
 
     await productCard.click();
 

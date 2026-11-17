@@ -3,17 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CRM_API, TENANT_ID } from "@/lib/constants";
+import { useNavCategories } from "./MegaMenu";
 
 const footerLinks = {
-  "Shop Jewelry": [
-    { label: "Rings", href: "/category/rings" },
-    { label: "Necklaces", href: "/category/necklaces" },
-    { label: "Earrings", href: "/category/earrings" },
-    { label: "Bangles", href: "/category/bangles" },
-    { label: "Bracelets", href: "/category/bracelets" },
-    { label: "Pendants", href: "/category/pendants" },
-    { label: "Mangalsutra", href: "/category/mangalsutra" },
-  ],
   "Customer Service": [
     { label: "Track Order", href: "/account/orders" },
     { label: "Shipping Policy", href: "/shipping" },
@@ -36,6 +28,14 @@ export default function Footer() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const categories = useNavCategories();
+  const shopLinks = categories.loading
+    ? []
+    : categories.links.slice(0, 7).map((c) => ({ label: c.name, href: c.href }));
+  const columns: [string, { label: string; href: string }[]][] = [
+    ["Shop Jewelry", shopLinks],
+    ...Object.entries(footerLinks),
+  ];
 
   async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault();
@@ -155,7 +155,7 @@ export default function Footer() {
           </div>
 
           {/* Link columns */}
-          {Object.entries(footerLinks).map(([title, links]) => (
+          {columns.map(([title, links]) => (
             <div key={title}>
               <h4 className="font-semibold text-sm mb-4 text-white">{title}</h4>
               <ul className="space-y-2.5">

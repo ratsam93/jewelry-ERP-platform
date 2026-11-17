@@ -56,3 +56,16 @@ describe('CommandPalette', () => {
     expect(selectHandler).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('CommandPalette accessibility', () => {
+  it('exposes a named dialog with an accessible description', async () => {
+    const user = userEvent.setup();
+    render(<CommandPalette items={items} />);
+
+    await user.keyboard('{Control>}k{/Control}');
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Command palette');
+    expect(dialog).toHaveAccessibleDescription(/Type a command or search/);
+  });
+});

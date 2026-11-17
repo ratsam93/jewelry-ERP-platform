@@ -81,10 +81,10 @@ describe('B2C Features Integration Tests', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════
-  //  WISHLIST (customer routes; storefront controller shares the paths)
+  //  WISHLIST (customer routes; owned by the storefront controller)
   // ═══════════════════════════════════════════════════════════════
 
-  describe('Wishlist - B2cFeaturesController', () => {
+  describe('Wishlist (served by StorefrontController)', () => {
     it('GET /api/v1/store/wishlist requires customer auth', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/store/wishlist')
@@ -219,11 +219,9 @@ describe('B2C Features Integration Tests', () => {
   //  COUPONS
   // ═══════════════════════════════════════════════════════════════
 
-  describe('Coupons - B2cFeaturesController', () => {
+  describe('Coupons', () => {
     it('POST /api/v1/store/coupons/validate is served by the storefront controller for guests', async () => {
-      // Shadowed: the storefront controller also declares POST coupons/validate
-      // and is registered first, so the B2C customer guard is not applied here.
-      // POST defaults to 201 in Nest.
+      // Single owner: StorefrontController. POST defaults to 201 in Nest.
       const res = await request(app.getHttpServer())
         .post('/api/v1/store/coupons/validate')
         .set(storefrontHeaders())
@@ -231,6 +229,24 @@ describe('B2C Features Integration Tests', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
+    });
+
+    it('POST /api/v1/store/coupons/validate returns 400 when code is missing', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/store/coupons/validate')
+        .set(storefrontHeaders())
+        .send({ cartTotalPaise: 500000 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('POST /api/v1/store/cart/coupon returns 400 when couponCode is missing', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/store/cart/coupon')
+        .set(storefrontHeaders())
+        .send({});
+
+      expect(res.status).toBe(400);
     });
 
     it('POST /api/v1/store/coupons/auto-apply returns best coupons for an authenticated customer', async () => {
@@ -294,6 +310,21 @@ describe('B2C Features Integration Tests', () => {
         .send({ productId: uuid(), email: 'notify@example.com' });
 
       expect(res.status).toBe(201);
+    });
+
+    it.each([
+      ['empty body', {}],
+      ['missing email', { productId: 'a3bb189e-8bf9-4888-9912-ace4e6543002' }],
+      ['missing productId', { email: 'notify@example.com' }],
+      ['invalid email', { productId: 'a3bb189e-8bf9-4888-9912-ace4e6543002', email: 'nope' }],
+      ['non-uuid productId', { productId: 'abc', email: 'notify@example.com' }],
+    ])('POST /api/v1/store/back-in-stock/subscribe returns 400 for %s', async (_name, body) => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/store/back-in-stock/subscribe')
+        .set(staffHeaders())
+        .send(body);
+
+      expect(res.status).toBe(400);
     });
 
     it('DELETE /api/v1/store/back-in-stock/:alertId unsubscribes', async () => {

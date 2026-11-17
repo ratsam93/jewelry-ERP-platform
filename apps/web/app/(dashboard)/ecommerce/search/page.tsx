@@ -147,13 +147,13 @@ export default function SearchDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Searches"
-          value={mockAnalytics.totalSearches.toLocaleString()}
+          value={mockAnalytics.totalSearches.toLocaleString('en-IN')}
           icon={<Search className="h-4 w-4" />}
           color="blue"
         />
         <StatCard
           label="Unique Queries"
-          value={mockAnalytics.uniqueQueries.toLocaleString()}
+          value={mockAnalytics.uniqueQueries.toLocaleString('en-IN')}
           icon={<BarChart3 className="h-4 w-4" />}
           color="purple"
         />
@@ -165,7 +165,7 @@ export default function SearchDashboardPage() {
         />
         <StatCard
           label="Zero Results"
-          value={mockAnalytics.zeroResultCount.toLocaleString()}
+          value={mockAnalytics.zeroResultCount.toLocaleString('en-IN')}
           icon={<AlertTriangle className="h-4 w-4" />}
           color="red"
         />
@@ -240,7 +240,7 @@ export default function SearchDashboardPage() {
                   <div>
                     <p className="text-sm font-medium">{q.query}</p>
                     <p className="text-xs text-muted-foreground">
-                      {q.count} searches &middot; Last: {new Date(q.lastSearchedAt).toLocaleDateString()}
+                      {q.count} searches &middot; Last: {new Date(q.lastSearchedAt).toLocaleDateString('en-IN', { timeZone: 'UTC' })}
                     </p>
                   </div>
                   <button
@@ -303,7 +303,7 @@ export default function SearchDashboardPage() {
                         style={{ height: '100%' }}
                       />
                       <div className="absolute -top-6 left-1/2 -translate-x-1/2 hidden group-hover:block text-[10px] font-medium bg-foreground text-background px-1.5 py-0.5 rounded whitespace-nowrap">
-                        {v.toLocaleString()}
+                        {v.toLocaleString('en-IN')}
                       </div>
                     </div>
                     <span className="text-[10px] text-muted-foreground">{days[i]}</span>
