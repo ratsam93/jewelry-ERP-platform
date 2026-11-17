@@ -22,6 +22,7 @@
     "realistic-seed": "tsx src/realistic-seed.ts",
     "seed:demo-customer": "tsx src/seed-demo-customer.ts",
     "seed:permissions": "tsx src/seed-permissions.ts",
+    "bootstrap-tenant": "tsx src/bootstrap-tenant.ts",
     "build": "tsc -p tsconfig.build.json",
     "clean": "rimraf dist"
   },
