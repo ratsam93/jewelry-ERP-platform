@@ -45,7 +45,7 @@ export class PreOrderTrpcRouter {
         ),
 
       getPreOrder: this.trpc.authedProcedure
-        .input(z.object({ preOrderId: z.string().uuid() }))
+        .input(z.object({ preOrderId: z.guid() }))
         .query(({ ctx, input }) =>
           this.preOrderService.getPreOrder(ctx.tenantId, input.preOrderId),
         ),
@@ -64,21 +64,21 @@ export class PreOrderTrpcRouter {
         ),
 
       confirmPreOrder: this.trpc.authedProcedure
-        .input(z.object({ preOrderId: z.string().uuid() }))
+        .input(z.object({ preOrderId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.preOrderService.confirmPreOrder(ctx.tenantId, ctx.userId, input.preOrderId),
         ),
 
       markAvailable: this.trpc.authedProcedure
-        .input(z.object({ preOrderId: z.string().uuid() }))
+        .input(z.object({ preOrderId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.preOrderService.markAvailable(ctx.tenantId, ctx.userId, input.preOrderId),
         ),
 
       fulfillPreOrder: this.trpc.authedProcedure
         .input(z.object({
-          preOrderId: z.string().uuid(),
-          fulfilledOrderId: z.string().uuid(),
+          preOrderId: z.guid(),
+          fulfilledOrderId: z.guid(),
         }))
         .mutation(({ ctx, input }) =>
           this.preOrderService.fulfillPreOrder(
@@ -91,7 +91,7 @@ export class PreOrderTrpcRouter {
 
       cancelPreOrder: this.trpc.authedProcedure
         .input(z.object({
-          preOrderId: z.string().uuid(),
+          preOrderId: z.guid(),
           reason: z.string().min(1),
         }))
         .mutation(({ ctx, input }) =>
@@ -104,13 +104,13 @@ export class PreOrderTrpcRouter {
         ),
 
       checkProductPreOrderStatus: this.trpc.authedProcedure
-        .input(z.object({ productId: z.string().uuid() }))
+        .input(z.object({ productId: z.guid() }))
         .query(({ ctx, input }) =>
           this.preOrderService.checkProductPreOrderStatus(ctx.tenantId, input.productId),
         ),
 
       notifyPreOrderCustomers: this.trpc.authedProcedure
-        .input(z.object({ productId: z.string().uuid() }))
+        .input(z.object({ productId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.preOrderService.notifyPreOrderCustomers(
             ctx.tenantId,
@@ -127,7 +127,7 @@ export class PreOrderTrpcRouter {
         ),
 
       getConfig: this.trpc.authedProcedure
-        .input(z.object({ productId: z.string().uuid() }))
+        .input(z.object({ productId: z.guid() }))
         .query(({ ctx, input }) =>
           this.configService.getConfig(ctx.tenantId, input.productId),
         ),
@@ -144,7 +144,7 @@ export class PreOrderTrpcRouter {
         ),
 
       deleteConfig: this.trpc.authedProcedure
-        .input(z.object({ productId: z.string().uuid() }))
+        .input(z.object({ productId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.configService.deleteConfig(ctx.tenantId, input.productId),
         ),
@@ -164,7 +164,7 @@ export class PreOrderTrpcRouter {
         ),
 
       getModification: this.trpc.authedProcedure
-        .input(z.object({ requestId: z.string().uuid() }))
+        .input(z.object({ requestId: z.guid() }))
         .query(({ ctx, input }) =>
           this.modificationService.getModification(ctx.tenantId, input.requestId),
         ),
@@ -178,8 +178,8 @@ export class PreOrderTrpcRouter {
       // ─── Reorder Templates ───────────────────────────────────
       createReorderTemplate: this.trpc.authedProcedure
         .input(z.object({
-          customerId: z.string().uuid(),
-          orderId: z.string().uuid(),
+          customerId: z.guid(),
+          orderId: z.guid(),
           name: z.string().optional(),
         }))
         .mutation(({ ctx, input }) =>
@@ -193,15 +193,15 @@ export class PreOrderTrpcRouter {
         ),
 
       getReorderTemplates: this.trpc.authedProcedure
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .query(({ ctx, input }) =>
           this.reorderService.getTemplates(ctx.tenantId, input.customerId),
         ),
 
       deleteReorderTemplate: this.trpc.authedProcedure
         .input(z.object({
-          customerId: z.string().uuid(),
-          templateId: z.string().uuid(),
+          customerId: z.guid(),
+          templateId: z.guid(),
         }))
         .mutation(({ ctx, input }) =>
           this.reorderService.deleteTemplate(

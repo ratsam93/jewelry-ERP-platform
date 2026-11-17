@@ -233,3 +233,42 @@ describe("applyProductFilters", () => {
     expect(desc[0]!.id).toBe(apiProductB.id);
   });
 });
+
+describe("home retry (B4)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("retries once after a transient failure and then succeeds", async () => {
+    vi.useFakeTimers();
+    const good = { success: true, data: { featuredProducts: [], newArrivals: [], categories: [], liveRates: [] } };
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => good });
+    vi.stubGlobal("fetch", fetchMock);
+    const p = getHome();
+    await vi.advanceTimersByTimeAsync(800);
+    await expect(p).resolves.toMatchObject({ featuredProducts: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up after a single retry", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+    const p = getHome();
+    const assertion = expect(p).rejects.toThrow("fetch failed");
+    await vi.advanceTimersByTimeAsync(800);
+    await assertion;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a 4xx", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({ message: "nope" }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(getHome()).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

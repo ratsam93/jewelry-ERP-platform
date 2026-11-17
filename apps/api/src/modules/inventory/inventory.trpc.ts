@@ -51,7 +51,7 @@ export class InventoryTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.inventoryService.findStockItemById(ctx.tenantId, input.id),
           ),
@@ -63,7 +63,7 @@ export class InventoryTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: UpdateStockItemSchema }))
+          .input(z.object({ id: z.guid(), data: UpdateStockItemSchema }))
           .mutation(({ ctx, input }) =>
             this.inventoryService.updateStockItem(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -97,19 +97,19 @@ export class InventoryTrpcRouter {
           ),
 
         approve: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.inventoryService.approveTransfer(ctx.tenantId, ctx.userId, input.id),
           ),
 
         receive: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.inventoryService.receiveTransfer(ctx.tenantId, ctx.userId, input.id),
           ),
 
         cancel: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.inventoryService.cancelTransfer(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -130,7 +130,7 @@ export class InventoryTrpcRouter {
 
         addCounts: this.trpc.authedProcedure
           .input(z.object({
-            stockTakeId: z.string().uuid(),
+            stockTakeId: z.guid(),
             counts: z.array(StockTakeItemInputSchema),
           }))
           .mutation(({ ctx, input }) =>
@@ -140,7 +140,7 @@ export class InventoryTrpcRouter {
           ),
 
         complete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.inventoryService.completeStockTake(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -148,7 +148,7 @@ export class InventoryTrpcRouter {
 
       metalStock: this.trpc.router({
         getByLocation: this.trpc.authedProcedure
-          .input(z.object({ locationId: z.string().uuid() }))
+          .input(z.object({ locationId: z.guid() }))
           .query(({ ctx, input }) =>
             this.inventoryService.getMetalStockByLocation(ctx.tenantId, input.locationId),
           ),

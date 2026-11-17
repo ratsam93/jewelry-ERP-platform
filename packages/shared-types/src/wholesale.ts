@@ -81,7 +81,7 @@ export enum WholesaleOutstandingStatus {
 // ─── Purchase Order Schemas ───────────────────────────────────────
 
 export const PurchaseOrderItemInputSchema = z.object({
-  productId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
   description: z.string().min(1).max(500),
   quantity: z.number().int().positive(),
   unitPricePaise: z.number().int().nonnegative(),
@@ -92,8 +92,8 @@ export const PurchaseOrderItemInputSchema = z.object({
 export type PurchaseOrderItemInput = z.infer<typeof PurchaseOrderItemInputSchema>;
 
 export const PurchaseOrderInputSchema = z.object({
-  supplierId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  supplierId: z.guid(),
+  locationId: z.guid(),
   items: z.array(PurchaseOrderItemInputSchema).min(1),
   currencyCode: z.string().length(3).default('INR'),
   expectedDate: z.coerce.date().optional(),
@@ -144,8 +144,8 @@ export interface PurchaseOrderResponse {
 
 export const PurchaseOrderListFilterSchema = z.object({
   status: z.nativeEnum(WholesalePOStatus).optional(),
-  supplierId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  supplierId: z.guid().optional(),
+  locationId: z.guid().optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
   search: z.string().optional(),
@@ -156,8 +156,8 @@ export type PurchaseOrderListFilter = z.infer<typeof PurchaseOrderListFilterSche
 // ─── Goods Receipt Schemas ────────────────────────────────────────
 
 export const GoodsReceiptItemInputSchema = z.object({
-  poItemId: z.string().uuid().optional(),
-  productId: z.string().uuid(),
+  poItemId: z.guid().optional(),
+  productId: z.guid(),
   receivedQuantity: z.number().int().nonnegative(),
   acceptedQuantity: z.number().int().nonnegative().default(0),
   rejectedQuantity: z.number().int().nonnegative().default(0),
@@ -168,7 +168,7 @@ export const GoodsReceiptItemInputSchema = z.object({
 export type GoodsReceiptItemInput = z.infer<typeof GoodsReceiptItemInputSchema>;
 
 export const GoodsReceiptInputSchema = z.object({
-  purchaseOrderId: z.string().uuid(),
+  purchaseOrderId: z.guid(),
   items: z.array(GoodsReceiptItemInputSchema).min(1),
   receivedDate: z.coerce.date().optional(),
   notes: z.string().optional(),
@@ -205,7 +205,7 @@ export interface GoodsReceiptResponse {
 // ─── Consignment Out Schemas ──────────────────────────────────────
 
 export const ConsignmentOutItemInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   quantity: z.number().int().positive(),
   weightMg: z.number().int().nonnegative(),
   valuePaise: z.number().int().nonnegative(),
@@ -214,8 +214,8 @@ export const ConsignmentOutItemInputSchema = z.object({
 export type ConsignmentOutItemInput = z.infer<typeof ConsignmentOutItemInputSchema>;
 
 export const ConsignmentOutInputSchema = z.object({
-  customerId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  customerId: z.guid(),
+  locationId: z.guid(),
   items: z.array(ConsignmentOutItemInputSchema).min(1),
   dueDate: z.coerce.date().optional(),
   notes: z.string().optional(),
@@ -255,7 +255,7 @@ export interface ConsignmentOutResponse {
 // ─── Consignment In Schemas ───────────────────────────────────────
 
 export const ConsignmentInItemInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   quantity: z.number().int().positive(),
   weightMg: z.number().int().nonnegative(),
   valuePaise: z.number().int().nonnegative(),
@@ -264,8 +264,8 @@ export const ConsignmentInItemInputSchema = z.object({
 export type ConsignmentInItemInput = z.infer<typeof ConsignmentInItemInputSchema>;
 
 export const ConsignmentInInputSchema = z.object({
-  supplierId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  supplierId: z.guid(),
+  locationId: z.guid(),
   items: z.array(ConsignmentInItemInputSchema).min(1),
   dueDate: z.coerce.date().optional(),
   notes: z.string().optional(),
@@ -339,9 +339,9 @@ export interface AgentBrokerResponse {
 // ─── Commission Schemas ───────────────────────────────────────────
 
 export const CommissionInputSchema = z.object({
-  agentBrokerId: z.string().uuid(),
+  agentBrokerId: z.guid(),
   referenceType: z.nativeEnum(WholesaleCommissionRefType),
-  referenceId: z.string().uuid(),
+  referenceId: z.guid(),
   amountPaise: z.number().int().nonnegative(),
 });
 
@@ -366,7 +366,7 @@ export interface CommissionResponse {
 
 export const CreditLimitInputSchema = z.object({
   entityType: z.nativeEnum(WholesaleCreditEntityType),
-  entityId: z.string().uuid(),
+  entityId: z.guid(),
   creditLimitPaise: z.number().int().nonnegative(),
 });
 
@@ -409,8 +409,8 @@ export interface OutstandingBalanceResponse {
 // ─── Rate Contract Schemas ────────────────────────────────────────
 
 export const RateContractInputSchema = z.object({
-  supplierId: z.string().uuid(),
-  productCategoryId: z.string().uuid().optional(),
+  supplierId: z.guid(),
+  productCategoryId: z.guid().optional(),
   metalType: z.string().max(50).optional(),
   ratePerGramPaise: z.number().int().positive().optional(),
   makingChargesPercent: z.number().int().nonnegative().optional(),

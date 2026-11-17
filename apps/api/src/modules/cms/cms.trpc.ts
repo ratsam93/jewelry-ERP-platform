@@ -58,7 +58,7 @@ export class CmsTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.cmsService.getBanner(ctx.tenantId, input.id),
           ),
@@ -70,13 +70,13 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(BannerInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(BannerInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updateBanner(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.cmsService.deleteBanner(ctx.tenantId, input.id),
           ),
@@ -95,7 +95,7 @@ export class CmsTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.cmsService.getCollection(ctx.tenantId, input.id),
           ),
@@ -107,13 +107,13 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(CollectionInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(CollectionInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updateCollection(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.cmsService.deleteCollection(ctx.tenantId, input.id),
           ),
@@ -132,7 +132,7 @@ export class CmsTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.cmsService.getPage(ctx.tenantId, input.id),
           ),
@@ -144,13 +144,13 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(PageInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(PageInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updatePage(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.cmsService.deletePage(ctx.tenantId, input.id),
           ),
@@ -169,7 +169,7 @@ export class CmsTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.blogService.getBlogPost(ctx.tenantId, input.id),
           ),
@@ -181,25 +181,25 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(BlogPostInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(BlogPostInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.blogService.updateBlogPost(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.blogService.deleteBlogPost(ctx.tenantId, input.id),
           ),
 
         publish: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.blogService.publishBlogPost(ctx.tenantId, ctx.userId, input.id),
           ),
 
         unpublish: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.blogService.unpublishBlogPost(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -224,13 +224,13 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(FaqInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(FaqInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updateFaq(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.cmsService.deleteFaq(ctx.tenantId, input.id),
           ),
@@ -260,13 +260,13 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(AnnouncementInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(AnnouncementInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.cmsService.updateAnnouncement(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.cmsService.deleteAnnouncement(ctx.tenantId, input.id),
           ),
@@ -279,7 +279,7 @@ export class CmsTrpcRouter {
         ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.homepageService.getSection(ctx.tenantId, input.id),
           ),
@@ -291,19 +291,19 @@ export class CmsTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(HomepageSectionInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(HomepageSectionInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.homepageService.updateSection(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.homepageService.deleteSection(ctx.tenantId, input.id),
           ),
 
         toggleActive: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.homepageService.toggleSectionActive(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -328,7 +328,7 @@ export class CmsTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.seoService.getSeoMetadataById(ctx.tenantId, input.id),
           ),
@@ -340,19 +340,19 @@ export class CmsTrpcRouter {
           ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.seoService.deleteSeoMetadata(ctx.tenantId, input.id),
           ),
 
         generateForProduct: this.trpc.authedProcedure
-          .input(z.object({ productId: z.string().uuid() }))
+          .input(z.object({ productId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.seoService.generateProductSeo(ctx.tenantId, ctx.userId, input.productId),
           ),
 
         generateForCategory: this.trpc.authedProcedure
-          .input(z.object({ categoryId: z.string().uuid() }))
+          .input(z.object({ categoryId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.seoService.generateCategorySeo(ctx.tenantId, ctx.userId, input.categoryId),
           ),

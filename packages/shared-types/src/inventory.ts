@@ -180,7 +180,7 @@ export const CreateStockMovementSchema = z.object({
   /** Per-unit cost in paise for receipts; used by FIFO/AVG/LAST_PURCHASE valuation. */
   unitCostPaise: z.bigint().nonnegative().optional(),
   referenceType: z.string().max(100).optional(),
-  referenceId: z.string().uuid().optional(),
+  referenceId: z.guid().optional(),
   notes: z.string().optional(),
   movedAt: z.coerce.date().optional(),
 });
@@ -441,7 +441,7 @@ export const CreateBatchLotSchema = z.object({
   batchNumber: z.string().max(100),
   lotNumber: z.string().max(100).optional(),
   sourceType: z.nativeEnum(BatchSourceType),
-  sourceId: z.string().uuid().optional(),
+  sourceId: z.guid().optional(),
   quantityInitial: z.number().int().positive(),
   expiryDate: z.coerce.date().optional(),
   notes: z.string().optional(),
@@ -476,8 +476,8 @@ export type BatchLotListInput = z.infer<typeof BatchLotListInputSchema>;
 export const CreateSerialNumberSchema = z.object({
   productId: UuidSchema,
   serialNumber: z.string().max(200),
-  batchLotId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  batchLotId: z.guid().optional(),
+  locationId: z.guid().optional(),
   rfidTag: z.string().max(200).optional(),
   barcodeData: z.string().max(200).optional(),
   qrData: z.string().max(500).optional(),
@@ -487,7 +487,7 @@ export type CreateSerialNumber = z.infer<typeof CreateSerialNumberSchema>;
 export const UpdateSerialStatusSchema = z.object({
   id: UuidSchema,
   status: z.nativeEnum(SerialStatus),
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
 });
 export type UpdateSerialStatus = z.infer<typeof UpdateSerialStatusSchema>;
 
@@ -629,7 +629,7 @@ export const CreateMetalRecoverySchema = z.object({
   /** Fineness out of 1000 (e.g. 916 for 22K). */
   purityFineness: z.number().int().min(1).max(999),
   refinerName: z.string().max(255).optional(),
-  karigarId: z.string().uuid().optional(),
+  karigarId: z.guid().optional(),
   sentAt: z.coerce.date().optional(),
   notes: z.string().optional(),
 });

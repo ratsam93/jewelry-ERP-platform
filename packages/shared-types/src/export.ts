@@ -76,7 +76,7 @@ export enum Incoterms {
 // ─── Export Order Schemas ─────────────────────────────────────────
 
 export const ExportOrderItemInputSchema = z.object({
-  productId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
   description: z.string().min(1).max(500),
   quantity: z.number().int().positive(),
   unitPricePaise: z.number().int().nonnegative(),
@@ -89,9 +89,9 @@ export const ExportOrderItemInputSchema = z.object({
 export type ExportOrderItemInput = z.infer<typeof ExportOrderItemInputSchema>;
 
 export const ExportOrderInputSchema = z.object({
-  buyerId: z.string().uuid(),
+  buyerId: z.guid(),
   buyerCountry: z.string().length(2),
-  locationId: z.string().uuid(),
+  locationId: z.guid(),
   currencyCode: z.string().length(3).default('USD'),
   exchangeRate: z.number().int().positive(), // rate * 10000
   incoterms: z.nativeEnum(Incoterms),
@@ -107,7 +107,7 @@ export type ExportOrderInput = z.infer<typeof ExportOrderInputSchema>;
 
 export const ExportOrderListFilterSchema = z.object({
   status: z.nativeEnum(ExportOrderStatus).optional(),
-  buyerId: z.string().uuid().optional(),
+  buyerId: z.guid().optional(),
   buyerCountry: z.string().length(2).optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
@@ -159,7 +159,7 @@ export interface ExportOrderResponse {
 // ─── Export Invoice Schemas ───────────────────────────────────────
 
 export const ExportInvoiceItemInputSchema = z.object({
-  exportOrderItemId: z.string().uuid().optional(),
+  exportOrderItemId: z.guid().optional(),
   description: z.string().min(1).max(500),
   quantity: z.number().int().positive(),
   unitPricePaise: z.number().int().nonnegative(),
@@ -172,9 +172,9 @@ export const ExportInvoiceItemInputSchema = z.object({
 export type ExportInvoiceItemInput = z.infer<typeof ExportInvoiceItemInputSchema>;
 
 export const ExportInvoiceInputSchema = z.object({
-  exportOrderId: z.string().uuid(),
+  exportOrderId: z.guid(),
   invoiceType: z.nativeEnum(ExportInvoiceType),
-  buyerId: z.string().uuid(),
+  buyerId: z.guid(),
   currencyCode: z.string().length(3),
   exchangeRate: z.number().int().positive(),
   items: z.array(ExportInvoiceItemInputSchema).min(1),
@@ -239,7 +239,7 @@ export interface ExportInvoiceResponse {
 // ─── Shipping Document Schemas ────────────────────────────────────
 
 export const ShippingDocumentInputSchema = z.object({
-  exportOrderId: z.string().uuid(),
+  exportOrderId: z.guid(),
   documentType: z.nativeEnum(ShippingDocumentType),
   documentNumber: z.string().max(100).optional(),
   issuedDate: z.coerce.date().optional(),
@@ -269,7 +269,7 @@ export interface ShippingDocumentResponse {
 // ─── Customs Duty Schemas ─────────────────────────────────────────
 
 export const CustomsDutyCalculationSchema = z.object({
-  exportOrderId: z.string().uuid().optional(),
+  exportOrderId: z.guid().optional(),
   importCountry: z.string().length(2),
   hsCode: z.string().min(4).max(10),
   assessableValuePaise: z.number().int().nonnegative(),

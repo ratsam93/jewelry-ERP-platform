@@ -66,8 +66,8 @@ export const BannerInputSchema = z.object({
 export type BannerInput = z.infer<typeof BannerInputSchema>;
 
 export const BannerResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   title: z.string(),
   subtitle: z.string().nullable(),
   imageUrl: z.string(),
@@ -98,7 +98,7 @@ export const CollectionInputSchema = z.object({
   slug: z.string().min(1).max(255).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens'),
   description: z.string().optional(),
   imageUrl: z.string().url().max(1000).optional(),
-  products: z.array(z.string().uuid()).default([]),
+  products: z.array(z.guid()).default([]),
   displayOrder: z.number().int().nonnegative().default(0),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
@@ -106,8 +106,8 @@ export const CollectionInputSchema = z.object({
 export type CollectionInput = z.infer<typeof CollectionInputSchema>;
 
 export const CollectionResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   name: z.string(),
   slug: z.string(),
   description: z.string().nullable(),
@@ -141,8 +141,8 @@ export const PageInputSchema = z.object({
 export type PageInput = z.infer<typeof PageInputSchema>;
 
 export const PageResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   title: z.string(),
   slug: z.string(),
   content: z.string(),
@@ -178,8 +178,8 @@ export const BlogPostInputSchema = z.object({
 export type BlogPostInput = z.infer<typeof BlogPostInputSchema>;
 
 export const BlogPostResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   title: z.string(),
   slug: z.string(),
   excerpt: z.string().nullable(),
@@ -217,8 +217,8 @@ export const FaqInputSchema = z.object({
 export type FaqInput = z.infer<typeof FaqInputSchema>;
 
 export const FaqResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   question: z.string(),
   answer: z.string(),
   category: z.string().nullable(),
@@ -250,8 +250,8 @@ export const AnnouncementInputSchema = z.object({
 export type AnnouncementInput = z.infer<typeof AnnouncementInputSchema>;
 
 export const AnnouncementResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   message: z.string(),
   linkUrl: z.string().nullable(),
   linkText: z.string().nullable(),
@@ -279,8 +279,8 @@ export const SeoMetadataInputSchema = z.object({
 export type SeoMetadataInput = z.infer<typeof SeoMetadataInputSchema>;
 
 export const SeoMetadataResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   pageType: z.nativeEnum(SeoPageType),
   pageIdentifier: z.string(),
   metaTitle: z.string().nullable(),
@@ -305,9 +305,9 @@ export const HomepageSectionConfigSchema = z.object({
   title: z.string().optional(),
   subtitle: z.string().optional(),
   limit: z.number().int().positive().optional(),
-  categoryId: z.string().uuid().optional(),
-  collectionId: z.string().uuid().optional(),
-  bannerId: z.string().uuid().optional(),
+  categoryId: z.guid().optional(),
+  collectionId: z.guid().optional(),
+  bannerId: z.guid().optional(),
   occasion: z.string().optional(),
   htmlContent: z.string().optional(),
   backgroundColor: z.string().optional(),
@@ -326,8 +326,8 @@ export const HomepageSectionInputSchema = z.object({
 export type HomepageSectionInput = z.infer<typeof HomepageSectionInputSchema>;
 
 export const HomepageSectionResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   sectionType: z.nativeEnum(HomepageSectionType),
   displayOrder: z.number().int(),
   isActive: z.boolean(),
@@ -338,7 +338,7 @@ export const HomepageSectionResponseSchema = z.object({
 export type HomepageSectionResponse = z.infer<typeof HomepageSectionResponseSchema>;
 
 export const ResolvedHomepageSectionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   sectionType: z.nativeEnum(HomepageSectionType),
   displayOrder: z.number().int(),
   config: HomepageSectionConfigSchema.nullable(),
@@ -352,7 +352,7 @@ export const HomepageLayoutResponseSchema = z.object({
 export type HomepageLayoutResponse = z.infer<typeof HomepageLayoutResponseSchema>;
 
 export const ReorderItemSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   displayOrder: z.number().int().nonnegative(),
 });
 export type ReorderItem = z.infer<typeof ReorderItemSchema>;

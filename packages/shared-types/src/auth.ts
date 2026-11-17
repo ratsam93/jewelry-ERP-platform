@@ -92,7 +92,7 @@ export type SocialLoginInput = z.infer<typeof SocialLoginInputSchema>;
 // ─── Two-Factor Auth ──────────────────────────────────────────
 
 export const Enable2FAInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
 });
 export type Enable2FAInput = z.infer<typeof Enable2FAInputSchema>;
 

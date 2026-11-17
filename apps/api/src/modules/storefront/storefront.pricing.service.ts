@@ -10,8 +10,8 @@ import { TenantAwareService } from '../../common/base.service';
 const JEWELRY_GST_RATE_BPS = 300;
 /** Basis-points divisor: 10000 bps = 100% */
 const BPS_DIVISOR = 10_000;
-/** Wastage percent divisor: stored as integer percent * 100 internally */
-const WASTAGE_DIVISOR = 100;
+/** Wastage is stored in basis points (200 = 2.00%); 10_000 bps = 100% */
+const WASTAGE_DIVISOR = 10_000;
 
 interface MetalRate {
   metalType: string;
@@ -105,7 +105,7 @@ export class StorefrontPricingService extends TenantAwareService {
    * Formula:
    *   metalValue = (ratePaisePer10g / 10_000) * metalWeightMg
    *              = (ratePaisePer10g * metalWeightMg) / 10_000
-   *   wastageValue = metalValue * (wastagePercent / 100)
+   *   wastageValue = metalValue * (wastagePercentBps / 10_000)
    *   subtotal = metalValue + makingCharges + wastageValue
    *   gst = subtotal * 3 / 100  (= subtotal * 300 / 10_000)
    *   total = subtotal + gst
@@ -115,7 +115,7 @@ export class StorefrontPricingService extends TenantAwareService {
   calculateProductPrice(
     metalWeightMg: number,
     makingChargesPaise: number,
-    wastagePercent: number,
+    wastagePercent: number, // basis points (200 = 2.00%)
     ratePaisePer10g: number,
   ): ProductPriceBreakdown {
     // metalValue in paise: rate per 10g * weight in mg / 10_000 mg

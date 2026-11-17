@@ -29,7 +29,7 @@ export const KycVerificationStatusEnum = z.enum([
 // ─── Profile ──────────────────────────────────────────────────────
 
 export const CustomerProfileResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string().nullable(),
@@ -103,7 +103,7 @@ export const OrderListInputSchema = PaginationSchema.extend({
 export type OrderListInput = z.infer<typeof OrderListInputSchema>;
 
 export const OrderSummaryResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   orderNumber: z.string(),
   status: OnlineOrderStatusEnum,
   totalPaise: z.number().int(),
@@ -116,7 +116,7 @@ export const OrderSummaryResponseSchema = z.object({
 export type OrderSummaryResponse = z.infer<typeof OrderSummaryResponseSchema>;
 
 export const OrderItemResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   title: z.string(),
   sku: z.string().nullable(),
   quantity: z.number().int(),
@@ -128,7 +128,7 @@ export const OrderItemResponseSchema = z.object({
 export type OrderItemResponse = z.infer<typeof OrderItemResponseSchema>;
 
 export const ShipmentTrackingResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   shipmentNumber: z.string(),
   carrier: z.string().nullable(),
   trackingNumber: z.string().nullable(),
@@ -141,7 +141,7 @@ export const ShipmentTrackingResponseSchema = z.object({
 export type ShipmentTrackingResponse = z.infer<typeof ShipmentTrackingResponseSchema>;
 
 export const PaymentInfoResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   method: z.string().nullable(),
   amountPaise: z.number().int(),
   currencyCode: z.string(),
@@ -151,7 +151,7 @@ export const PaymentInfoResponseSchema = z.object({
 export type PaymentInfoResponse = z.infer<typeof PaymentInfoResponseSchema>;
 
 export const OrderDetailResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   orderNumber: z.string(),
   status: OnlineOrderStatusEnum,
   subtotalPaise: z.number().int(),
@@ -179,14 +179,14 @@ export type OrderDetailResponse = z.infer<typeof OrderDetailResponseSchema>;
 // ─── Returns ──────────────────────────────────────────────────────
 
 export const ReturnItemInputSchema = z.object({
-  orderItemId: z.string().uuid(),
+  orderItemId: z.guid(),
   quantity: z.number().int().min(1),
   reason: z.string().min(1).max(500),
 });
 export type ReturnItemInput = z.infer<typeof ReturnItemInputSchema>;
 
 export const ReturnRequestInputSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.guid(),
   items: z.array(ReturnItemInputSchema).min(1),
   reason: z.string().min(1).max(1000),
   preferredRefundMethod: z.enum(['ORIGINAL_PAYMENT', 'STORE_CREDIT', 'BANK_TRANSFER']),
@@ -194,7 +194,7 @@ export const ReturnRequestInputSchema = z.object({
 export type ReturnRequestInput = z.infer<typeof ReturnRequestInputSchema>;
 
 export const ReturnRequestResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   returnNumber: z.string(),
   status: z.string(),
   reason: z.string().nullable(),
@@ -204,7 +204,7 @@ export const ReturnRequestResponseSchema = z.object({
   metalRateDifferencePaise: z.number().int(),
   createdAt: z.coerce.date(),
   items: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     productId: z.string().nullable(),
     quantity: z.number().int(),
     returnPricePaise: z.number().int(),
@@ -231,7 +231,7 @@ export const LoyaltyDashboardResponseSchema = z.object({
 export type LoyaltyDashboardResponse = z.infer<typeof LoyaltyDashboardResponseSchema>;
 
 export const PointsHistoryItemSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   transactionType: z.string(),
   points: z.number().int(),
   balanceAfter: z.number().int(),
@@ -245,14 +245,14 @@ export type PointsHistoryItem = z.infer<typeof PointsHistoryItemSchema>;
 
 export const RedeemPointsInputSchema = z.object({
   points: z.number().int().positive(),
-  orderId: z.string().uuid(),
+  orderId: z.guid(),
 });
 export type RedeemPointsInput = z.infer<typeof RedeemPointsInputSchema>;
 
 // ─── Schemes ──────────────────────────────────────────────────────
 
 export const SchemeMembershipSummarySchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   memberNumber: z.string(),
   schemeType: z.enum(['KITTY', 'GOLD_SAVINGS']),
   schemeName: z.string(),
@@ -271,7 +271,7 @@ export const SchemeDashboardResponseSchema = z.object({
   activeSchemes: z.array(SchemeMembershipSummarySchema),
   totalInvestedPaise: z.number().int(),
   upcomingInstallments: z.array(z.object({
-    membershipId: z.string().uuid(),
+    membershipId: z.guid(),
     schemeName: z.string(),
     installmentNumber: z.number().int(),
     dueDate: z.coerce.date(),
@@ -281,7 +281,7 @@ export const SchemeDashboardResponseSchema = z.object({
 export type SchemeDashboardResponse = z.infer<typeof SchemeDashboardResponseSchema>;
 
 export const SchemeInstallmentResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   installmentNumber: z.number().int(),
   dueDate: z.coerce.date(),
   paidDate: z.coerce.date().nullable(),
@@ -292,7 +292,7 @@ export const SchemeInstallmentResponseSchema = z.object({
 export type SchemeInstallmentResponse = z.infer<typeof SchemeInstallmentResponseSchema>;
 
 export const SchemeDetailResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   memberNumber: z.string(),
   schemeType: z.enum(['KITTY', 'GOLD_SAVINGS']),
   schemeName: z.string(),
@@ -316,7 +316,7 @@ export const PayInstallmentInputSchema = z.object({
 export type PayInstallmentInput = z.infer<typeof PayInstallmentInputSchema>;
 
 export const EnrollSchemeInputSchema = z.object({
-  schemeId: z.string().uuid(),
+  schemeId: z.guid(),
   schemeType: z.enum(['KITTY', 'GOLD_SAVINGS']),
 });
 export type EnrollSchemeInput = z.infer<typeof EnrollSchemeInputSchema>;
@@ -324,7 +324,7 @@ export type EnrollSchemeInput = z.infer<typeof EnrollSchemeInputSchema>;
 // ─── KYC ──────────────────────────────────────────────────────────
 
 export const KycDocumentStatusSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   type: KycVerificationTypeEnum,
   documentNumber: z.string(),
   status: KycVerificationStatusEnum,

@@ -36,14 +36,14 @@ export class ArTrpcRouter {
         ),
 
       getAsset: this.trpc.authedProcedure
-        .input(z.object({ assetId: z.string().uuid() }))
+        .input(z.object({ assetId: z.guid() }))
         .query(({ ctx, input }) =>
           this.arService.getAsset(ctx.tenantId, input.assetId),
         ),
 
       getAssetsForProduct: this.trpc.authedProcedure
         .input(z.object({
-          productId: z.string().uuid(),
+          productId: z.guid(),
           assetType: z.string().optional(),
         }))
         .query(({ ctx, input }) =>
@@ -52,7 +52,7 @@ export class ArTrpcRouter {
 
       updateAsset: this.trpc.authedProcedure
         .input(z.object({
-          assetId: z.string().uuid(),
+          assetId: z.guid(),
           data: partialUpdate(ArAssetInputSchema).extend({
             isActive: z.boolean().optional(),
             processingStatus: z.string().optional(),
@@ -63,7 +63,7 @@ export class ArTrpcRouter {
         ),
 
       deleteAsset: this.trpc.authedProcedure
-        .input(z.object({ assetId: z.string().uuid() }))
+        .input(z.object({ assetId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.arService.deleteAsset(ctx.tenantId, input.assetId),
         ),
@@ -92,14 +92,14 @@ export class ArTrpcRouter {
         ),
 
       get360Config: this.trpc.authedProcedure
-        .input(z.object({ productId: z.string().uuid() }))
+        .input(z.object({ productId: z.guid() }))
         .query(({ ctx, input }) =>
           this.ar360Service.get360Config(ctx.tenantId, input.productId),
         ),
 
       update360Config: this.trpc.authedProcedure
         .input(z.object({
-          productId: z.string().uuid(),
+          productId: z.guid(),
           data: Product360ConfigUpdateSchema,
         }))
         .mutation(({ ctx, input }) =>
@@ -107,7 +107,7 @@ export class ArTrpcRouter {
         ),
 
       delete360Config: this.trpc.authedProcedure
-        .input(z.object({ productId: z.string().uuid() }))
+        .input(z.object({ productId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.ar360Service.delete360Config(ctx.tenantId, input.productId),
         ),
@@ -128,7 +128,7 @@ export class ArTrpcRouter {
       // ─── Try-On Config (Admin preview) ─────────────────────
 
       getTryOnConfig: this.trpc.authedProcedure
-        .input(z.object({ productId: z.string().uuid() }))
+        .input(z.object({ productId: z.guid() }))
         .query(({ ctx, input }) =>
           this.tryOnService.getTryOnConfig(ctx.tenantId, input.productId),
         ),

@@ -565,6 +565,7 @@ async function main() {
       create: {
         id, tenantId,
         jobNumber: `JOB-DEMO-${String(i + 1).padStart(4, '0')}`,
+        bomId: did(`bom-${tenantId}-${i % 5}`),
         productId: productIds[i]!,
         locationId: workshopLocId,
         status: jobStatuses[i]!,

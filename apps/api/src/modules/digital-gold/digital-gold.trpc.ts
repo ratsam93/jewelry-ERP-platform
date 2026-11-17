@@ -89,31 +89,31 @@ export class DigitalGoldTrpcRouter {
         ),
 
         get: authed
-          .input(z.object({ sipId: z.string().uuid() }))
+          .input(z.object({ sipId: z.guid() }))
           .query(({ ctx, input }) =>
             this.sipService.getSip(ctx.tenantId, ctx.userId, input.sipId),
           ),
 
         pause: authed
-          .input(z.object({ sipId: z.string().uuid() }))
+          .input(z.object({ sipId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.sipService.pauseSip(ctx.tenantId, ctx.userId, input.sipId),
           ),
 
         resume: authed
-          .input(z.object({ sipId: z.string().uuid() }))
+          .input(z.object({ sipId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.sipService.resumeSip(ctx.tenantId, ctx.userId, input.sipId),
           ),
 
         cancel: authed
-          .input(z.object({ sipId: z.string().uuid() }))
+          .input(z.object({ sipId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.sipService.cancelSip(ctx.tenantId, ctx.userId, input.sipId),
           ),
 
         history: authed
-          .input(z.object({ sipId: z.string().uuid() }))
+          .input(z.object({ sipId: z.guid() }))
           .query(({ ctx, input }) =>
             this.sipService.getSipHistory(ctx.tenantId, ctx.userId, input.sipId),
           ),
@@ -167,7 +167,7 @@ export class DigitalGoldTrpcRouter {
         ),
 
         cancel: authed
-          .input(z.object({ alertId: z.string().uuid() }))
+          .input(z.object({ alertId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.alertService.cancelAlert(ctx.tenantId, ctx.userId, input.alertId),
           ),

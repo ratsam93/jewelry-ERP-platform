@@ -55,7 +55,7 @@ export class WholesaleTrpcRouter {
         ),
 
       getPurchaseOrder: this.trpc.authedProcedure
-        .input(z.object({ poId: z.string().uuid() }))
+        .input(z.object({ poId: z.guid() }))
         .query(({ ctx, input }) =>
           this.wholesaleService.getPurchaseOrder(ctx.tenantId, input.poId),
         ),
@@ -74,13 +74,13 @@ export class WholesaleTrpcRouter {
         ),
 
       sendPurchaseOrder: this.trpc.authedProcedure
-        .input(z.object({ poId: z.string().uuid() }))
+        .input(z.object({ poId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.wholesaleService.sendPurchaseOrder(ctx.tenantId, ctx.userId, input.poId),
         ),
 
       cancelPurchaseOrder: this.trpc.authedProcedure
-        .input(z.object({ poId: z.string().uuid(), reason: z.string().min(1) }))
+        .input(z.object({ poId: z.guid(), reason: z.string().min(1) }))
         .mutation(({ ctx, input }) =>
           this.wholesaleService.cancelPurchaseOrder(ctx.tenantId, ctx.userId, input.poId, input.reason),
         ),
@@ -93,14 +93,14 @@ export class WholesaleTrpcRouter {
         ),
 
       getGoodsReceipt: this.trpc.authedProcedure
-        .input(z.object({ receiptId: z.string().uuid() }))
+        .input(z.object({ receiptId: z.guid() }))
         .query(({ ctx, input }) =>
           this.wholesaleService.getGoodsReceipt(ctx.tenantId, input.receiptId),
         ),
 
       listGoodsReceipts: this.trpc.authedProcedure
         .input(z.object({
-          poId: z.string().uuid().optional(),
+          poId: z.guid().optional(),
           pagination: PaginationSchema.optional(),
         }))
         .query(({ ctx, input }) =>
@@ -112,19 +112,19 @@ export class WholesaleTrpcRouter {
         ),
 
       inspectGoodsReceipt: this.trpc.authedProcedure
-        .input(z.object({ receiptId: z.string().uuid() }))
+        .input(z.object({ receiptId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.wholesaleService.inspectGoodsReceipt(ctx.tenantId, ctx.userId, input.receiptId),
         ),
 
       acceptGoodsReceipt: this.trpc.authedProcedure
-        .input(z.object({ receiptId: z.string().uuid() }))
+        .input(z.object({ receiptId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.wholesaleService.acceptGoodsReceipt(ctx.tenantId, ctx.userId, input.receiptId),
         ),
 
       rejectGoodsReceipt: this.trpc.authedProcedure
-        .input(z.object({ receiptId: z.string().uuid(), reason: z.string().min(1) }))
+        .input(z.object({ receiptId: z.guid(), reason: z.string().min(1) }))
         .mutation(({ ctx, input }) =>
           this.wholesaleService.rejectGoodsReceipt(ctx.tenantId, ctx.userId, input.receiptId, input.reason),
         ),
@@ -137,7 +137,7 @@ export class WholesaleTrpcRouter {
         ),
 
       getConsignmentOut: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(({ ctx, input }) =>
           this.consignmentService.getConsignmentOut(ctx.tenantId, input.id),
         ),
@@ -146,7 +146,7 @@ export class WholesaleTrpcRouter {
         .input(z.object({
           filters: z.object({
             status: z.string().optional(),
-            customerId: z.string().uuid().optional(),
+            customerId: z.guid().optional(),
           }).optional(),
           pagination: PaginationSchema.optional(),
         }))
@@ -159,16 +159,16 @@ export class WholesaleTrpcRouter {
         ),
 
       issueConsignmentOut: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.consignmentService.issueConsignmentOut(ctx.tenantId, ctx.userId, input.id),
         ),
 
       returnConsignmentOutItems: this.trpc.authedProcedure
         .input(z.object({
-          consignmentId: z.string().uuid(),
+          consignmentId: z.guid(),
           items: z.array(z.object({
-            itemId: z.string().uuid(),
+            itemId: z.guid(),
             returnedQuantity: z.number().int().positive(),
           })).min(1),
         }))
@@ -180,9 +180,9 @@ export class WholesaleTrpcRouter {
 
       convertConsignmentOutToSale: this.trpc.authedProcedure
         .input(z.object({
-          consignmentId: z.string().uuid(),
+          consignmentId: z.guid(),
           items: z.array(z.object({
-            itemId: z.string().uuid(),
+            itemId: z.guid(),
             soldQuantity: z.number().int().positive(),
           })).min(1),
         }))
@@ -193,7 +193,7 @@ export class WholesaleTrpcRouter {
         ),
 
       expireConsignmentOut: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.consignmentService.expireConsignmentOut(ctx.tenantId, ctx.userId, input.id),
         ),
@@ -206,7 +206,7 @@ export class WholesaleTrpcRouter {
         ),
 
       getConsignmentIn: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(({ ctx, input }) =>
           this.consignmentService.getConsignmentIn(ctx.tenantId, input.id),
         ),
@@ -215,7 +215,7 @@ export class WholesaleTrpcRouter {
         .input(z.object({
           filters: z.object({
             status: z.string().optional(),
-            supplierId: z.string().uuid().optional(),
+            supplierId: z.guid().optional(),
           }).optional(),
           pagination: PaginationSchema.optional(),
         }))
@@ -229,9 +229,9 @@ export class WholesaleTrpcRouter {
 
       returnConsignmentInItems: this.trpc.authedProcedure
         .input(z.object({
-          consignmentId: z.string().uuid(),
+          consignmentId: z.guid(),
           items: z.array(z.object({
-            itemId: z.string().uuid(),
+            itemId: z.guid(),
             returnedQuantity: z.number().int().positive(),
           })).min(1),
         }))
@@ -243,9 +243,9 @@ export class WholesaleTrpcRouter {
 
       purchaseConsignmentInItems: this.trpc.authedProcedure
         .input(z.object({
-          consignmentId: z.string().uuid(),
+          consignmentId: z.guid(),
           items: z.array(z.object({
-            itemId: z.string().uuid(),
+            itemId: z.guid(),
             purchasedQuantity: z.number().int().positive(),
           })).min(1),
         }))
@@ -256,7 +256,7 @@ export class WholesaleTrpcRouter {
         ),
 
       expireConsignmentIn: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.consignmentService.expireConsignmentIn(ctx.tenantId, ctx.userId, input.id),
         ),
@@ -274,7 +274,7 @@ export class WholesaleTrpcRouter {
         ),
 
       getRateContract: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(({ ctx, input }) =>
           this.rateContractService.getRateContract(ctx.tenantId, input.id),
         ),
@@ -282,7 +282,7 @@ export class WholesaleTrpcRouter {
       listRateContracts: this.trpc.authedProcedure
         .input(z.object({
           filters: z.object({
-            supplierId: z.string().uuid().optional(),
+            supplierId: z.guid().optional(),
             isActive: z.boolean().optional(),
           }).optional(),
           pagination: PaginationSchema.optional(),
@@ -296,15 +296,15 @@ export class WholesaleTrpcRouter {
         ),
 
       updateRateContract: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid(), data: partialUpdate(RateContractInputSchema) }))
+        .input(z.object({ id: z.guid(), data: partialUpdate(RateContractInputSchema) }))
         .mutation(({ ctx, input }) =>
           this.rateContractService.updateRateContract(ctx.tenantId, ctx.userId, input.id, input.data),
         ),
 
       findApplicableRate: this.trpc.authedProcedure
         .input(z.object({
-          supplierId: z.string().uuid(),
-          categoryId: z.string().uuid().optional(),
+          supplierId: z.guid(),
+          categoryId: z.guid().optional(),
           metalType: z.string().optional(),
         }))
         .query(({ ctx, input }) =>
@@ -321,7 +321,7 @@ export class WholesaleTrpcRouter {
         ),
 
       getAgent: this.trpc.authedProcedure
-        .input(z.object({ agentId: z.string().uuid() }))
+        .input(z.object({ agentId: z.guid() }))
         .query(({ ctx, input }) =>
           this.agentService.getAgent(ctx.tenantId, input.agentId),
         ),
@@ -340,7 +340,7 @@ export class WholesaleTrpcRouter {
         ),
 
       updateAgent: this.trpc.authedProcedure
-        .input(z.object({ agentId: z.string().uuid(), data: partialUpdate(AgentBrokerInputSchema) }))
+        .input(z.object({ agentId: z.guid(), data: partialUpdate(AgentBrokerInputSchema) }))
         .mutation(({ ctx, input }) =>
           this.agentService.updateAgent(ctx.tenantId, ctx.userId, input.agentId, input.data),
         ),
@@ -352,13 +352,13 @@ export class WholesaleTrpcRouter {
         ),
 
       approveCommission: this.trpc.authedProcedure
-        .input(z.object({ commissionId: z.string().uuid() }))
+        .input(z.object({ commissionId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.agentService.approveCommission(ctx.tenantId, ctx.userId, input.commissionId),
         ),
 
       markCommissionPaid: this.trpc.authedProcedure
-        .input(z.object({ commissionId: z.string().uuid(), paymentReference: z.string().optional() }))
+        .input(z.object({ commissionId: z.guid(), paymentReference: z.string().optional() }))
         .mutation(({ ctx, input }) =>
           this.agentService.markCommissionPaid(ctx.tenantId, ctx.userId, input.commissionId, input.paymentReference),
         ),
@@ -366,7 +366,7 @@ export class WholesaleTrpcRouter {
       listCommissions: this.trpc.authedProcedure
         .input(z.object({
           filters: z.object({
-            agentBrokerId: z.string().uuid().optional(),
+            agentBrokerId: z.guid().optional(),
             status: z.string().optional(),
           }).optional(),
           pagination: PaginationSchema.optional(),
@@ -389,7 +389,7 @@ export class WholesaleTrpcRouter {
       getCreditLimit: this.trpc.authedProcedure
         .input(z.object({
           entityType: z.nativeEnum(WholesaleCreditEntityType),
-          entityId: z.string().uuid(),
+          entityId: z.guid(),
         }))
         .query(({ ctx, input }) =>
           this.creditService.getCreditLimit(ctx.tenantId, input.entityType, input.entityId),
@@ -411,7 +411,7 @@ export class WholesaleTrpcRouter {
       checkCredit: this.trpc.authedProcedure
         .input(z.object({
           entityType: z.nativeEnum(WholesaleCreditEntityType),
-          entityId: z.string().uuid(),
+          entityId: z.guid(),
           requiredAmountPaise: z.number().int().nonnegative(),
         }))
         .query(({ ctx, input }) =>
@@ -425,7 +425,7 @@ export class WholesaleTrpcRouter {
         .input(z.object({
           filters: z.object({
             entityType: z.nativeEnum(WholesaleCreditEntityType).optional(),
-            entityId: z.string().uuid().optional(),
+            entityId: z.guid().optional(),
             status: z.string().optional(),
           }).optional(),
           pagination: PaginationSchema.optional(),
@@ -440,7 +440,7 @@ export class WholesaleTrpcRouter {
 
       recordOutstandingPayment: this.trpc.authedProcedure
         .input(z.object({
-          outstandingId: z.string().uuid(),
+          outstandingId: z.guid(),
           paymentPaise: z.number().int().positive(),
         }))
         .mutation(({ ctx, input }) =>
@@ -477,7 +477,7 @@ export class WholesaleTrpcRouter {
         ),
 
       getSupplier: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(({ ctx, input }) =>
           this.supplierService.getSupplier(ctx.tenantId, input.id),
         ),
@@ -489,19 +489,19 @@ export class WholesaleTrpcRouter {
         ),
 
       updateSupplier: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid(), data: partialUpdate(SupplierInputSchema) }))
+        .input(z.object({ id: z.guid(), data: partialUpdate(SupplierInputSchema) }))
         .mutation(({ ctx, input }) =>
           this.supplierService.updateSupplier(ctx.tenantId, ctx.userId, input.id, input.data),
         ),
 
       deactivateSupplier: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.supplierService.deactivateSupplier(ctx.tenantId, ctx.userId, input.id),
         ),
 
       getSupplierPerformance: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(({ ctx, input }) =>
           this.supplierService.getSupplierPerformance(ctx.tenantId, input.id),
         ),
@@ -523,15 +523,15 @@ export class WholesaleTrpcRouter {
       // Consumed by apps/mobile/app/(agent)/* screens.
 
       agentDashboard: this.trpc.authedProcedure
-        .input(z.object({ agentId: z.string().uuid() }))
+        .input(z.object({ agentId: z.guid() }))
         .query(({ ctx, input }) =>
           this.agentService.getAgentDashboard(ctx.tenantId, input.agentId),
         ),
 
       recordAgentVisit: this.trpc.authedProcedure
         .input(z.object({
-          agentId: z.string().uuid(),
-          customerId: z.string().uuid(),
+          agentId: z.guid(),
+          customerId: z.guid(),
           visitDate: z.coerce.date(),
           notes: z.string().max(2000).optional(),
           outcome: z.string().max(255).optional(),
@@ -545,7 +545,7 @@ export class WholesaleTrpcRouter {
       purchaseOrders: this.trpc.router({
         list: this.trpc.authedProcedure
           .input(z.object({
-            createdByAgentId: z.string().uuid().optional(),
+            createdByAgentId: z.guid().optional(),
             filters: PurchaseOrderListFilterSchema.optional(),
             pagination: PaginationSchema.optional(),
           }))

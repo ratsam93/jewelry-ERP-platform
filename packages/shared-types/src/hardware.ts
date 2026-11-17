@@ -41,7 +41,7 @@ export const ConnectionTypeSchema = z.nativeEnum(ConnectionType);
 // ─── Device Config ────────────────────────────────────────────
 
 export const DeviceConfigSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string().min(1).max(200),
   deviceType: DeviceTypeSchema,
   connectionType: ConnectionTypeSchema,
@@ -289,7 +289,7 @@ export const LabelFieldSchema = z.object({
 export type LabelField = z.infer<typeof LabelFieldSchema>;
 
 export const LabelTemplateSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string().min(1).max(200),
   width: z.number().positive(),
   height: z.number().positive(),

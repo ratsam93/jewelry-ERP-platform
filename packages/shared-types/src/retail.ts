@@ -98,7 +98,7 @@ export enum GiftCardStatus {
 // ─── Sale Line Item ───────────────────────────────────────────────
 
 export const SaleLineItemInputSchema = z.object({
-  productId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
   description: z.string().min(1).max(500),
   quantity: z.number().int().min(1).default(1),
   unitPricePaise: z.number().int().nonnegative(),
@@ -114,8 +114,8 @@ export const SaleLineItemInputSchema = z.object({
 export type SaleLineItemInput = z.infer<typeof SaleLineItemInputSchema>;
 
 export const SaleLineItemResponseSchema = SaleLineItemInputSchema.extend({
-  id: z.string().uuid(),
-  saleId: z.string().uuid(),
+  id: z.guid(),
+  saleId: z.guid(),
   cgstPaise: z.number().int(),
   sgstPaise: z.number().int(),
   igstPaise: z.number().int(),
@@ -150,8 +150,8 @@ export const SalePaymentInputSchema = z.object({
 export type SalePaymentInput = z.infer<typeof SalePaymentInputSchema>;
 
 export const SalePaymentResponseSchema = SalePaymentInputSchema.extend({
-  id: z.string().uuid(),
-  saleId: z.string().uuid(),
+  id: z.guid(),
+  saleId: z.guid(),
   status: z.nativeEnum(SalePaymentStatus),
   processedAt: z.coerce.date().nullable(),
 });
@@ -160,8 +160,8 @@ export type SalePaymentResponse = z.infer<typeof SalePaymentResponseSchema>;
 // ─── Sale ─────────────────────────────────────────────────────────
 
 export const SaleInputSchema = z.object({
-  customerId: z.string().uuid().optional(),
-  locationId: z.string().uuid(),
+  customerId: z.guid().optional(),
+  locationId: z.guid(),
   lineItems: z.array(SaleLineItemInputSchema).min(1),
   payments: z.array(SalePaymentInputSchema).min(1),
   discountPaise: z.number().int().nonnegative().default(0),
@@ -171,12 +171,12 @@ export const SaleInputSchema = z.object({
 export type SaleInput = z.infer<typeof SaleInputSchema>;
 
 export const SaleResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   saleNumber: z.string(),
-  customerId: z.string().uuid().nullable(),
-  locationId: z.string().uuid(),
-  userId: z.string().uuid(),
+  customerId: z.guid().nullable(),
+  locationId: z.guid(),
+  userId: z.guid(),
   status: z.nativeEnum(SaleStatus),
   subtotalPaise: z.number().int(),
   discountPaise: z.number().int(),
@@ -195,8 +195,8 @@ export type SaleResponse = z.infer<typeof SaleResponseSchema>;
 // ─── Sale Return ──────────────────────────────────────────────────
 
 export const SaleReturnItemInputSchema = z.object({
-  originalLineItemId: z.string().uuid(),
-  productId: z.string().uuid().optional(),
+  originalLineItemId: z.guid(),
+  productId: z.guid().optional(),
   quantity: z.number().int().min(1).default(1),
   returnPricePaise: z.number().int().nonnegative(),
   reason: z.string().optional(),
@@ -204,9 +204,9 @@ export const SaleReturnItemInputSchema = z.object({
 export type SaleReturnItemInput = z.infer<typeof SaleReturnItemInputSchema>;
 
 export const SaleReturnInputSchema = z.object({
-  originalSaleId: z.string().uuid(),
-  customerId: z.string().uuid().optional(),
-  locationId: z.string().uuid(),
+  originalSaleId: z.guid(),
+  customerId: z.guid().optional(),
+  locationId: z.guid(),
   reason: z.string().optional(),
   refundMethod: z.string().optional(),
   items: z.array(SaleReturnItemInputSchema).min(1),
@@ -214,12 +214,12 @@ export const SaleReturnInputSchema = z.object({
 export type SaleReturnInput = z.infer<typeof SaleReturnInputSchema>;
 
 export const SaleReturnResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   returnNumber: z.string(),
-  originalSaleId: z.string().uuid(),
-  customerId: z.string().uuid().nullable(),
-  locationId: z.string().uuid(),
+  originalSaleId: z.guid(),
+  customerId: z.guid().nullable(),
+  locationId: z.guid(),
   reason: z.string().nullable(),
   status: z.nativeEnum(SaleReturnStatus),
   subtotalPaise: z.number().int(),
@@ -227,9 +227,9 @@ export const SaleReturnResponseSchema = z.object({
   refundMethod: z.string().nullable(),
   metalRateDifferencePaise: z.number().int(),
   items: z.array(z.object({
-    id: z.string().uuid(),
-    originalLineItemId: z.string().uuid(),
-    productId: z.string().uuid().nullable(),
+    id: z.guid(),
+    originalLineItemId: z.guid(),
+    productId: z.guid().nullable(),
     quantity: z.number().int(),
     returnPricePaise: z.number().int(),
     reason: z.string().nullable(),
@@ -242,8 +242,8 @@ export type SaleReturnResponse = z.infer<typeof SaleReturnResponseSchema>;
 // ─── Repair Order ─────────────────────────────────────────────────
 
 export const RepairOrderInputSchema = z.object({
-  customerId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  customerId: z.guid(),
+  locationId: z.guid(),
   itemDescription: z.string().min(1).max(500),
   itemWeightMg: z.number().int().nonnegative().optional(),
   itemImages: z.array(z.string()).optional(),
@@ -266,11 +266,11 @@ export const RepairStatusUpdateSchema = z.object({
 export type RepairStatusUpdate = z.infer<typeof RepairStatusUpdateSchema>;
 
 export const RepairOrderResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   repairNumber: z.string(),
-  customerId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  customerId: z.guid(),
+  locationId: z.guid(),
   status: z.nativeEnum(RepairOrderStatus),
   itemDescription: z.string(),
   itemWeightMg: z.number().int().nullable(),
@@ -291,26 +291,26 @@ export type RepairOrderResponse = z.infer<typeof RepairOrderResponseSchema>;
 // ─── Custom Order ─────────────────────────────────────────────────
 
 export const CustomOrderInputSchema = z.object({
-  customerId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  customerId: z.guid(),
+  locationId: z.guid(),
   description: z.string().min(1),
   designNotes: z.string().optional(),
   designImages: z.array(z.string()).optional(),
   estimatePaise: z.number().int().nonnegative().optional(),
   expectedDate: z.coerce.date().optional(),
   // Needed to create the linked manufacturing job order.
-  productId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
   targetWeightMg: z.number().int().positive().optional(),
   metalPurity: z.number().int().positive().optional(),
 });
 export type CustomOrderInput = z.infer<typeof CustomOrderInputSchema>;
 
 export const CustomOrderResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   orderNumber: z.string(),
-  customerId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  customerId: z.guid(),
+  locationId: z.guid(),
   status: z.nativeEnum(CustomOrderStatus),
   description: z.string(),
   designNotes: z.string().nullable(),
@@ -328,8 +328,8 @@ export type CustomOrderResponse = z.infer<typeof CustomOrderResponseSchema>;
 // ─── Layaway ──────────────────────────────────────────────────────
 
 export const LayawayInputSchema = z.object({
-  saleId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  saleId: z.guid(),
+  customerId: z.guid(),
   totalPaise: z.number().int().positive(),
   installmentCount: z.number().int().min(2),
   dueDate: z.coerce.date().optional(),
@@ -337,7 +337,7 @@ export const LayawayInputSchema = z.object({
 export type LayawayInput = z.infer<typeof LayawayInputSchema>;
 
 export const LayawayPaymentInputSchema = z.object({
-  layawayId: z.string().uuid(),
+  layawayId: z.guid(),
   amountPaise: z.number().int().positive(),
   method: z.string(),
   reference: z.string().optional(),
@@ -345,11 +345,11 @@ export const LayawayPaymentInputSchema = z.object({
 export type LayawayPaymentInput = z.infer<typeof LayawayPaymentInputSchema>;
 
 export const LayawayResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   layawayNumber: z.string(),
-  saleId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  saleId: z.guid(),
+  customerId: z.guid(),
   totalPaise: z.number().int(),
   paidPaise: z.number().int(),
   remainingPaise: z.number().int(),
@@ -358,7 +358,7 @@ export const LayawayResponseSchema = z.object({
   installmentCount: z.number().int(),
   nextPaymentDate: z.coerce.date().nullable(),
   payments: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     amountPaise: z.number().int(),
     method: z.string(),
     reference: z.string().nullable(),
@@ -380,8 +380,8 @@ export const OldGoldDeductionSchema = z.object({
 export type OldGoldDeduction = z.infer<typeof OldGoldDeductionSchema>;
 
 export const OldGoldInputSchema = z.object({
-  customerId: z.string().uuid().optional(),
-  locationId: z.string().uuid(),
+  customerId: z.guid().optional(),
+  locationId: z.guid(),
   metalType: z.string(),
   grossWeightMg: z.number().int().positive(),
   netWeightMg: z.number().int().positive(),
@@ -389,16 +389,16 @@ export const OldGoldInputSchema = z.object({
   ratePaisePer10g: z.number().int().positive(),
   deductions: z.array(OldGoldDeductionSchema).optional(),
   paymentMethod: z.string().optional(),
-  usedAgainstSaleId: z.string().uuid().optional(),
+  usedAgainstSaleId: z.guid().optional(),
 });
 export type OldGoldInput = z.infer<typeof OldGoldInputSchema>;
 
 export const OldGoldPurchaseResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   purchaseNumber: z.string(),
-  customerId: z.string().uuid().nullable(),
-  locationId: z.string().uuid(),
+  customerId: z.guid().nullable(),
+  locationId: z.guid(),
   metalType: z.string(),
   grossWeightMg: z.number().int(),
   netWeightMg: z.number().int(),
@@ -409,7 +409,7 @@ export const OldGoldPurchaseResponseSchema = z.object({
   finalAmountPaise: z.number().int(),
   paymentMethod: z.string().nullable(),
   status: z.nativeEnum(OldGoldPurchaseStatus),
-  usedAgainstSaleId: z.string().uuid().nullable(),
+  usedAgainstSaleId: z.guid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -418,8 +418,8 @@ export type OldGoldPurchaseResponse = z.infer<typeof OldGoldPurchaseResponseSche
 // ─── Appraisal ────────────────────────────────────────────────────
 
 export const AppraisalInputSchema = z.object({
-  customerId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  customerId: z.guid(),
+  locationId: z.guid(),
   itemDescription: z.string().min(1).max(500),
   metalType: z.string().optional(),
   weightMg: z.number().int().nonnegative().optional(),
@@ -434,11 +434,11 @@ export const AppraisalInputSchema = z.object({
 export type AppraisalInput = z.infer<typeof AppraisalInputSchema>;
 
 export const AppraisalResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   appraisalNumber: z.string(),
-  customerId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  customerId: z.guid(),
+  locationId: z.guid(),
   itemDescription: z.string(),
   metalType: z.string().nullable(),
   weightMg: z.number().int().nullable(),
@@ -458,7 +458,7 @@ export type AppraisalResponse = z.infer<typeof AppraisalResponseSchema>;
 // ─── Repair Profitability ─────────────────────────────────────────
 
 export const RepairProfitabilitySchema = z.object({
-  repairId: z.string().uuid(),
+  repairId: z.guid(),
   repairNumber: z.string(),
   status: z.nativeEnum(RepairOrderStatus),
   revenuePaise: z.number().int(),
@@ -483,8 +483,8 @@ export const DiscountInputSchema = z.object({
   getQuantity: z.number().int().positive().optional(),
   minPurchasePaise: z.number().int().nonnegative().optional(),
   maxDiscountPaise: z.number().int().nonnegative().optional(),
-  applicableCategories: z.array(z.string().uuid()).optional(),
-  applicableProducts: z.array(z.string().uuid()).optional(),
+  applicableCategories: z.array(z.guid()).optional(),
+  applicableProducts: z.array(z.guid()).optional(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   isActive: z.boolean().default(true),
@@ -493,7 +493,7 @@ export const DiscountInputSchema = z.object({
 export type DiscountInput = z.infer<typeof DiscountInputSchema>;
 
 export const DiscountValidationSchema = z.object({
-  discountId: z.string().uuid(),
+  discountId: z.guid(),
   isValid: z.boolean(),
   applicableAmount: z.number().int().nonnegative(),
   reason: z.string().optional(),
@@ -501,8 +501,8 @@ export const DiscountValidationSchema = z.object({
 export type DiscountValidation = z.infer<typeof DiscountValidationSchema>;
 
 export const DiscountResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   name: z.string(),
   discountType: z.nativeEnum(RetailDiscountType),
   value: z.number().int(),
@@ -526,18 +526,18 @@ export type DiscountResponse = z.infer<typeof DiscountResponseSchema>;
 
 export const GiftCardInputSchema = z.object({
   initialValuePaise: z.number().int().positive(),
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   expiresAt: z.coerce.date().optional(),
 });
 export type GiftCardInput = z.infer<typeof GiftCardInputSchema>;
 
 export const GiftCardResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   cardNumber: z.string(),
   balancePaise: z.number().int(),
   initialValuePaise: z.number().int(),
-  customerId: z.string().uuid().nullable(),
+  customerId: z.guid().nullable(),
   status: z.nativeEnum(GiftCardStatus),
   expiresAt: z.coerce.date().nullable(),
   createdAt: z.coerce.date(),
@@ -557,7 +557,7 @@ export const PosSessionResponseSchema = z.object({
     count: z.number().int(),
   })),
   recentSales: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     saleNumber: z.string(),
     customerName: z.string().nullable(),
     totalPaise: z.number().int(),
@@ -577,7 +577,7 @@ export const RetailDashboardResponseSchema = z.object({
   activeCustomOrders: z.number().int(),
   activeLayaways: z.number().int(),
   topProducts: z.array(z.object({
-    productId: z.string().uuid(),
+    productId: z.guid(),
     productName: z.string(),
     quantitySold: z.number().int(),
     revenuePaise: z.number().int(),
@@ -588,7 +588,7 @@ export const RetailDashboardResponseSchema = z.object({
     count: z.number().int(),
   })),
   recentSales: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     saleNumber: z.string(),
     customerName: z.string().nullable(),
     totalPaise: z.number().int(),
@@ -602,9 +602,9 @@ export type RetailDashboardResponse = z.infer<typeof RetailDashboardResponseSche
 
 export const SaleListFilterSchema = z.object({
   status: z.nativeEnum(SaleStatus).optional(),
-  customerId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
-  userId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
+  locationId: z.guid().optional(),
+  userId: z.guid().optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
   search: z.string().optional(),
@@ -613,8 +613,8 @@ export type SaleListFilter = z.infer<typeof SaleListFilterSchema>;
 
 export const RepairListFilterSchema = z.object({
   status: z.nativeEnum(RepairOrderStatus).optional(),
-  customerId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
+  locationId: z.guid().optional(),
 });
 export type RepairListFilter = z.infer<typeof RepairListFilterSchema>;
 
@@ -635,7 +635,7 @@ export const StaffDashboardSchema = z.object({
   myRevenuePaise: z.number().int().nonnegative(),
   pendingRepairs: z.array(
     z.object({
-      id: z.string().uuid(),
+      id: z.guid(),
       repairNumber: z.string(),
       customerName: z.string(),
       status: z.nativeEnum(RepairOrderStatus),
@@ -644,7 +644,7 @@ export const StaffDashboardSchema = z.object({
   ),
   recentTransactions: z.array(
     z.object({
-      id: z.string().uuid(),
+      id: z.guid(),
       saleNumber: z.string(),
       customerName: z.string().nullable(),
       totalPaise: z.number().int(),

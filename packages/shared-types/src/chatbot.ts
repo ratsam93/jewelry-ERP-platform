@@ -57,7 +57,7 @@ export const ChatTemplateCategoryEnum = z.enum([
 
 export const StartChatInputSchema = z.object({
   sessionId: z.string().max(255).optional(),
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
 });
 export type StartChatInput = z.infer<typeof StartChatInputSchema>;
 
@@ -77,7 +77,7 @@ export const QuickReplyOptionSchema = z.object({
 export type QuickReplyOption = z.infer<typeof QuickReplyOptionSchema>;
 
 export const ProductCardDataSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   name: z.string(),
   image: z.string().nullable(),
   pricePaise: z.number().int(),
@@ -99,7 +99,7 @@ export const ChatPreferencesSchema = z.object({
 export type ChatPreferences = z.infer<typeof ChatPreferencesSchema>;
 
 export const ChatMessageResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   role: ChatMessageRoleEnum,
   content: z.string(),
   messageType: ChatMessageTypeEnum,
@@ -139,7 +139,7 @@ export type ChatTemplateInput = z.infer<typeof ChatTemplateInputSchema>;
 // ─── FAQ Response ──────────────────────────────────────────────
 
 export const ChatFaqResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   question: z.string(),
   answer: z.string(),
   category: z.string(),
@@ -152,7 +152,7 @@ export const ChatFaqResponseSchema = z.object({
 export type ChatFaqResponse = z.infer<typeof ChatFaqResponseSchema>;
 
 export const ChatTemplateResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   triggerKeywords: z.array(z.string()),
   responseTemplate: z.string(),
   category: ChatTemplateCategoryEnum,

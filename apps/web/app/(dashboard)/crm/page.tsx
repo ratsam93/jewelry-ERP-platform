@@ -4,10 +4,13 @@ import Link from 'next/link';
 import { PageHeader, StatCard } from '@caratflow/ui';
 import { Users, Target, Gift, Megaphone, MessageSquare, Bell, ArrowRight } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { mapCrmDashboard } from '@/lib/crm-dashboard';
 
 export default function CrmDashboardPage() {
   const { data } = trpc.crm.dashboard.useQuery();
-  const d = (data as Record<string, unknown> | undefined) ?? {};
+  const stats = mapCrmDashboard(data);
+  const { data: activeCampaigns } = trpc.crm.campaignList.useQuery({ page: 1, limit: 1, status: 'ACTIVE' });
+  const activeCampaignCount = Number((activeCampaigns as { total?: number } | undefined)?.total) || 0;
 
   const links = [
     { label: 'Customers', href: '/crm/customers', icon: Users },
@@ -27,10 +30,10 @@ export default function CrmDashboardPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Customers" value={String((d.totalCustomers as number) ?? 0)} icon={<Users className="h-4 w-4" />} />
-        <StatCard title="Active Leads" value={String((d.activeLeads as number) ?? 0)} icon={<Target className="h-4 w-4" />} />
-        <StatCard title="Active Campaigns" value={String((d.activeCampaigns as number) ?? 0)} icon={<Megaphone className="h-4 w-4" />} />
-        <StatCard title="New (30d)" value={String((d.newCustomers30d as number) ?? 0)} icon={<Users className="h-4 w-4" />} />
+        <StatCard title="Total Customers" value={String(stats.totalCustomers)} icon={<Users className="h-4 w-4" />} />
+        <StatCard title="Active Leads" value={String(stats.activeLeads)} icon={<Target className="h-4 w-4" />} />
+        <StatCard title="Active Campaigns" value={String(activeCampaignCount)} icon={<Megaphone className="h-4 w-4" />} />
+        <StatCard title="New Leads (30d)" value={String(stats.newLeads30d)} icon={<Users className="h-4 w-4" />} />
       </div>
 
       <div className="space-y-2">

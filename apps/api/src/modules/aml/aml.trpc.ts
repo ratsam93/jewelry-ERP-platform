@@ -51,14 +51,14 @@ export class AmlTrpcRouter {
         }),
 
       ruleUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(AmlRuleInputSchema)))
+        .input(z.object({ id: z.guid() }).merge(partialUpdate(AmlRuleInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.amlService.updateRule(ctx.tenantId, ctx.userId, id, data);
         }),
 
       ruleGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.amlService.getRule(ctx.tenantId, input.id);
         }),
@@ -68,7 +68,7 @@ export class AmlTrpcRouter {
       }),
 
       ruleDelete: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.amlService.deleteRule(ctx.tenantId, input.id);
         }),
@@ -80,7 +80,7 @@ export class AmlTrpcRouter {
           limit: z.number().int().default(20),
           status: AmlAlertStatusEnum.optional(),
           severity: AmlSeverityEnum.optional(),
-          customerId: z.string().uuid().optional(),
+          customerId: z.guid().optional(),
         }))
         .query(async ({ ctx, input }) => {
           return this.alertService.listAlerts(
@@ -90,14 +90,14 @@ export class AmlTrpcRouter {
         }),
 
       alertGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.alertService.getAlert(ctx.tenantId, input.id);
         }),
 
       alertReview: authed
         .input(z.object({
-          alertId: z.string().uuid(),
+          alertId: z.guid(),
           notes: z.string().max(2000).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -106,7 +106,7 @@ export class AmlTrpcRouter {
 
       alertEscalate: authed
         .input(z.object({
-          alertId: z.string().uuid(),
+          alertId: z.guid(),
           notes: z.string().max(2000).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -115,7 +115,7 @@ export class AmlTrpcRouter {
 
       alertClear: authed
         .input(z.object({
-          alertId: z.string().uuid(),
+          alertId: z.guid(),
           notes: z.string().min(1).max(2000),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -123,20 +123,20 @@ export class AmlTrpcRouter {
         }),
 
       alertReportToFiu: authed
-        .input(z.object({ alertId: z.string().uuid() }))
+        .input(z.object({ alertId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.alertService.reportToFiu(ctx.tenantId, ctx.userId, input.alertId);
         }),
 
       // ─── Customer Risk ──────────────────────────────────────
       customerRisk: authed
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.riskService.getCustomerRisk(ctx.tenantId, input.customerId);
         }),
 
       customerRiskRecalculate: authed
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.riskService.calculateCustomerRisk(ctx.tenantId, input.customerId);
         }),
@@ -159,7 +159,7 @@ export class AmlTrpcRouter {
 
       sarFile: authed
         .input(z.object({
-          reportId: z.string().uuid(),
+          reportId: z.guid(),
           referenceNumber: z.string().min(1).max(100),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -167,7 +167,7 @@ export class AmlTrpcRouter {
         }),
 
       sarAcknowledge: authed
-        .input(z.object({ reportId: z.string().uuid() }))
+        .input(z.object({ reportId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.alertService.acknowledgeSarReport(ctx.tenantId, input.reportId);
         }),
@@ -185,10 +185,10 @@ export class AmlTrpcRouter {
       // ─── Manual Evaluation ──────────────────────────────────
       evaluateTransaction: authed
         .input(z.object({
-          customerId: z.string().uuid(),
+          customerId: z.guid(),
           amountPaise: z.number().int().positive(),
           transactionType: z.string(),
-          transactionId: z.string().uuid().optional(),
+          transactionId: z.guid().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
           return this.amlService.evaluateTransaction(

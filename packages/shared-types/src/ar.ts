@@ -49,7 +49,7 @@ export enum ArDeviceType {
 // ─── Zod Schemas ──────────────────────────────────────────────
 
 export const ArAssetInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   assetType: z.nativeEnum(ArAssetType),
   fileUrl: z.string().url().max(1000),
   thumbnailUrl: z.string().url().max(1000).optional(),
@@ -70,8 +70,8 @@ export const ArAssetInputSchema = z.object({
 });
 
 export const TryOnSessionInputSchema = z.object({
-  productId: z.string().uuid(),
-  customerId: z.string().uuid().optional(),
+  productId: z.guid(),
+  customerId: z.guid().optional(),
   deviceType: z.nativeEnum(ArDeviceType),
 });
 
@@ -84,7 +84,7 @@ export const TryOnSessionEndSchema = z.object({
 });
 
 export const Product360ConfigInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   imageUrls: z.array(z.string().url()).min(2).max(120),
   frameCount: z.number().int().min(2).max(120),
   autoRotate: z.boolean().default(true),

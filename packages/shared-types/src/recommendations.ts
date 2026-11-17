@@ -34,11 +34,11 @@ export enum RecommendationContext {
 // ─── Recommended Product ──────────────────────────────────────────
 
 export const RecommendedProductSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   sku: z.string(),
   name: z.string(),
   productType: z.string(),
-  categoryId: z.string().uuid().nullable(),
+  categoryId: z.guid().nullable(),
   categoryName: z.string().nullable(),
   metalPurity: z.number().int().nullable(),
   sellingPricePaise: z.number().int().nullable(),
@@ -51,11 +51,11 @@ export type RecommendedProduct = z.infer<typeof RecommendedProductSchema>;
 // ─── Recommendation Request ───────────────────────────────────────
 
 export const RecommendationRequestSchema = z.object({
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   sessionId: z.string().min(1),
   context: z.nativeEnum(RecommendationContext),
-  productId: z.string().uuid().optional(),
-  categoryId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
+  categoryId: z.guid().optional(),
   limit: z.number().int().min(1).max(50).default(12),
 });
 export type RecommendationRequest = z.infer<typeof RecommendationRequestSchema>;
@@ -86,7 +86,7 @@ export type PersonalizedFeedResponse = z.infer<typeof PersonalizedFeedResponseSc
 // ─── Similar Products Response ────────────────────────────────────
 
 export const SimilarProductsResponseSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   products: z.array(RecommendedProductSchema),
   algorithm: z.string(),
 });
@@ -104,8 +104,8 @@ export type TrendingProductsResponse = z.infer<typeof TrendingProductsResponseSc
 // ─── Track View Input ─────────────────────────────────────────────
 
 export const TrackViewInputSchema = z.object({
-  productId: z.string().uuid(),
-  customerId: z.string().uuid().optional(),
+  productId: z.guid(),
+  customerId: z.guid().optional(),
   sessionId: z.string().min(1),
 });
 export type TrackViewInput = z.infer<typeof TrackViewInputSchema>;
@@ -113,15 +113,15 @@ export type TrackViewInput = z.infer<typeof TrackViewInputSchema>;
 // ─── Track Click Input ────────────────────────────────────────────
 
 export const TrackClickInputSchema = z.object({
-  recommendationLogId: z.string().uuid(),
-  clickedProductId: z.string().uuid(),
+  recommendationLogId: z.guid(),
+  clickedProductId: z.guid(),
 });
 export type TrackClickInput = z.infer<typeof TrackClickInputSchema>;
 
 // ─── Customer Behavior Response ───────────────────────────────────
 
 export const CustomerBehaviorResponseSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   viewedCategories: z.record(z.string(), z.number()).nullable(),
   viewedProducts: z.record(z.string(), z.number()).nullable(),
   purchasedCategories: z.record(z.string(), z.number()).nullable(),

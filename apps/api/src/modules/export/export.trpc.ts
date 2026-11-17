@@ -56,7 +56,7 @@ export class ExportTrpcRouter {
         ),
 
       getOrder: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid() }))
+        .input(z.object({ orderId: z.guid() }))
         .query(({ ctx, input }) =>
           this.exportService.getExportOrder(ctx.tenantId, input.orderId),
         ),
@@ -75,14 +75,14 @@ export class ExportTrpcRouter {
         ),
 
       confirmOrder: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid() }))
+        .input(z.object({ orderId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.exportService.confirmOrder(ctx.tenantId, ctx.userId, input.orderId),
         ),
 
       updateOrderStatus: this.trpc.authedProcedure
         .input(z.object({
-          orderId: z.string().uuid(),
+          orderId: z.guid(),
           status: z.nativeEnum(ExportOrderStatus),
         }))
         .mutation(({ ctx, input }) =>
@@ -90,7 +90,7 @@ export class ExportTrpcRouter {
         ),
 
       cancelOrder: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid(), reason: z.string().min(1) }))
+        .input(z.object({ orderId: z.guid(), reason: z.string().min(1) }))
         .mutation(({ ctx, input }) =>
           this.exportService.cancelOrder(ctx.tenantId, ctx.userId, input.orderId, input.reason),
         ),
@@ -103,7 +103,7 @@ export class ExportTrpcRouter {
         ),
 
       getInvoice: this.trpc.authedProcedure
-        .input(z.object({ invoiceId: z.string().uuid() }))
+        .input(z.object({ invoiceId: z.guid() }))
         .query(({ ctx, input }) =>
           this.invoiceService.getInvoice(ctx.tenantId, input.invoiceId),
         ),
@@ -112,8 +112,8 @@ export class ExportTrpcRouter {
         .input(z.object({
           filters: z.object({
             invoiceType: z.nativeEnum(ExportInvoiceType).optional(),
-            exportOrderId: z.string().uuid().optional(),
-            buyerId: z.string().uuid().optional(),
+            exportOrderId: z.guid().optional(),
+            buyerId: z.guid().optional(),
             search: z.string().optional(),
           }).optional(),
           pagination: PaginationSchema.optional(),
@@ -134,13 +134,13 @@ export class ExportTrpcRouter {
         ),
 
       getDocument: this.trpc.authedProcedure
-        .input(z.object({ documentId: z.string().uuid() }))
+        .input(z.object({ documentId: z.guid() }))
         .query(({ ctx, input }) =>
           this.documentService.getDocument(ctx.tenantId, input.documentId),
         ),
 
       downloadDocumentPdf: this.trpc.authedProcedure
-        .input(z.object({ docId: z.string().uuid() }))
+        .input(z.object({ docId: z.guid() }))
         .query(async ({ ctx, input }) => {
           const buf = await this.documentService.renderDocumentPdf(
             ctx.tenantId,
@@ -157,7 +157,7 @@ export class ExportTrpcRouter {
       listDocuments: this.trpc.authedProcedure
         .input(z.object({
           filters: z.object({
-            exportOrderId: z.string().uuid().optional(),
+            exportOrderId: z.guid().optional(),
             documentType: z.nativeEnum(ShippingDocumentType).optional(),
             status: z.nativeEnum(ShippingDocumentStatus).optional(),
           }).optional(),
@@ -173,7 +173,7 @@ export class ExportTrpcRouter {
 
       updateDocumentStatus: this.trpc.authedProcedure
         .input(z.object({
-          documentId: z.string().uuid(),
+          documentId: z.guid(),
           status: z.nativeEnum(ShippingDocumentStatus),
         }))
         .mutation(({ ctx, input }) =>
@@ -181,19 +181,19 @@ export class ExportTrpcRouter {
         ),
 
       generatePackingList: this.trpc.authedProcedure
-        .input(z.object({ exportOrderId: z.string().uuid() }))
+        .input(z.object({ exportOrderId: z.guid() }))
         .query(({ ctx, input }) =>
           this.documentService.generatePackingList(ctx.tenantId, input.exportOrderId),
         ),
 
       generateShippingBillData: this.trpc.authedProcedure
-        .input(z.object({ invoiceId: z.string().uuid() }))
+        .input(z.object({ invoiceId: z.guid() }))
         .query(({ ctx, input }) =>
           this.documentService.generateShippingBillData(ctx.tenantId, input.invoiceId),
         ),
 
       generateCertificateOfOrigin: this.trpc.authedProcedure
-        .input(z.object({ exportOrderId: z.string().uuid() }))
+        .input(z.object({ exportOrderId: z.guid() }))
         .query(({ ctx, input }) =>
           this.documentService.generateCertificateOfOrigin(ctx.tenantId, input.exportOrderId),
         ),
@@ -231,7 +231,7 @@ export class ExportTrpcRouter {
         ),
 
       getLicense: this.trpc.authedProcedure
-        .input(z.object({ licenseId: z.string().uuid() }))
+        .input(z.object({ licenseId: z.guid() }))
         .query(({ ctx, input }) =>
           this.dutyService.getLicense(ctx.tenantId, input.licenseId),
         ),
@@ -254,7 +254,7 @@ export class ExportTrpcRouter {
 
       utilizeLicense: this.trpc.authedProcedure
         .input(z.object({
-          licenseId: z.string().uuid(),
+          licenseId: z.guid(),
           amountPaise: z.number().int().positive(),
         }))
         .mutation(({ ctx, input }) =>
@@ -328,7 +328,7 @@ export class ExportTrpcRouter {
         ),
 
       checkExportReadiness: this.trpc.authedProcedure
-        .input(z.object({ exportOrderId: z.string().uuid() }))
+        .input(z.object({ exportOrderId: z.guid() }))
         .query(({ ctx, input }) =>
           this.complianceService.checkExportReadiness(ctx.tenantId, input.exportOrderId),
         ),

@@ -115,7 +115,7 @@ export const JOB_ORDER_TRANSITIONS: Record<MfgJobOrderStatus, MfgJobOrderStatus[
 
 export const BomItemInputSchema = z.object({
   itemType: z.nativeEnum(BomItemType),
-  productId: z.string().uuid().optional().nullable(),
+  productId: z.guid().optional().nullable(),
   description: z.string().min(1).max(500),
   quantityRequired: z.number().positive(),
   unitOfMeasure: z.string().min(1).max(20),
@@ -129,7 +129,7 @@ export type BomItemInput = z.infer<typeof BomItemInputSchema>;
 export const BomInputSchema = z.object({
   name: z.string().min(1).max(255),
   version: z.number().int().min(1).default(1),
-  productId: z.string().uuid(),
+  productId: z.guid(),
   outputQuantity: z.number().int().min(1).default(1),
   notes: z.string().optional().nullable(),
   estimatedCostPaise: z.number().int().nonnegative().default(0),
@@ -179,15 +179,15 @@ export interface BomResponse {
 // ─── Job Order Schemas ──────────────────────────────────────────
 
 export const JobOrderInputSchema = z.object({
-  bomId: z.string().uuid().optional().nullable(),
-  productId: z.string().uuid(),
-  customerId: z.string().uuid().optional().nullable(),
-  locationId: z.string().uuid(),
+  bomId: z.guid().optional().nullable(),
+  productId: z.guid(),
+  customerId: z.guid().optional().nullable(),
+  locationId: z.guid(),
   priority: z.nativeEnum(JobPriority).default(JobPriority.MEDIUM),
   quantity: z.number().int().min(1).default(1),
   estimatedStartDate: z.coerce.date().optional().nullable(),
   estimatedEndDate: z.coerce.date().optional().nullable(),
-  assignedKarigarId: z.string().uuid().optional().nullable(),
+  assignedKarigarId: z.guid().optional().nullable(),
   notes: z.string().optional().nullable(),
   specialInstructions: z.string().optional().nullable(),
 });
@@ -258,7 +258,7 @@ export const KarigarInputSchema = z.object({
   specialization: z.string().max(255).optional().nullable(),
   skillLevel: z.nativeEnum(KarigarSkillLevel).default(KarigarSkillLevel.JUNIOR),
   dailyWagePaise: z.number().int().nonnegative().default(0),
-  locationId: z.string().uuid(),
+  locationId: z.guid(),
   isActive: z.boolean().default(true),
   joiningDate: z.coerce.date().optional().nullable(),
   address: z.string().max(500).optional().nullable(),
@@ -295,7 +295,7 @@ export interface KarigarResponse {
 // ─── Karigar Attendance ─────────────────────────────────────────
 
 export const KarigarAttendanceInputSchema = z.object({
-  karigarId: z.string().uuid(),
+  karigarId: z.guid(),
   date: z.coerce.date(),
   status: z.nativeEnum(AttendanceStatus).default(AttendanceStatus.PRESENT),
   checkInTime: z.coerce.date().optional().nullable(),
@@ -323,9 +323,9 @@ export interface KarigarMetalBalanceResponse {
 // ─── Karigar Transaction ────────────────────────────────────────
 
 export const KarigarTransactionInputSchema = z.object({
-  karigarId: z.string().uuid(),
+  karigarId: z.guid(),
   transactionType: z.nativeEnum(KarigarTransactionType),
-  jobOrderId: z.string().uuid().optional().nullable(),
+  jobOrderId: z.guid().optional().nullable(),
   metalType: z.nativeEnum(KarigarMetalType),
   purityFineness: z.number().int().min(1).max(999),
   weightMg: z.number().int().positive(),
@@ -336,7 +336,7 @@ export type KarigarTransactionInput = z.infer<typeof KarigarTransactionInputSche
 // ─── Quality Checkpoint ─────────────────────────────────────────
 
 export const QualityCheckpointInputSchema = z.object({
-  jobOrderId: z.string().uuid(),
+  jobOrderId: z.guid(),
   checkpointType: z.nativeEnum(QcCheckpointType),
   checkedBy: z.string().min(1).max(255),
   status: z.nativeEnum(QcStatus),
@@ -387,7 +387,7 @@ export interface MaterialRequisition {
 
 export const ProductionPlanInputSchema = z.object({
   name: z.string().min(1).max(255),
-  locationId: z.string().uuid(),
+  locationId: z.guid(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   notes: z.string().optional().nullable(),
@@ -395,9 +395,9 @@ export const ProductionPlanInputSchema = z.object({
 export type ProductionPlanInput = z.infer<typeof ProductionPlanInputSchema>;
 
 export const ProductionPlanItemInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   quantity: z.number().int().min(1).default(1),
-  bomId: z.string().uuid().optional().nullable(),
+  bomId: z.guid().optional().nullable(),
   priority: z.nativeEnum(JobPriority).default(JobPriority.MEDIUM),
   estimatedStartDate: z.coerce.date().optional().nullable(),
   estimatedEndDate: z.coerce.date().optional().nullable(),
@@ -448,22 +448,22 @@ export interface ManufacturingDashboardResponse {
 export const JobOrderFilterSchema = z.object({
   status: z.nativeEnum(MfgJobOrderStatus).optional(),
   priority: z.nativeEnum(JobPriority).optional(),
-  locationId: z.string().uuid().optional(),
-  karigarId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
+  karigarId: z.guid().optional(),
+  customerId: z.guid().optional(),
   search: z.string().optional(),
 });
 export type JobOrderFilter = z.infer<typeof JobOrderFilterSchema>;
 
 export const BomFilterSchema = z.object({
   status: z.nativeEnum(BomStatus).optional(),
-  productId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
   search: z.string().optional(),
 });
 export type BomFilter = z.infer<typeof BomFilterSchema>;
 
 export const KarigarFilterSchema = z.object({
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
   skillLevel: z.nativeEnum(KarigarSkillLevel).optional(),
   isActive: z.boolean().optional(),
   search: z.string().optional(),

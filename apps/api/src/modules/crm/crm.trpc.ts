@@ -69,7 +69,7 @@ export class CrmTrpcRouter {
 
       // ─── Customer ───────────────────────────────────────────
       customer360: authed
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.crmService.getCustomer360(ctx.tenantId, input.customerId);
         }),
@@ -109,13 +109,13 @@ export class CrmTrpcRouter {
         }),
 
       occasionList: authed
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.prismaListOccasions(ctx.tenantId, input.customerId);
         }),
 
       occasionDelete: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.prismaDeleteOccasion(ctx.tenantId, input.id);
         }),
@@ -128,7 +128,7 @@ export class CrmTrpcRouter {
         }),
 
       interactionList: authed
-        .input(z.object({ customerId: z.string().uuid(), page: z.number().default(1), limit: z.number().default(20) }))
+        .input(z.object({ customerId: z.guid(), page: z.number().default(1), limit: z.number().default(20) }))
         .query(async ({ ctx, input }) => {
           return this.prismaListInteractions(ctx.tenantId, input.customerId, input.page, input.limit);
         }),
@@ -139,8 +139,8 @@ export class CrmTrpcRouter {
         list: authed
           .input(z.object({
             type: z.enum(['AGENT_VISIT', 'CALL', 'EMAIL', 'SMS', 'WHATSAPP', 'VISIT', 'NOTE']).optional(),
-            agentId: z.string().uuid().optional(),
-            customerId: z.string().uuid().optional(),
+            agentId: z.guid().optional(),
+            customerId: z.guid().optional(),
             page: z.number().int().min(1).default(1),
             limit: z.number().int().min(1).max(100).default(20),
           }))
@@ -166,7 +166,7 @@ export class CrmTrpcRouter {
         }),
 
       loyaltyProgramUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(LoyaltyProgramInputSchema)))
+        .input(z.object({ id: z.guid() }).merge(partialUpdate(LoyaltyProgramInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.loyaltyService.updateProgram(ctx.tenantId, ctx.userId, id, data);
@@ -182,10 +182,10 @@ export class CrmTrpcRouter {
 
       loyaltyEarnPoints: authed
         .input(z.object({
-          customerId: z.string().uuid(),
+          customerId: z.guid(),
           points: z.number().int().positive(),
           referenceType: z.string(),
-          referenceId: z.string().uuid(),
+          referenceId: z.guid(),
           description: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -197,10 +197,10 @@ export class CrmTrpcRouter {
 
       loyaltyRedeemPoints: authed
         .input(z.object({
-          customerId: z.string().uuid(),
+          customerId: z.guid(),
           points: z.number().int().positive(),
           referenceType: z.string(),
-          referenceId: z.string().uuid(),
+          referenceId: z.guid(),
         }))
         .mutation(async ({ ctx, input }) => {
           return this.loyaltyService.redeemPoints(
@@ -216,13 +216,13 @@ export class CrmTrpcRouter {
         }),
 
       loyaltyBalance: authed
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.loyaltyService.getBalance(ctx.tenantId, input.customerId);
         }),
 
       loyaltyTransactions: authed
-        .input(z.object({ customerId: z.string().uuid(), page: z.number().default(1), limit: z.number().default(20) }))
+        .input(z.object({ customerId: z.guid(), page: z.number().default(1), limit: z.number().default(20) }))
         .query(async ({ ctx, input }) => {
           return this.loyaltyService.getTransactionHistory(ctx.tenantId, input.customerId, input.page, input.limit);
         }),
@@ -235,7 +235,7 @@ export class CrmTrpcRouter {
         }),
 
       notificationTemplateUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(NotificationTemplateInputSchema)))
+        .input(z.object({ id: z.guid() }).merge(partialUpdate(NotificationTemplateInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.notificationService.updateTemplate(ctx.tenantId, ctx.userId, id, data);
@@ -248,13 +248,13 @@ export class CrmTrpcRouter {
         }),
 
       notificationTemplateGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.notificationService.getTemplate(ctx.tenantId, input.id);
         }),
 
       notificationTemplateDelete: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.notificationService.deleteTemplate(ctx.tenantId, input.id);
         }),
@@ -279,14 +279,14 @@ export class CrmTrpcRouter {
         }),
 
       campaignUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(CampaignInputSchema)))
+        .input(z.object({ id: z.guid() }).merge(partialUpdate(CampaignInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.campaignService.updateCampaign(ctx.tenantId, ctx.userId, id, data);
         }),
 
       campaignGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.campaignService.getCampaign(ctx.tenantId, input.id);
         }),
@@ -304,19 +304,19 @@ export class CrmTrpcRouter {
         }),
 
       campaignExecute: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.campaignService.executeCampaign(ctx.tenantId, ctx.userId, input.id);
         }),
 
       campaignPause: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.campaignService.pauseCampaign(ctx.tenantId, ctx.userId, input.id);
         }),
 
       campaignCancel: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.campaignService.cancelCampaign(ctx.tenantId, ctx.userId, input.id);
         }),
@@ -329,14 +329,14 @@ export class CrmTrpcRouter {
         }),
 
       leadUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(LeadInputSchema)))
+        .input(z.object({ id: z.guid() }).merge(partialUpdate(LeadInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.leadService.updateLead(ctx.tenantId, ctx.userId, id, data);
         }),
 
       leadGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.leadService.getLead(ctx.tenantId, input.id);
         }),
@@ -363,13 +363,13 @@ export class CrmTrpcRouter {
         }),
 
       leadAssign: authed
-        .input(z.object({ leadId: z.string().uuid(), assignToUserId: z.string().uuid() }))
+        .input(z.object({ leadId: z.guid(), assignToUserId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.leadService.assignLead(ctx.tenantId, ctx.userId, input.leadId, input.assignToUserId);
         }),
 
       leadConvert: authed
-        .input(z.object({ leadId: z.string().uuid() }))
+        .input(z.object({ leadId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.leadService.convertToCustomer(ctx.tenantId, ctx.userId, input.leadId);
         }),
@@ -381,7 +381,7 @@ export class CrmTrpcRouter {
         }),
 
       leadActivities: authed
-        .input(z.object({ leadId: z.string().uuid() }))
+        .input(z.object({ leadId: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.leadService.listActivities(ctx.tenantId, input.leadId);
         }),
@@ -398,7 +398,7 @@ export class CrmTrpcRouter {
         }),
 
       feedbackGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.feedbackService.getFeedback(ctx.tenantId, input.id);
         }),
@@ -415,13 +415,13 @@ export class CrmTrpcRouter {
         }),
 
       feedbackReview: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.feedbackService.reviewFeedback(ctx.tenantId, ctx.userId, input.id);
         }),
 
       feedbackAction: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.feedbackService.actionFeedback(ctx.tenantId, ctx.userId, input.id);
         }),
@@ -454,7 +454,7 @@ export class CrmTrpcRouter {
         }),
 
       segmentRefresh: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.crmService.refreshSegment(ctx.tenantId, input.id);
         }),
@@ -545,7 +545,7 @@ export class CrmTrpcRouter {
           }),
 
         get: authed
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(async ({ ctx, input }) => {
             return this.videoConsultationService.get(ctx.tenantId, input.id);
           }),
@@ -562,25 +562,25 @@ export class CrmTrpcRouter {
           }),
 
         start: authed
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(async ({ ctx, input }) => {
             return this.videoConsultationService.start(ctx.tenantId, input.id);
           }),
 
         complete: authed
-          .input(z.object({ id: z.string().uuid(), notes: z.string().max(2000).optional() }))
+          .input(z.object({ id: z.guid(), notes: z.string().max(2000).optional() }))
           .mutation(async ({ ctx, input }) => {
             return this.videoConsultationService.complete(ctx.tenantId, input.id, input.notes);
           }),
 
         cancel: authed
-          .input(z.object({ id: z.string().uuid(), reason: z.string().max(500).optional() }))
+          .input(z.object({ id: z.guid(), reason: z.string().max(500).optional() }))
           .mutation(async ({ ctx, input }) => {
             return this.videoConsultationService.cancel(ctx.tenantId, input.id, input.reason);
           }),
 
         markNoShow: authed
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(async ({ ctx, input }) => {
             return this.videoConsultationService.markNoShow(ctx.tenantId, input.id);
           }),
@@ -608,7 +608,7 @@ export class CrmTrpcRouter {
         sendTemplate: authed
           .input(
             z.object({
-              customerId: z.string().uuid(),
+              customerId: z.guid(),
               templateName: z.string().min(1).max(512),
               languageCode: z.string().min(2).max(10),
               params: z.array(z.string()).default([]),

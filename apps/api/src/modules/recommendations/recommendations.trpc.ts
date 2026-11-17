@@ -33,7 +33,7 @@ export class RecommendationsTrpcRouter {
 
       similar: anyPrincipal
         .input(z.object({
-          productId: z.string().uuid(),
+          productId: z.guid(),
           limit: z.number().int().min(1).max(100).default(12),
         }))
         .query(({ ctx, input }) =>
@@ -44,7 +44,7 @@ export class RecommendationsTrpcRouter {
 
       boughtTogether: anyPrincipal
         .input(z.object({
-          productId: z.string().uuid(),
+          productId: z.guid(),
           limit: z.number().int().min(1).max(100).default(6),
         }))
         .query(({ ctx, input }) =>
@@ -66,7 +66,7 @@ export class RecommendationsTrpcRouter {
 
       popularInCategory: anyPrincipal
         .input(z.object({
-          categoryId: z.string().uuid(),
+          categoryId: z.guid(),
           limit: z.number().int().min(1).max(100).default(12),
         }))
         .query(({ ctx, input }) =>
@@ -81,7 +81,7 @@ export class RecommendationsTrpcRouter {
 
       trackView: customer
         .input(z.object({
-          productId: z.string().uuid(),
+          productId: z.guid(),
           sessionId: z.string().min(1),
         }))
         .mutation(({ ctx, input }) =>

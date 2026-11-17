@@ -129,5 +129,5 @@ export interface BaseEntity {
 
 // ─── ID Validation ─────────────────────────────────────────────
 
-export const UuidSchema = z.string().uuid();
-export const TenantIdSchema = z.string().uuid();
+export const UuidSchema = z.guid();
+export const TenantIdSchema = z.guid();

@@ -14,6 +14,9 @@ function VerifyOtpPageInner() {
   const identifier = params.get("phone") ?? params.get("email") ?? params.get("identifier") ?? "";
   const purpose = params.get("purpose") ?? "REGISTRATION";
 
+  const notDelivered = params.get("delivered") === "0";
+  const [resendUndelivered, setResendUndelivered] = useState(false);
+
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -96,7 +99,12 @@ function VerifyOtpPageInner() {
       if (!res.ok || !data?.success) {
         throw new Error(data?.error?.message || data?.message || "Could not resend OTP");
       }
-      setSuccess("A new OTP has been sent.");
+      if (data?.data?.delivered === false) {
+        setResendUndelivered(true);
+      } else {
+        setResendUndelivered(false);
+        setSuccess("A new OTP has been sent.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error");
     }
@@ -113,6 +121,11 @@ function VerifyOtpPageInner() {
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+          {(notDelivered || resendUndelivered) && (
+            <div role="status" className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3 mb-4">
+              We could not send an SMS right now. You can continue to your account and verify later.
+            </div>
+          )}
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">{error}</div>}
           {success && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg p-3 mb-4">{success}</div>}
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -148,6 +161,12 @@ function VerifyOtpPageInner() {
         </div>
 
         <p className="text-center text-sm text-navy/50 mt-5">
+          If you do not receive a code, you can continue and verify later.{" "}
+          <Link href="/account" className="text-gold font-medium hover:text-gold-dark transition-colors">
+            Continue to my account
+          </Link>
+        </p>
+        <p className="text-center text-sm text-navy/50 mt-2">
           <Link href="/auth/login" className="text-gold font-medium hover:text-gold-dark transition-colors">
             Back to Sign In
           </Link>

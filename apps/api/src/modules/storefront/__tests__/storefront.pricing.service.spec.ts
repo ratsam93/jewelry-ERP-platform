@@ -21,14 +21,14 @@ describe('StorefrontPricingService', () => {
       // 5g = 5000 mg
       // metalValue = (6000000 * 5000) / 10000 = 3000000 paise = Rs 30,000
       // making = 200000 paise = Rs 2,000
-      // wastage = 1% => 3000000 * 1 / 100 = 30000 paise = Rs 300
+      // wastage = 1% => 3000000 * 100 / 10000 = 30000 paise = Rs 300
       // subtotal = 3000000 + 200000 + 30000 = 3230000 paise = Rs 32,300
       // GST = 3230000 * 300 / 10000 = 96900 paise = Rs 969
       // total = 3230000 + 96900 = 3326900 paise = Rs 33,269
       const result = service.calculateProductPrice(
         5000,    // 5g in mg
         200000,  // Rs 2000 making charges in paise
-        1,       // 1% wastage
+        100,       // 1% wastage (100 bps)
         6000000, // Rs 60000 per 10g in paise
       );
 
@@ -57,6 +57,13 @@ describe('StorefrontPricingService', () => {
       expect(result.totalPricePaise).toBe(3090000);
     });
 
+    it('treats wastagePercent as basis points (200 bps = 2%)', () => {
+      // 10g at 21,390,000 paise/10g: metal 21,390,000 paise, wastage 2% = 427,800
+      const r2 = service.calculateProductPrice(10000, 0, 200, 21390000);
+      expect(r2.metalValuePaise).toBe(21390000);
+      expect(r2.wastageValuePaise).toBe(427800);
+    });
+
     it('calculates with zero weight returns all zeroes', () => {
       const result = service.calculateProductPrice(0, 0, 0, 6000000);
       expect(result.metalValuePaise).toBe(0);
@@ -71,13 +78,13 @@ describe('StorefrontPricingService', () => {
       const result = service.calculateProductPrice(
         10000,   // 10g
         500000,  // Rs 5000 making
-        10,      // 10% wastage
+        1000,      // 10% wastage (1000 bps)
         5500000, // Rs 55000/10g
       );
 
       // metal = (5500000 * 10000) / 10000 = 5500000
       expect(result.metalValuePaise).toBe(5500000);
-      // wastage = 5500000 * 10 / 100 = 550000
+      // wastage = 5500000 * 1000 / 10000 = 550000
       expect(result.wastageValuePaise).toBe(550000);
       const expectedSubtotal = 5500000 + 500000 + 550000; // 6550000
       expect(result.subtotalPaise).toBe(expectedSubtotal);
@@ -91,13 +98,13 @@ describe('StorefrontPricingService', () => {
       const result = service.calculateProductPrice(
         50000,  // 50g
         100000, // Rs 1000 making
-        2,      // 2% wastage
+        200,      // 2% wastage (200 bps)
         80000,  // Rs 800/10g
       );
 
       // metal = (80000 * 50000) / 10000 = 400000 paise = Rs 4000
       expect(result.metalValuePaise).toBe(400000);
-      // wastage = 400000 * 2 / 100 = 8000
+      // wastage = 400000 * 200 / 10000 = 8000
       expect(result.wastageValuePaise).toBe(8000);
       const sub = 400000 + 100000 + 8000; // 508000
       expect(result.subtotalPaise).toBe(sub);
@@ -111,13 +118,13 @@ describe('StorefrontPricingService', () => {
       const result = service.calculateProductPrice(
         2000,    // 2g
         300000,  // Rs 3000 making
-        3,       // 3% wastage
+        300,       // 3% wastage (300 bps)
         3000000, // Rs 30000/10g
       );
 
       // metal = (3000000 * 2000) / 10000 = 600000
       expect(result.metalValuePaise).toBe(600000);
-      // wastage = 600000 * 3 / 100 = 18000
+      // wastage = 600000 * 300 / 10000 = 18000
       expect(result.wastageValuePaise).toBe(18000);
       const sub = 600000 + 300000 + 18000;
       expect(result.subtotalPaise).toBe(sub);
@@ -133,7 +140,7 @@ describe('StorefrontPricingService', () => {
     });
 
     it('returns integer paise values (no floats)', () => {
-      const result = service.calculateProductPrice(3333, 12345, 7, 5555555);
+      const result = service.calculateProductPrice(3333, 12345, 700, 5555555);
       expect(Number.isInteger(result.metalValuePaise)).toBe(true);
       expect(Number.isInteger(result.wastageValuePaise)).toBe(true);
       expect(Number.isInteger(result.gstPaise)).toBe(true);
@@ -141,12 +148,12 @@ describe('StorefrontPricingService', () => {
     });
 
     it('total = subtotal + GST always', () => {
-      const result = service.calculateProductPrice(7777, 99999, 5, 4321000);
+      const result = service.calculateProductPrice(7777, 99999, 500, 4321000);
       expect(result.totalPricePaise).toBe(result.subtotalPaise + result.gstPaise);
     });
 
     it('subtotal = metal + making + wastage always', () => {
-      const result = service.calculateProductPrice(12345, 678900, 8, 7654321);
+      const result = service.calculateProductPrice(12345, 678900, 800, 7654321);
       expect(result.subtotalPaise).toBe(
         result.metalValuePaise + result.makingValuePaise + result.wastageValuePaise,
       );
@@ -168,7 +175,7 @@ describe('StorefrontPricingService', () => {
             metalPurity: 916,
             metalWeightMg: BigInt(5000),
             makingCharges: BigInt(200000),
-            wastagePercent: 1,
+            wastagePercent: 100,
             sellingPricePaise: null,
           },
         },
@@ -182,7 +189,7 @@ describe('StorefrontPricingService', () => {
             metalPurity: 916,
             metalWeightMg: BigInt(10000),
             makingCharges: BigInt(500000),
-            wastagePercent: 2,
+            wastagePercent: 200,
             sellingPricePaise: null,
           },
         },
@@ -353,7 +360,7 @@ describe('StorefrontPricingService', () => {
         metalPurity: 916,
         metalWeightMg: BigInt(5000),
         makingCharges: BigInt(200000),
-        wastagePercent: 1,
+        wastagePercent: 100,
         sellingPricePaise: null,
       });
 

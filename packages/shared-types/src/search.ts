@@ -33,7 +33,7 @@ export const SearchFacetsSchema = z.object({
 export type SearchFacets = z.infer<typeof SearchFacetsSchema>;
 
 export const SearchProductSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string(),
   sku: z.string(),
   productType: z.string(),
@@ -66,7 +66,7 @@ export const AutocompleteInputSchema = z.object({
 export type AutocompleteInput = z.infer<typeof AutocompleteInputSchema>;
 
 export const AutocompleteProductSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string(),
   productType: z.string(),
   categoryName: z.string().nullable(),
@@ -77,7 +77,7 @@ export const AutocompleteProductSchema = z.object({
 export type AutocompleteProduct = z.infer<typeof AutocompleteProductSchema>;
 
 export const AutocompleteCategorySchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string(),
   productCount: z.number().int(),
 });
@@ -110,7 +110,7 @@ export const SearchSynonymInputSchema = z.object({
 export type SearchSynonymInput = z.infer<typeof SearchSynonymInputSchema>;
 
 export const SearchSynonymResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   term: z.string(),
   synonyms: z.array(z.string()),
   isActive: z.boolean(),
@@ -130,7 +130,7 @@ export const SearchSuggestionInputSchema = z.object({
 export type SearchSuggestionInput = z.infer<typeof SearchSuggestionInputSchema>;
 
 export const SearchSuggestionResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   suggestion: z.string(),
   category: z.string().nullable(),
   priority: z.number().int(),
@@ -143,7 +143,7 @@ export type SearchSuggestionResponse = z.infer<typeof SearchSuggestionResponseSc
 // ─── Popular Search ───────────────────────────────────────────────
 
 export const PopularSearchResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   query: z.string(),
   searchCount: z.number().int(),
   lastSearchedAt: z.coerce.date(),

@@ -7,6 +7,7 @@ import { FileText, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatPaise, formatDate } from '@/components/format';
+import { invoiceCounterpartyName } from '@/lib/invoice-party';
 
 export default function InvoicesPage() {
   const [page, setPage] = useState(1);
@@ -49,10 +50,10 @@ export default function InvoicesPage() {
             {items.map((i) => (
               <Link key={i.id as string} href={`/finance/invoices/${i.id}`} className="grid grid-cols-[1.2fr_1.2fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm hover:bg-accent">
                 <span className="font-mono font-medium">{(i.invoiceNumber as string) ?? '-'}</span>
-                <span>{(i.counterpartyName as string) ?? '-'}</span>
+                <span>{invoiceCounterpartyName(i)}</span>
                 <span className="font-semibold">{formatPaise(i.totalPaise)}</span>
                 <StatusBadge label={(i.status as string) ?? '-'} variant={getStatusVariant(i.status as string)} dot={false} />
-                <span className="text-muted-foreground">{formatDate(i.issuedDate)}</span>
+                <span className="text-muted-foreground">{formatDate(i.issuedDate ?? i.createdAt)}</span>
                 <span className="text-muted-foreground">{formatDate(i.dueDate)}</span>
               </Link>
             ))}

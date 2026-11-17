@@ -1,6 +1,6 @@
 'use client';
 
-import { pickDefaultLocation, type PosBranch } from '@/lib/pos-location';
+import { pickDefaultLocation, dedupeBranches, branchOptionLabels, type PosBranch } from '@/lib/pos-location';
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, User, Printer, AlertCircle, CheckCircle2, Search, X } from 'lucide-react';
@@ -110,9 +110,10 @@ export default function PosPage() {
   // ─── Location (branch) ──────────────────────────────────────────
   const branchesQuery = trpc.platform.branches.list.useQuery({ includeInactive: false });
   const branches: BranchRow[] = React.useMemo(
-    () => (branchesQuery.data as BranchRow[] | undefined) ?? [],
+    () => dedupeBranches((branchesQuery.data as BranchRow[] | undefined) ?? []),
     [branchesQuery.data],
   );
+  const branchLabels = React.useMemo(() => branchOptionLabels(branches), [branches]);
   const [locationId, setLocationIdState] = React.useState<string>('');
   const userPickedLocation = React.useRef(false);
   const setLocationId = (id: string) => {
@@ -383,7 +384,7 @@ export default function PosPage() {
             {branches.length === 0 && <option value="">No stores</option>}
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.name} ({b.locationType})
+                {branchLabels.get(b.id) ?? b.name}
               </option>
             ))}
           </select>

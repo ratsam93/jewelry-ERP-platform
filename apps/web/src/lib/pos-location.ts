@@ -25,3 +25,25 @@ export function pickDefaultLocation(
   const pick = pool.find(isPrimary) ?? pool.find(isShowroom) ?? pool[0];
   return pick.id;
 }
+
+/** Drop repeated ids (a branch listed twice) keeping the first occurrence. */
+export function dedupeBranches<T extends { id: string }>(branches: T[]): T[] {
+  const seen = new Set<string>();
+  return branches.filter((b) => (seen.has(b.id) ? false : (seen.add(b.id), true)));
+}
+
+/**
+ * Option labels for the location selector. Distinct locations that share the
+ * same name and type get a short id suffix so they can be told apart.
+ */
+export function branchOptionLabels(branches: PosBranch[]): Map<string, string> {
+  const counts = new Map<string, number>();
+  const key = (b: PosBranch) => `${b.name}|${b.locationType}`;
+  for (const b of branches) counts.set(key(b), (counts.get(key(b)) ?? 0) + 1);
+  const out = new Map<string, string>();
+  for (const b of branches) {
+    const base = `${b.name} (${b.locationType})`;
+    out.set(b.id, (counts.get(key(b)) ?? 0) > 1 ? `${base} #${b.id.slice(0, 4)}` : base);
+  }
+  return out;
+}

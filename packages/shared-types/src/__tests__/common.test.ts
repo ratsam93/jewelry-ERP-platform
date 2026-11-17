@@ -230,6 +230,16 @@ describe('UuidSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('should accept seeded GUID-shaped ids that are not RFC 4122 (version/variant nibbles)', () => {
+    expect(UuidSchema.safeParse('32570a44-b791-98ee-d02d-4945d5b5d71f').success).toBe(true);
+    expect(UuidSchema.safeParse('23d0efc9-3ebf-2372-f496-e0e9eb459779').success).toBe(true);
+  });
+
+  it('should reject strings that are not 8-4-4-4-12 hex', () => {
+    expect(UuidSchema.safeParse('32570a44-b791-98ee-d02d-4945d5b5d71').success).toBe(false);
+    expect(UuidSchema.safeParse('g2570a44-b791-98ee-d02d-4945d5b5d71f').success).toBe(false);
+  });
+
   it('should reject invalid UUID', () => {
     const result = UuidSchema.safeParse('not-a-uuid');
     expect(result.success).toBe(false);

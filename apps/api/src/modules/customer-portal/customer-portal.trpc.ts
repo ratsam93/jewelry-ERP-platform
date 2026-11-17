@@ -87,19 +87,19 @@ export class CustomerPortalTrpcRouter {
           ),
 
         get: authed
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.ordersService.getOrderDetail(ctx.tenantId, ctx.userId, input.id),
           ),
 
         tracking: authed
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.ordersService.getOrderTrackingLive(ctx.tenantId, ctx.userId, input.id),
           ),
 
         downloadInvoice: authed
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.ordersService.downloadInvoice(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -111,7 +111,7 @@ export class CustomerPortalTrpcRouter {
           ),
 
         cancel: authed
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.ordersService.cancelOrder(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -143,13 +143,13 @@ export class CustomerPortalTrpcRouter {
         ),
 
         get: authed
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.schemesService.getSchemeDetail(ctx.tenantId, ctx.userId, input.id),
           ),
 
         payInstallment: authed
-          .input(z.object({ membershipId: z.string().uuid() }).merge(PayInstallmentInputSchema))
+          .input(z.object({ membershipId: z.guid() }).merge(PayInstallmentInputSchema))
           .mutation(({ ctx, input }) =>
             this.schemesService.payInstallment(
               ctx.tenantId, ctx.userId, input.membershipId, input.paymentMethod,

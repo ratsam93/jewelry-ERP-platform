@@ -105,7 +105,7 @@ export class EcommerceTrpcRouter {
         }),
 
       getChannel: this.trpc.authedProcedure
-        .input(z.object({ channelId: z.string().uuid() }))
+        .input(z.object({ channelId: z.guid() }))
         .query(async ({ ctx, input }) => {
           const channel = await this.prisma.salesChannel.findFirst({
             where: { id: input.channelId, tenantId: ctx.tenantId },
@@ -159,7 +159,7 @@ export class EcommerceTrpcRouter {
 
       updateChannel: this.trpc.authedProcedure
         .input(z.object({
-          channelId: z.string().uuid(),
+          channelId: z.guid(),
           data: partialUpdate(SalesChannelInputSchema),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -195,15 +195,15 @@ export class EcommerceTrpcRouter {
 
       bulkSyncProducts: this.trpc.authedProcedure
         .input(z.object({
-          channelId: z.string().uuid(),
-          productIds: z.array(z.string().uuid()),
+          channelId: z.guid(),
+          productIds: z.array(z.guid()),
         }))
         .mutation(({ ctx, input }) =>
           this.catalogService.bulkSync(ctx.tenantId, ctx.userId, input.channelId, input.productIds),
         ),
 
       getCatalogItem: this.trpc.authedProcedure
-        .input(z.object({ catalogItemId: z.string().uuid() }))
+        .input(z.object({ catalogItemId: z.guid() }))
         .query(({ ctx, input }) =>
           this.catalogService.getCatalogItem(ctx.tenantId, input.catalogItemId),
         ),
@@ -222,7 +222,7 @@ export class EcommerceTrpcRouter {
         ),
 
       deleteCatalogItem: this.trpc.authedProcedure
-        .input(z.object({ catalogItemId: z.string().uuid() }))
+        .input(z.object({ catalogItemId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.catalogService.deleteCatalogItem(ctx.tenantId, input.catalogItemId),
         ),
@@ -235,7 +235,7 @@ export class EcommerceTrpcRouter {
         ),
 
       getOrder: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid() }))
+        .input(z.object({ orderId: z.guid() }))
         .query(({ ctx, input }) =>
           this.orderService.getOrder(ctx.tenantId, input.orderId),
         ),
@@ -260,13 +260,13 @@ export class EcommerceTrpcRouter {
         ),
 
       cancelOrder: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid(), reason: z.string().min(1) }))
+        .input(z.object({ orderId: z.guid(), reason: z.string().min(1) }))
         .mutation(({ ctx, input }) =>
           this.orderService.cancelOrder(ctx.tenantId, ctx.userId, input.orderId, input.reason),
         ),
 
       refundOrder: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid() }))
+        .input(z.object({ orderId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.orderService.refundOrder(ctx.tenantId, ctx.userId, input.orderId),
         ),
@@ -279,7 +279,7 @@ export class EcommerceTrpcRouter {
         ),
 
       getShipment: this.trpc.authedProcedure
-        .input(z.object({ shipmentId: z.string().uuid() }))
+        .input(z.object({ shipmentId: z.guid() }))
         .query(({ ctx, input }) =>
           this.shippingService.getShipment(ctx.tenantId, input.shipmentId),
         ),
@@ -304,13 +304,13 @@ export class EcommerceTrpcRouter {
         ),
 
       getShipmentsByOrder: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid() }))
+        .input(z.object({ orderId: z.guid() }))
         .query(({ ctx, input }) =>
           this.shippingService.getShipmentsByOrder(ctx.tenantId, input.orderId),
         ),
 
       generateLabel: this.trpc.authedProcedure
-        .input(z.object({ shipmentId: z.string().uuid(), carrier: z.string() }))
+        .input(z.object({ shipmentId: z.guid(), carrier: z.string() }))
         .mutation(({ ctx, input }) =>
           this.shippingService.generateLabel(ctx.tenantId, input.shipmentId, input.carrier),
         ),
@@ -323,7 +323,7 @@ export class EcommerceTrpcRouter {
         ),
 
       getGateway: this.trpc.authedProcedure
-        .input(z.object({ gatewayId: z.string().uuid() }))
+        .input(z.object({ gatewayId: z.guid() }))
         .query(({ ctx, input }) =>
           this.paymentService.getGateway(ctx.tenantId, input.gatewayId),
         ),
@@ -335,7 +335,7 @@ export class EcommerceTrpcRouter {
 
       updateGateway: this.trpc.authedProcedure
         .input(z.object({
-          gatewayId: z.string().uuid(),
+          gatewayId: z.guid(),
           data: partialUpdate(PaymentGatewayInputSchema),
         }))
         .mutation(({ ctx, input }) =>
@@ -364,7 +364,7 @@ export class EcommerceTrpcRouter {
 
       refundPayment: this.trpc.authedProcedure
         .input(z.object({
-          paymentId: z.string().uuid(),
+          paymentId: z.guid(),
           refundAmountPaise: z.number().int().positive().optional(),
         }))
         .mutation(({ ctx, input }) =>
@@ -381,8 +381,8 @@ export class EcommerceTrpcRouter {
           payload: z.record(z.string(), z.unknown()),
           rawBody: z.string().min(1),
           signature: z.string().min(1),
-          channelId: z.string().uuid().optional(),
-          gatewayId: z.string().uuid().optional(),
+          channelId: z.guid().optional(),
+          gatewayId: z.guid().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
           const valid = await this.webhookService.verifyInboundSignature(
@@ -408,8 +408,8 @@ export class EcommerceTrpcRouter {
       // ─── Shopify (admin-triggered) ────────────────────────────
       syncProductToShopify: this.trpc.authedProcedure
         .input(z.object({
-          channelId: z.string().uuid(),
-          productId: z.string().uuid(),
+          channelId: z.guid(),
+          productId: z.guid(),
         }))
         .mutation(async ({ ctx, input }) => {
           await this.assertShopifyChannel(ctx.tenantId, input.channelId);
@@ -417,14 +417,14 @@ export class EcommerceTrpcRouter {
         }),
 
       pullOrdersFromShopify: this.trpc.authedProcedure
-        .input(z.object({ channelId: z.string().uuid() }))
+        .input(z.object({ channelId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           await this.assertShopifyChannel(ctx.tenantId, input.channelId);
           return this.shopifyService.pullOrdersFromShopify(ctx.tenantId, input.channelId);
         }),
 
       retryWebhook: this.trpc.authedProcedure
-        .input(z.object({ webhookLogId: z.string().uuid() }))
+        .input(z.object({ webhookLogId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.webhookService.retryWebhook(ctx.tenantId, input.webhookLogId),
         ),
@@ -434,8 +434,8 @@ export class EcommerceTrpcRouter {
           filters: z.object({
             source: z.string().optional(),
             status: z.string().optional(),
-            channelId: z.string().uuid().optional(),
-            gatewayId: z.string().uuid().optional(),
+            channelId: z.guid().optional(),
+            gatewayId: z.guid().optional(),
           }).optional(),
           pagination: PaginationSchema.optional(),
         }))
@@ -455,7 +455,7 @@ export class EcommerceTrpcRouter {
         ),
 
       getClickCollect: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(({ ctx, input }) =>
           this.clickCollectService.get(ctx.tenantId, input.id),
         ),
@@ -474,25 +474,25 @@ export class EcommerceTrpcRouter {
         ),
 
       markClickCollectNotified: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.clickCollectService.markNotified(ctx.tenantId, ctx.userId, input.id),
         ),
 
       confirmClickCollectPickup: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.clickCollectService.confirmPickup(ctx.tenantId, ctx.userId, input.id),
         ),
 
       cancelClickCollect: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.clickCollectService.cancel(ctx.tenantId, ctx.userId, input.id),
         ),
 
       getClickCollectQueue: this.trpc.authedProcedure
-        .input(z.object({ locationId: z.string().uuid() }))
+        .input(z.object({ locationId: z.guid() }))
         .query(({ ctx, input }) =>
           this.clickCollectService.getQueue(ctx.tenantId, input.locationId),
         ),
@@ -594,7 +594,7 @@ export class EcommerceTrpcRouter {
         }),
 
       publishReview: this.trpc.authedProcedure
-        .input(z.object({ reviewId: z.string().uuid() }))
+        .input(z.object({ reviewId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           await this.prisma.productReview.updateMany({
             where: { id: input.reviewId, tenantId: ctx.tenantId },
@@ -604,7 +604,7 @@ export class EcommerceTrpcRouter {
         }),
 
       unpublishReview: this.trpc.authedProcedure
-        .input(z.object({ reviewId: z.string().uuid() }))
+        .input(z.object({ reviewId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           await this.prisma.productReview.updateMany({
             where: { id: input.reviewId, tenantId: ctx.tenantId },
