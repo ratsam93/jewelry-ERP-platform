@@ -2,39 +2,80 @@
 
 import * as React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import {
+  INDIAN_STATES,
+  buildInvoiceInput,
+  computeInvoiceTotals,
+  computeLineTax,
+  emptyInvoiceLine,
+  gstPercentToRate,
+  isCustomerInvoiceType,
+  isInterState,
+  rupeesToPaise,
+  stateCodeFrom,
+  type InvoiceFormErrors,
+  type InvoiceLineValues,
+  type InvoiceTypeValue,
+} from '@/lib/finance-forms';
 
-interface InvoiceLine {
-  productId: string;
-  description: string;
-  quantity: number;
-  unitPricePaise: number;
-  discountPaise: number;
-  hsnCode: string;
-  gstRate: number;
+interface PartyOption {
+  id: string;
+  /** Pre-built label (name + phone); falls back to firstName/lastName or name. */
+  label?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  state?: string | null;
+}
+
+export interface InvoiceFormSubmit {
+  invoiceType: string;
+  customerId?: string;
+  supplierId?: string;
+  locationId: string;
+  sourceState: string;
+  destState: string;
+  dueDate?: string;
+  notes?: string;
+  currencyCode: string;
+  lineItems: Array<Record<string, unknown>>;
 }
 
 interface InvoiceFormProps {
-  invoiceType: 'SALES' | 'PURCHASE';
-  customers?: Array<{ id: string; firstName: string; lastName: string }>;
-  suppliers?: Array<{ id: string; name: string }>;
+  invoiceType: InvoiceTypeValue;
+  customers?: PartyOption[];
+  suppliers?: PartyOption[];
   products?: Array<{ id: string; sku: string; name: string; sellingPricePaise: bigint | null }>;
   locations: Array<{ id: string; name: string; state?: string | null }>;
-  onSubmit: (data: {
-    invoiceType: string;
-    customerId?: string;
-    supplierId?: string;
-    locationId: string;
-    sourceState: string;
-    destState: string;
-    dueDate?: string;
-    notes?: string;
-    terms?: string;
-    lineItems: InvoiceLine[];
-  }) => void;
+  onSubmit: (data: InvoiceFormSubmit) => void;
   isLoading?: boolean;
+  /** Readable server error shown above the submit button. */
+  serverError?: string | null;
 }
 
-const DEFAULT_GST_RATE = 300; // 3% for jewelry (HSN 7113)
+function partyLabel(p: PartyOption): string {
+  if (p.label) return p.label;
+  const n = [p.firstName, p.lastName].filter(Boolean).join(' ').trim();
+  return n || p.name || p.id;
+}
+
+const inputCls = 'mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
+
+const NEGATIVE_PRICE_MSG = 'Unit price must be zero or more';
+const isNegativePrice = (v: string): boolean => v.trim().startsWith('-');
+
+function Err({ id, msg }: { id: string; msg?: string }) {
+  if (!msg) return null;
+  return (
+    <p id={id} role="alert" className="mt-1 text-xs text-red-600">
+      {msg}
+    </p>
+  );
+}
+
+function formatAmount(paise: number): string {
+  return (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export function InvoiceForm({
   invoiceType,
@@ -44,176 +85,206 @@ export function InvoiceForm({
   locations,
   onSubmit,
   isLoading,
+  serverError,
 }: InvoiceFormProps) {
   const [customerId, setCustomerId] = React.useState('');
   const [supplierId, setSupplierId] = React.useState('');
   const [locationId, setLocationId] = React.useState('');
-  const [sourceState, setSourceState] = React.useState('MH');
-  const [destState, setDestState] = React.useState('MH');
+  const [sourceState, setSourceState] = React.useState('');
+  const [destState, setDestState] = React.useState('');
   const [dueDate, setDueDate] = React.useState('');
   const [notes, setNotes] = React.useState('');
-  const [lines, setLines] = React.useState<InvoiceLine[]>([
-    { productId: '', description: '', quantity: 1, unitPricePaise: 0, discountPaise: 0, hsnCode: '7113', gstRate: DEFAULT_GST_RATE },
-  ]);
+  const [lines, setLines] = React.useState<InvoiceLineValues[]>([emptyInvoiceLine()]);
+  const [errors, setErrors] = React.useState<InvoiceFormErrors>({});
+  const [submitted, setSubmitted] = React.useState(false);
 
-  const isSales = invoiceType === 'SALES';
+  const customerSide = isCustomerInvoiceType(invoiceType);
+  const typeLabel = customerSide ? 'Sales' : 'Purchase';
 
-  const addLine = () => {
-    setLines([
-      ...lines,
-      { productId: '', description: '', quantity: 1, unitPricePaise: 0, discountPaise: 0, hsnCode: '7113', gstRate: DEFAULT_GST_RATE },
-    ]);
-  };
+  // Switching document type clears the party that no longer applies.
+  React.useEffect(() => {
+    setErrors({});
+    setSubmitted(false);
+  }, [invoiceType]);
 
-  const removeLine = (index: number) => {
-    if (lines.length <= 1) return;
-    setLines(lines.filter((_, i) => i !== index));
-  };
+  const clearError = (key: string) =>
+    setErrors((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
 
-  const updateLine = (index: number, field: keyof InvoiceLine, value: string | number) => {
-    setLines(lines.map((line, i) => (i === index ? { ...line, [field]: value } : line)));
-  };
-
-  const isInterState = sourceState.toUpperCase() !== destState.toUpperCase();
-
-  const computeLineTax = (line: InvoiceLine) => {
-    const lineTotal = line.unitPricePaise * line.quantity;
-    const taxableAmount = lineTotal - line.discountPaise;
-    const ratePercent = line.gstRate / 100;
-
-    if (isInterState) {
-      const igst = Math.round((taxableAmount * ratePercent) / 100);
-      return { taxableAmount, cgst: 0, sgst: 0, igst, total: taxableAmount + igst };
-    } else {
-      const halfRate = ratePercent / 2;
-      const cgst = Math.round((taxableAmount * halfRate) / 100);
-      const sgst = Math.round((taxableAmount * halfRate) / 100);
-      return { taxableAmount, cgst, sgst, igst: 0, total: taxableAmount + cgst + sgst };
+  const onLocationChange = (id: string) => {
+    setLocationId(id);
+    clearError('locationId');
+    const code = stateCodeFrom(locations.find((l) => l.id === id)?.state);
+    if (code) {
+      setSourceState(code);
+      clearError('sourceState');
     }
   };
 
-  const totals = lines.reduce(
-    (acc, line) => {
-      const tax = computeLineTax(line);
-      return {
-        subtotal: acc.subtotal + line.unitPricePaise * line.quantity,
-        discount: acc.discount + line.discountPaise,
-        cgst: acc.cgst + tax.cgst,
-        sgst: acc.sgst + tax.sgst,
-        igst: acc.igst + tax.igst,
-        total: acc.total + tax.total,
-      };
-    },
-    { subtotal: 0, discount: 0, cgst: 0, sgst: 0, igst: 0, total: 0 },
-  );
-
-  const formatAmount = (paise: number) => {
-    return (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  const onPartyChange = (id: string, list: PartyOption[] | undefined, kind: 'customerId' | 'supplierId') => {
+    if (kind === 'customerId') setCustomerId(id);
+    else setSupplierId(id);
+    clearError(kind);
+    const code = stateCodeFrom(list?.find((p) => p.id === id)?.state);
+    if (code) {
+      setDestState(code);
+      clearError('destState');
+    }
   };
+
+  const updateLine = (index: number, field: keyof InvoiceLineValues, value: string) => {
+    setLines((prev) => prev.map((l, i) => (i === index ? { ...l, [field]: value } : l)));
+    clearError(`lines.${index}.${field === 'gstPercent' ? 'gstPercent' : field}`);
+  };
+
+  const addLine = () => setLines((prev) => [...prev, emptyInvoiceLine()]);
+  const removeLine = (index: number) =>
+    setLines((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
+
+  const inter = sourceState && destState ? isInterState(sourceState, destState) : false;
+  const totals = computeInvoiceTotals(lines, sourceState || 'XX', destState || 'XX');
+
+  const lineTax = (l: InvoiceLineValues) =>
+    computeLineTax(
+      rupeesToPaise(l.unitPrice) ?? 0,
+      /^\d+$/.test(l.quantity.trim()) ? Number(l.quantity) : 0,
+      l.discount.trim() ? rupeesToPaise(l.discount) ?? 0 : 0,
+      gstPercentToRate(l.gstPercent) ?? 0,
+      inter,
+    );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
+    setSubmitted(true);
+    const { input, errors: errs } = buildInvoiceInput({
       invoiceType,
-      customerId: isSales ? customerId : undefined,
-      supplierId: !isSales ? supplierId : undefined,
+      customerId,
+      supplierId,
       locationId,
       sourceState,
       destState,
-      dueDate: dueDate || undefined,
-      notes: notes || undefined,
-      lineItems: lines,
+      dueDate,
+      notes,
+      lines,
     });
+    setErrors(errs);
+    if (!input) return;
+    onSubmit(input as unknown as InvoiceFormSubmit);
   };
 
+  const errorCount = Object.keys(errors).length;
+  const hasNegativePrice = lines.some((l) => isNegativePrice(l.unitPrice));
+  const partyList = customerSide ? customers : suppliers;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {isSales ? (
-          <div>
-            <label className="block text-sm font-medium text-foreground">Customer</label>
-            <select
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select customer</option>
-              {customers?.map((c) => (
-                <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <div>
-            <label className="block text-sm font-medium text-foreground">Supplier</label>
-            <select
-              value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select supplier</option>
-              {suppliers?.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div>
+          <label htmlFor="inv-party" className="block text-sm font-medium text-foreground">
+            {customerSide ? 'Customer' : 'Supplier'} *
+          </label>
+          <select
+            id="inv-party"
+            value={customerSide ? customerId : supplierId}
+            onChange={(e) => onPartyChange(e.target.value, partyList, customerSide ? 'customerId' : 'supplierId')}
+            aria-invalid={errors[customerSide ? 'customerId' : 'supplierId'] ? true : undefined}
+            className={inputCls}
+          >
+            <option value="">{customerSide ? 'Select customer' : 'Select supplier'}</option>
+            {partyList?.map((p) => (
+              <option key={p.id} value={p.id}>
+                {partyLabel(p)}
+              </option>
+            ))}
+          </select>
+          <Err id="inv-party-err" msg={errors[customerSide ? 'customerId' : 'supplierId']} />
+        </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground">Location</label>
+          <label htmlFor="inv-location" className="block text-sm font-medium text-foreground">Location *</label>
           <select
+            id="inv-location"
             value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            required
+            onChange={(e) => onLocationChange(e.target.value)}
+            aria-invalid={errors.locationId ? true : undefined}
+            className={inputCls}
           >
             <option value="">Select location</option>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
+          <Err id="inv-location-err" msg={errors.locationId} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground">Due Date</label>
+          <label htmlFor="inv-due" className="block text-sm font-medium text-foreground">Due date</label>
           <input
+            id="inv-due"
             type="date"
             value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            onChange={(e) => {
+              setDueDate(e.target.value);
+              clearError('dueDate');
+            }}
+            className={inputCls}
           />
+          <Err id="inv-due-err" msg={errors.dueDate} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-foreground">Source State</label>
-          <input
-            type="text"
+          <label htmlFor="inv-src" className="block text-sm font-medium text-foreground">Supply from (state) *</label>
+          <select
+            id="inv-src"
             value={sourceState}
-            onChange={(e) => setSourceState(e.target.value)}
-            placeholder="e.g., MH"
-            maxLength={5}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            required
-          />
+            onChange={(e) => {
+              setSourceState(e.target.value);
+              clearError('sourceState');
+            }}
+            aria-invalid={errors.sourceState ? true : undefined}
+            className={inputCls}
+          >
+            <option value="">Select state</option>
+            {INDIAN_STATES.map((s) => (
+              <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
+            ))}
+          </select>
+          <Err id="inv-src-err" msg={errors.sourceState} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground">Destination State</label>
-          <input
-            type="text"
+          <label htmlFor="inv-dest" className="block text-sm font-medium text-foreground">Place of supply (state) *</label>
+          <select
+            id="inv-dest"
             value={destState}
-            onChange={(e) => setDestState(e.target.value)}
-            placeholder="e.g., MH"
-            maxLength={5}
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            required
-          />
+            onChange={(e) => {
+              setDestState(e.target.value);
+              clearError('destState');
+            }}
+            aria-invalid={errors.destState ? true : undefined}
+            className={inputCls}
+          >
+            <option value="">Select state</option>
+            {INDIAN_STATES.map((s) => (
+              <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
+            ))}
+          </select>
+          <Err id="inv-dest-err" msg={errors.destState} />
         </div>
+        {sourceState && destState && (
+          <p className="text-xs text-muted-foreground md:col-span-2">
+            {inter ? 'Inter-state supply: IGST applies.' : 'Intra-state supply: CGST + SGST apply.'}
+          </p>
+        )}
       </div>
 
       {/* Line Items */}
-      <div className="rounded-md border overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
@@ -230,77 +301,91 @@ export function InvoiceForm({
           </thead>
           <tbody>
             {lines.map((line, index) => {
-              const tax = computeLineTax(line);
+              const tax = lineTax(line);
+              const e = (f: string) => errors[`lines.${index}.${f}`];
               return (
-                <tr key={index} className="border-b">
+                <tr key={index} className="border-b align-top">
                   <td className="px-3 py-2">
                     <input
                       type="text"
+                      aria-label={`Line ${index + 1} description`}
                       value={line.description}
-                      onChange={(e) => updateLine(index, 'description', e.target.value)}
+                      onChange={(ev) => updateLine(index, 'description', ev.target.value)}
                       placeholder="Item description"
+                      aria-invalid={e('description') ? true : undefined}
                       className="w-full min-w-[200px] rounded border border-input bg-background px-2 py-1 text-sm"
-                      required
                     />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={line.quantity}
-                      onChange={(e) => updateLine(index, 'quantity', parseInt(e.target.value || '1'))}
-                      className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-sm"
-                      min="1"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={line.unitPricePaise / 100 || ''}
-                      onChange={(e) => updateLine(index, 'unitPricePaise', Math.round(parseFloat(e.target.value || '0') * 100))}
-                      placeholder="0.00"
-                      className="w-28 rounded border border-input bg-background px-2 py-1 text-right text-sm"
-                      min="0"
-                      step="0.01"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={line.discountPaise / 100 || ''}
-                      onChange={(e) => updateLine(index, 'discountPaise', Math.round(parseFloat(e.target.value || '0') * 100))}
-                      placeholder="0.00"
-                      className="w-24 rounded border border-input bg-background px-2 py-1 text-right text-sm"
-                      min="0"
-                      step="0.01"
-                    />
+                    <Err id={`line-${index}-description-err`} msg={e('description')} />
                   </td>
                   <td className="px-3 py-2">
                     <input
                       type="text"
-                      value={line.hsnCode}
-                      onChange={(e) => updateLine(index, 'hsnCode', e.target.value)}
-                      className="w-16 rounded border border-input bg-background px-2 py-1 text-sm"
+                      inputMode="numeric"
+                      aria-label={`Line ${index + 1} quantity`}
+                      value={line.quantity}
+                      onChange={(ev) => updateLine(index, 'quantity', ev.target.value)}
+                      aria-invalid={e('quantity') ? true : undefined}
+                      className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-sm"
                     />
+                    <Err id={`line-${index}-quantity-err`} msg={e('quantity')} />
                   </td>
                   <td className="px-3 py-2">
                     <input
-                      type="number"
-                      value={line.gstRate / 100}
-                      onChange={(e) => updateLine(index, 'gstRate', Math.round(parseFloat(e.target.value || '0') * 100))}
-                      className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-sm"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
+                      aria-label={`Line ${index + 1} unit price`}
+                      value={line.unitPrice}
+                      onChange={(ev) => updateLine(index, 'unitPrice', ev.target.value)}
+                      placeholder="0.00"
+                      aria-invalid={e('unitPrice') || isNegativePrice(line.unitPrice) ? true : undefined}
+                      className="w-28 rounded border border-input bg-background px-2 py-1 text-right text-sm"
                     />
+                    <Err id={`line-${index}-unitPrice-err`} msg={isNegativePrice(line.unitPrice) ? NEGATIVE_PRICE_MSG : e('unitPrice')} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      aria-label={`Line ${index + 1} discount`}
+                      value={line.discount}
+                      onChange={(ev) => updateLine(index, 'discount', ev.target.value)}
+                      placeholder="0.00"
+                      aria-invalid={e('discount') ? true : undefined}
+                      className="w-24 rounded border border-input bg-background px-2 py-1 text-right text-sm"
+                    />
+                    <Err id={`line-${index}-discount-err`} msg={e('discount')} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="text"
+                      aria-label={`Line ${index + 1} HSN`}
+                      value={line.hsnCode}
+                      onChange={(ev) => updateLine(index, 'hsnCode', ev.target.value)}
+                      aria-invalid={e('hsnCode') ? true : undefined}
+                      className="w-20 rounded border border-input bg-background px-2 py-1 text-sm"
+                    />
+                    <Err id={`line-${index}-hsnCode-err`} msg={e('hsnCode')} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      aria-label={`Line ${index + 1} GST percent`}
+                      value={line.gstPercent}
+                      onChange={(ev) => updateLine(index, 'gstPercent', ev.target.value)}
+                      aria-invalid={e('gstPercent') ? true : undefined}
+                      className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-sm"
+                    />
+                    <Err id={`line-${index}-gstPercent-err`} msg={e('gstPercent')} />
                   </td>
                   <td className="px-3 py-2 text-right text-muted-foreground">
-                    {formatAmount(tax.cgst + tax.sgst + tax.igst)}
+                    {formatAmount(tax.cgstPaise + tax.sgstPaise + tax.igstPaise)}
                   </td>
-                  <td className="px-3 py-2 text-right font-medium">
-                    {formatAmount(tax.total)}
-                  </td>
+                  <td className="px-3 py-2 text-right font-medium">{formatAmount(tax.totalPaise)}</td>
                   <td className="px-2 py-2">
                     <button
                       type="button"
+                      aria-label={`Remove line ${index + 1}`}
                       onClick={() => removeLine(index)}
                       disabled={lines.length <= 1}
                       className="rounded p-1 text-muted-foreground hover:text-destructive disabled:opacity-30"
@@ -314,6 +399,7 @@ export function InvoiceForm({
           </tbody>
         </table>
       </div>
+      <Err id="inv-lines-err" msg={errors.lines} />
 
       <button
         type="button"
@@ -328,55 +414,74 @@ export function InvoiceForm({
         <div className="w-72 space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal:</span>
-            <span>{formatAmount(totals.subtotal)}</span>
+            <span>{formatAmount(totals.subtotalPaise)}</span>
           </div>
-          {totals.discount > 0 && (
+          {totals.discountPaise > 0 && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Discount:</span>
-              <span className="text-destructive">-{formatAmount(totals.discount)}</span>
+              <span className="text-destructive">-{formatAmount(totals.discountPaise)}</span>
             </div>
           )}
-          {!isInterState ? (
+          {!inter ? (
             <>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">CGST:</span>
-                <span>{formatAmount(totals.cgst)}</span>
+                <span>{formatAmount(totals.cgstPaise)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">SGST:</span>
-                <span>{formatAmount(totals.sgst)}</span>
+                <span>{formatAmount(totals.sgstPaise)}</span>
               </div>
             </>
           ) : (
             <div className="flex justify-between">
               <span className="text-muted-foreground">IGST:</span>
-              <span>{formatAmount(totals.igst)}</span>
+              <span>{formatAmount(totals.igstPaise)}</span>
             </div>
           )}
           <div className="flex justify-between border-t pt-1 text-base font-bold">
             <span>Total:</span>
-            <span>{formatAmount(totals.total)}</span>
+            <span>{formatAmount(totals.totalPaise)}</span>
           </div>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-foreground">Notes</label>
+        <label htmlFor="inv-notes" className="block text-sm font-medium text-foreground">Notes</label>
         <textarea
+          id="inv-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          className={inputCls}
         />
       </div>
+
+      {serverError && (
+        <p role="alert" className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {serverError}
+        </p>
+      )}
+      {submitted && errorCount > 0 && (
+        <p role="alert" className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          Please fix the {errorCount} highlighted field{errorCount === 1 ? '' : 's'} above before saving.
+        </p>
+      )}
+
+      {hasNegativePrice && (
+        <p id="inv-save-hint" role="status" className="text-right text-sm text-red-600">
+          Cannot save: {NEGATIVE_PRICE_MSG.toLowerCase()} on every line.
+        </p>
+      )}
 
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={isLoading || lines.every((l) => l.unitPricePaise === 0)}
+          disabled={isLoading || hasNegativePrice}
+          aria-describedby={hasNegativePrice ? 'inv-save-hint' : undefined}
           className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {isLoading ? 'Creating...' : `Create ${isSales ? 'Sales' : 'Purchase'} Invoice`}
+          {isLoading ? 'Creating...' : `Create ${typeLabel} Invoice`}
         </button>
       </div>
     </form>

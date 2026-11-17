@@ -5,6 +5,12 @@ import { useStore } from "@/lib/store";
 import { useProductsByIds } from "@/lib/product-lookup";
 import { calculateProductPrice, formatRupees, cn } from "@/lib/utils";
 import RatingStars from "@/components/RatingStars";
+import { dedupeSpecLabels, mergeValues, normalizeLabel, specValue } from "@/lib/compare-rows";
+
+const BUILTIN_LABELS = [
+  "Rating", "Metal Type", "Purity", "Gross Weight", "Net Weight", "Metal Rate",
+  "Making Charges", "Stones", "HUID", "Gender", "Occasion",
+];
 
 export default function ComparePage() {
   const { compareIds, removeFromCompare, addToCart } = useStore();
@@ -98,10 +104,10 @@ export default function ComparePage() {
               { label: "Stones", render: (p: NonNullable<typeof products[0]>) => <span>{p.stoneDetails.length > 0 ? p.stoneDetails.map((s) => `${s.type} ${s.weightCarat}ct`).join(", ") : "None"}</span> },
               { label: "HUID", render: (p: NonNullable<typeof products[0]>) => <span>{p.huidNumber ?? "-"}</span> },
               { label: "Gender", render: (p: NonNullable<typeof products[0]>) => <span className="capitalize">{p.gender}</span> },
-              { label: "Occasion", render: (p: NonNullable<typeof products[0]>) => <span className="capitalize">{p.occasion.join(", ")}</span> },
-              ...Array.from(specs).map((spec) => ({
-                label: spec,
-                render: (p: NonNullable<typeof products[0]>) => <span>{p.specifications[spec] ?? "-"}</span>,
+              { label: "Occasion", render: (p: NonNullable<typeof products[0]>) => <span className="capitalize">{mergeValues(p.occasion, specValue(p.specifications, "Occasion")) || "-"}</span> },
+              ...dedupeSpecLabels(Array.from(specs), BUILTIN_LABELS).map((spec) => ({
+                label: normalizeLabel(spec),
+                render: (p: NonNullable<typeof products[0]>) => <span>{specValue(p.specifications, spec) ?? "-"}</span>,
               })),
             ].map((row, idx) => (
               <tr key={row.label} className={cn(idx % 2 === 0 ? "bg-warm-white" : "bg-white")}>

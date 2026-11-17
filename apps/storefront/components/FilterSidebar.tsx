@@ -125,7 +125,7 @@ export default function FilterSidebar({ filters, onFilterChange, className }: Fi
 
       <FilterSection id="price" title="Price Range">
         <div className="space-y-3 px-1">
-          <input
+          <input aria-label="Maximum price"
             type="range"
             min={0}
             max={1000000}
@@ -145,7 +145,7 @@ export default function FilterSidebar({ filters, onFilterChange, className }: Fi
 
       <FilterSection id="weight" title="Weight Range (grams)">
         <div className="space-y-3 px-1">
-          <input
+          <input aria-label="Maximum weight in grams"
             type="range"
             min={0}
             max={100}

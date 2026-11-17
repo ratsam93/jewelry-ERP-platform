@@ -5,6 +5,7 @@ import { PageHeader } from '@caratflow/ui';
 import type { AgingReport } from '@caratflow/shared-types';
 import { trpc } from '@/lib/trpc';
 import { formatPaise } from '@/components/format';
+import { formatDateOnly } from '@/lib/date-only';
 
 export default function AgingReportPage() {
   const [type, setType] = useState<'AR' | 'AP'>('AR');
@@ -16,7 +17,7 @@ export default function AgingReportPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Aging Report" description="Receivables or payables aged by bucket." breadcrumbs={[
+      <PageHeader title="Aging Report" description="Receivables or payables aged by days past due date. Only issued, unpaid or part-paid invoices are included (Sent, Partially paid, Overdue). Draft, paid, cancelled and voided invoices are excluded: issue a draft invoice to include it." breadcrumbs={[
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Finance', href: '/finance' },
         { label: 'Reports', href: '/finance/reports' },
@@ -34,7 +35,7 @@ export default function AgingReportPage() {
         <div className="py-12 text-center text-sm text-destructive">Failed to load aging report.</div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
             {buckets.map((b, idx) => (
               <div key={`${b.label}-${idx}`} className="rounded-lg border p-3">
                 <div className="text-xs uppercase text-muted-foreground">{b.label ?? '-'}</div>
@@ -65,7 +66,7 @@ export default function AgingReportPage() {
                   <div key={e.invoiceId ?? idx} className="grid grid-cols-[1fr_2fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm">
                     <span className="font-mono">{e.invoiceNumber ?? '-'}</span>
                     <span className="font-medium">{e.partyName || '-'}</span>
-                    <span>{e.dueDate ?? '-'}</span>
+                    <span>{formatDateOnly(e.dueDate)}</span>
                     <span>{String(e.ageDays ?? 0)}</span>
                     <span>{formatPaise(e.totalPaise)}</span>
                     <span>{formatPaise(e.outstandingPaise)}</span>

@@ -11,6 +11,7 @@ import { AmlMonitoringService } from './aml.monitoring.service';
 import { z } from 'zod';
 import {
   AmlRuleInputSchema,
+  AmlRuleCreateInputSchema,
   AmlAlertStatusEnum,
   AmlSeverityEnum,
   AmlSarReportInputSchema,
@@ -45,7 +46,7 @@ export class AmlTrpcRouter {
 
       // ─── Rules CRUD ────────────────────────────────────────
       ruleCreate: authed
-        .input(AmlRuleInputSchema)
+        .input(AmlRuleCreateInputSchema)
         .mutation(async ({ ctx, input }) => {
           return this.amlService.createRule(ctx.tenantId, ctx.userId, input);
         }),

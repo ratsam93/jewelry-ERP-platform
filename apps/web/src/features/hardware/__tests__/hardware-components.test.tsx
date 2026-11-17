@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { DeviceStatusIndicator } from '../DeviceStatusIndicator';
 import { RfidScanMonitor } from '../RfidScanMonitor';
 import { BarcodeScanInput } from '../BarcodeScanInput';
@@ -167,6 +167,59 @@ describe('RfidStockTakeWizard', () => {
   });
 });
 
+describe('LabelTemplateEditor behaviour', () => {
+  it('explains why Save Template is disabled', () => {
+    render(<LabelTemplateEditor onSave={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByText(/Enter a template name/)).toBeInTheDocument();
+    expect(screen.getByText('Save Template')).toBeDisabled();
+  });
+
+  it('Load Jewelry Defaults keeps an entered name and states what changed', () => {
+    render(
+      <LabelTemplateEditor
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+        initialTemplate={{ name: 'My Label', width: 60, height: 25, fields: [] }}
+      />,
+    );
+    fireEvent.click(screen.getByText('Load Jewelry Defaults'));
+    expect((screen.getByLabelText(/Template Name/) as HTMLInputElement).value).toBe('My Label');
+    expect((screen.getByLabelText('Width (mm)') as HTMLInputElement).value).toBe('60');
+    expect(screen.getByRole('status').textContent).toMatch(/height 25mm to 35mm/);
+  });
+});
+
+describe('RfidStockTakeWizard hints', () => {
+  it('shows why Start Scanning is disabled', () => {
+    render(<RfidStockTakeWizard />);
+    expect(screen.getByText('Start Scanning')).toBeDisabled();
+    expect(screen.getByText(/Select a location to enable Start Scanning/)).toBeInTheDocument();
+  });
+});
+
+describe('DeviceConfigForm validation', () => {
+  it('shows inline validation instead of a native tooltip', () => {
+    const onSubmit = vi.fn();
+    render(<DeviceConfigForm onSubmit={onSubmit} onCancel={vi.fn()} />);
+    fireEvent.click(screen.getByText('Save Device'));
+    expect(screen.getByText('Device name is required.')).toBeInTheDocument();
+    expect(screen.getByText(/Select the location/)).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('prefills vendor and product ids when editing', () => {
+    render(
+      <DeviceConfigForm
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        initialValues={{ name: 'S', connectionType: 'USB_HID' as never, vendorId: '0x1234', productId: '0x5678' }}
+      />,
+    );
+    expect((screen.getByLabelText('Vendor ID') as HTMLInputElement).value).toBe('0x1234');
+    expect((screen.getByLabelText('Product ID') as HTMLInputElement).value).toBe('0x5678');
+  });
+});
+
 describe('DeviceConfigForm', () => {
   it('renders device config fields', () => {
     render(
@@ -178,7 +231,7 @@ describe('DeviceConfigForm', () => {
     expect(screen.getByText('Device Name')).toBeInTheDocument();
     expect(screen.getByText('Device Type')).toBeInTheDocument();
     expect(screen.getByText('Connection Type')).toBeInTheDocument();
-    expect(screen.getByText('Location ID')).toBeInTheDocument();
+    expect(screen.getByText('Location')).toBeInTheDocument();
     expect(screen.getByText('Save Device')).toBeInTheDocument();
   });
 

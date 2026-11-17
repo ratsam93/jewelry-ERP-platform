@@ -104,7 +104,7 @@ async function bootstrap() {
   );
 
   // CORS — entries are trimmed and empty entries dropped.
-  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

@@ -6,6 +6,9 @@ import { Calculator } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import type { ColumnDef } from '@caratflow/ui';
 import { ValuationMethod } from '@caratflow/shared-types';
+import { LocationSelect } from '@/features/inventory/location-select';
+import { formatServerError } from '@/lib/manufacturing-forms';
+import { rupeesToPaiseString, valuationMethodLabel } from '@/lib/inventory-forms';
 
 interface ValuationItemRow {
   productId: string;
@@ -27,16 +30,36 @@ interface CategoryBreakdownRow {
 export default function ValuationPage() {
   const [method, setMethod] = useState<ValuationMethod>(ValuationMethod.AVG);
   const [locationId, setLocationId] = useState('');
-  const [runValuation, setRunValuation] = useState(false);
+  const [ratePerGram, setRatePerGram] = useState('6000');
+  const [rateError, setRateError] = useState('');
+  // Only the inputs captured when Calculate is clicked are sent, so the heading always
+  // names the method that produced the figures shown (not whatever the dropdown says now).
+  const [requested, setRequested] = useState<{ method: ValuationMethod; locationId?: string; rate?: string } | null>(null);
 
-  const { data: valuation, isLoading } = trpc.inventory.valuation.calculate.useQuery(
+  const { data: valuation, isLoading, error: valuationError } = trpc.inventory.valuation.calculate.useQuery(
     {
-      method,
-      locationId: locationId || undefined,
-      currentRatePaise: method === 'MARKET' ? BigInt(600000) : undefined, // Placeholder rate
+      method: (requested?.method ?? method) as ValuationMethod,
+      locationId: requested?.locationId,
+      // Decimal string: JSON cannot carry a BigInt (the API converts it back).
+      currentRatePaise: requested?.rate as never,
     },
-    { enabled: runValuation },
+    { enabled: requested !== null },
   );
+
+  const handleCalculate = () => {
+    if (method === 'MARKET') {
+      const paise = rupeesToPaiseString(ratePerGram);
+      if (paise === null || paise === '0') {
+        setRateError('Enter the current metal rate per gram in rupees (e.g. 6000).');
+        return;
+      }
+      setRateError('');
+      setRequested({ method, locationId: locationId || undefined, rate: paise });
+      return;
+    }
+    setRateError('');
+    setRequested({ method, locationId: locationId || undefined });
+  };
 
   const itemColumns: ColumnDef<ValuationItemRow, unknown>[] = [
     {
@@ -124,16 +147,27 @@ export default function ValuationPage() {
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Location (optional)</label>
-          <input
-            type="text"
+          <LocationSelect
             value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
+            onChange={setLocationId}
             placeholder="All locations"
-            className="h-9 w-64 rounded-md border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground"
+            className="h-9 w-64 rounded-md border border-input bg-transparent px-3 text-sm"
           />
         </div>
+        {method === 'MARKET' && (
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Metal rate (Rs. per gram)</label>
+            <input
+              type="text"
+              value={ratePerGram}
+              onChange={(e) => setRatePerGram(e.target.value)}
+              className="h-9 w-40 rounded-md border border-input bg-transparent px-3 text-sm"
+            />
+            {rateError && <p className="text-xs text-destructive">{rateError}</p>}
+          </div>
+        )}
         <button
-          onClick={() => setRunValuation(true)}
+          onClick={handleCalculate}
           className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <Calculator className="h-4 w-4" />
@@ -146,7 +180,7 @@ export default function ValuationPage() {
         <div className="space-y-6">
           {/* Summary */}
           <div className="rounded-lg border bg-card p-6">
-            <div className="text-sm text-muted-foreground">Total Inventory Value ({valuation.method})</div>
+            <div className="text-sm text-muted-foreground">Total Inventory Value ({valuationMethodLabel(valuation.method)})</div>
             <div className="mt-1 text-3xl font-bold">
               {(Number(valuation.totalValuePaise) / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
             </div>
@@ -179,7 +213,13 @@ export default function ValuationPage() {
         </div>
       )}
 
-      {isLoading && (
+      {valuationError && (
+        <p role="alert" className="text-sm text-destructive">
+          {formatServerError(valuationError)}
+        </p>
+      )}
+
+      {requested && isLoading && (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
           Calculating valuation...
         </div>

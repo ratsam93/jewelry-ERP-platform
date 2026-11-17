@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import type { PaginatedResult, AuditMeta } from '@caratflow/shared-types';
 import { Prisma } from '@caratflow/db';
+import { setMutationAuditSink, type MutationAuditEvent } from '../../trpc/mutation-audit';
 
 interface AuditLogEntry {
   action: string;
@@ -40,9 +41,27 @@ interface ActivityLogFilters {
 }
 
 @Injectable()
-export class PlatformAuditService extends TenantAwareService {
+export class PlatformAuditService extends TenantAwareService implements OnModuleInit {
   constructor(prisma: PrismaService) {
     super(prisma);
+  }
+
+  onModuleInit(): void {
+    setMutationAuditSink((event) => this.recordMutation(event));
+  }
+
+  /** Persist one generic mutation audit entry (called fire-and-forget by tRPC). */
+  recordMutation(event: MutationAuditEvent) {
+    return this.logDataChange(
+      event.tenantId,
+      {
+        action: event.action,
+        entityType: event.entityType,
+        entityId: event.entityId,
+        newValues: event.newValues,
+      },
+      { userId: event.userId ?? '' },
+    );
   }
 
   // ─── AuditLog (data changes) ─────────────────────────────────
@@ -53,7 +72,7 @@ export class PlatformAuditService extends TenantAwareService {
       data: {
         id: uuid(),
         tenantId,
-        userId: audit.userId,
+        userId: audit.userId || null,
         action: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
@@ -74,7 +93,12 @@ export class PlatformAuditService extends TenantAwareService {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = { tenantId };
-    if (entityType) where.entityType = entityType;
+    if (entityType) {
+      // A comma-separated list matches several raw types (the UI merges types that share one label).
+      const types = entityType.split(',').map((t) => t.trim()).filter(Boolean);
+      if (types.length > 1) where.entityType = { in: types };
+      else if (types.length === 1) where.entityType = types[0];
+    }
     if (entityId) where.entityId = entityId;
     if (userId) where.userId = userId;
     if (action) where.action = action;

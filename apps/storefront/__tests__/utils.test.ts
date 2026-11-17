@@ -39,10 +39,10 @@ describe("formatPrice", () => {
     expect(result).toContain("1,00,00,000");
   });
 
-  it("rounds to whole rupees (no decimal)", () => {
+  it("shows paise when the amount has them", () => {
     const result = formatPrice(999);
     // 999 paise = ~10 rupees (9.99 rounded)
-    expect(result).not.toContain(".");
+    expect(result).toContain("9.99");
   });
 });
 
@@ -131,9 +131,9 @@ describe("formatRupees", () => {
     expect(result).toContain("50,000");
   });
 
-  it("rounds to nearest rupee", () => {
+  it("shows paise when present (no rounding to the rupee)", () => {
     const result = formatRupees(1234.56);
-    expect(result).toContain("1,235");
+    expect(result).toContain("1,234.56");
   });
 });
 

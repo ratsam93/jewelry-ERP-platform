@@ -4,27 +4,12 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
-import { DeviceType, ConnectionType, DeviceStatus } from '@caratflow/shared-types';
+import { ConnectionType, DeviceStatus } from '@caratflow/shared-types';
 import type { UpdateDeviceConfig } from '@caratflow/shared-types';
 import { DeviceStatusIndicator } from '@/features/hardware/DeviceStatusIndicator';
+import { DEVICE_TYPE_LABELS, CONNECTION_TYPE_LABELS, validateDeviceForm } from '@/features/hardware/hardware-utils';
+import { formatServerError } from '@/lib/manufacturing-forms';
 import { Save, ArrowLeft } from 'lucide-react';
-
-const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
-  [DeviceType.RFID_READER]: 'RFID Reader',
-  [DeviceType.BARCODE_SCANNER]: 'Barcode Scanner',
-  [DeviceType.WEIGHING_SCALE]: 'Weighing Scale',
-  [DeviceType.LABEL_PRINTER]: 'Label Printer',
-  [DeviceType.CUSTOMER_DISPLAY]: 'Customer Display',
-  [DeviceType.BIOMETRIC]: 'Biometric Device',
-};
-
-const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
-  [ConnectionType.USB_HID]: 'USB HID',
-  [ConnectionType.USB_SERIAL]: 'USB Serial',
-  [ConnectionType.BLUETOOTH]: 'Bluetooth',
-  [ConnectionType.NETWORK_TCP]: 'Network (TCP)',
-  [ConnectionType.NETWORK_HTTP]: 'Network (HTTP)',
-};
 
 export default function DeviceDetailPage() {
   const params = useParams();
@@ -34,6 +19,11 @@ export default function DeviceDetailPage() {
   const { data: device, isLoading, refetch } = trpc.hardware.devices.getById.useQuery({ deviceId });
   const { data: statusData } = trpc.hardware.devices.getStatus.useQuery({ deviceId });
 
+  const branchesQuery = trpc.platform.branches.list.useQuery({ includeInactive: true });
+  const branchName = ((branchesQuery.data as Array<{ id: string; name: string }> | undefined) ?? []).find(
+    (b) => b.id === device?.locationId,
+  )?.name;
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<UpdateDeviceConfig>({});
 
@@ -64,6 +54,18 @@ export default function DeviceDetailPage() {
   };
 
   const handleSave = () => {
+    const errs = validateDeviceForm({
+      name: editData.name ?? '',
+      connectionType: editData.connectionType ?? '',
+      locationId: editData.locationId ?? '',
+      port: editData.port,
+      ipAddress: editData.ipAddress,
+      tcpPort: editData.tcpPort,
+      vendorId: editData.vendorId,
+      productId: editData.productId,
+    });
+    setFormErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     updateMutation.mutate({ deviceId, data: editData });
   };
 
@@ -140,6 +142,14 @@ export default function DeviceDetailPage() {
         </div>
       </div>
 
+      {(updateMutation.isError || Object.keys(formErrors).length > 0) && (
+        <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {updateMutation.isError
+            ? formatServerError(updateMutation.error)
+            : Object.values(formErrors).join(' ')}
+        </div>
+      )}
+
       {/* Configuration */}
       <div className="rounded-lg border bg-card shadow-sm">
         <div className="border-b p-6">
@@ -182,8 +192,10 @@ export default function DeviceDetailPage() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-muted-foreground">Location ID</label>
-            <p className="mt-1 text-sm font-mono text-xs">{device.locationId}</p>
+            <label className="block text-sm font-medium text-muted-foreground">Location</label>
+            <p className="mt-1 text-sm">
+              {branchName ?? (branchesQuery.isLoading ? 'Loading...' : 'Unknown location')}
+            </p>
           </div>
 
           {/* Connection-specific fields */}
@@ -231,6 +243,44 @@ export default function DeviceDetailPage() {
                 />
               ) : (
                 <p className="mt-1 text-sm">{device.port}</p>
+              )}
+            </div>
+          )}
+          {(device.vendorId || (isEditing && editData.connectionType === 'USB_HID')) && (
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground">Vendor ID</label>
+              {isEditing ? (
+                <>
+                  <input
+                    type="text"
+                    value={editData.vendorId ?? ''}
+                    onChange={(e) => setEditData({ ...editData, vendorId: e.target.value })}
+                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                    placeholder="0x1234"
+                  />
+                  {formErrors.vendorId && <p role="alert" className="mt-1 text-xs text-red-600">{formErrors.vendorId}</p>}
+                </>
+              ) : (
+                <p className="mt-1 text-sm font-mono">{device.vendorId}</p>
+              )}
+            </div>
+          )}
+          {(device.productId || (isEditing && editData.connectionType === 'USB_HID')) && (
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground">Product ID</label>
+              {isEditing ? (
+                <>
+                  <input
+                    type="text"
+                    value={editData.productId ?? ''}
+                    onChange={(e) => setEditData({ ...editData, productId: e.target.value })}
+                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                    placeholder="0x5678"
+                  />
+                  {formErrors.productId && <p role="alert" className="mt-1 text-xs text-red-600">{formErrors.productId}</p>}
+                </>
+              ) : (
+                <p className="mt-1 text-sm font-mono">{device.productId}</p>
               )}
             </div>
           )}

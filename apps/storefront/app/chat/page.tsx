@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import Link from "next/link";
-import { STORE_API, TENANT_ID } from "@/lib/constants";
+import { startChat, getChatSession, sendChatMessage, readStoredSession } from "@/lib/chat-client";
 import { formatPrice } from "@/lib/utils";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -48,8 +48,6 @@ interface BudgetSliderMeta {
 
 // ─── Constants ──────────────────────────────────────────────────
 
-const STORAGE_KEY = "caratflow_chat_session";
-
 const OCCASION_ICONS: Record<string, string> = {
   rings: "\uD83D\uDC8D",
   ring: "\uD83D\uDC8D",
@@ -60,39 +58,6 @@ const OCCASION_ICONS: Record<string, string> = {
 };
 
 // ─── API Helpers ────────────────────────────────────────────────
-
-function getHeaders(sessionId: string): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    "x-tenant-id": TENANT_ID,
-    "x-session-id": sessionId,
-  };
-}
-
-async function apiStartChat(sessionId: string) {
-  const res = await fetch(`${STORE_API}/chat/start`, {
-    method: "POST",
-    headers: getHeaders(sessionId),
-    body: JSON.stringify({ sessionId }),
-  });
-  return (await res.json()).data;
-}
-
-async function apiSendMessage(sessionId: string, content: string) {
-  const res = await fetch(`${STORE_API}/chat/message`, {
-    method: "POST",
-    headers: getHeaders(sessionId),
-    body: JSON.stringify({ sessionId, content }),
-  });
-  return (await res.json()).data;
-}
-
-async function apiGetSession(sessionId: string) {
-  const res = await fetch(`${STORE_API}/chat/session/${sessionId}`, {
-    headers: getHeaders(sessionId),
-  });
-  return (await res.json()).data;
-}
 
 // ─── Full Page Chat ─────────────────────────────────────────────
 
@@ -105,28 +70,19 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setSessionId(stored);
-    } else {
-      const newId = `chat-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      localStorage.setItem(STORAGE_KEY, newId);
-      setSessionId(newId);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!sessionId) return;
     const initChat = async () => {
       setIsLoading(true);
       try {
-        const session = await apiGetSession(sessionId).catch(() => null);
-        if (session?.messages?.length > 0) {
-          setMessages(session.messages);
+        const stored = readStoredSession();
+        setSessionId(stored);
+        const session = stored ? await getChatSession(stored) : null;
+        if ((session?.messages?.length ?? 0) > 0 && session) {
+          setMessages(session.messages as unknown as ChatMessage[]);
         } else {
-          const newSession = await apiStartChat(sessionId);
+          const newSession = await startChat();
+          setSessionId(newSession.sessionId);
           if (newSession?.messages) {
-            setMessages(newSession.messages);
+            setMessages(newSession.messages as unknown as ChatMessage[]);
           }
         }
       } catch {
@@ -144,14 +100,14 @@ export default function ChatPage() {
       }
     };
     initChat();
-  }, [sessionId]);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || isLoading || !sessionId) return;
+    if (!content.trim() || isLoading) return;
     setIsLoading(true);
     setInputValue("");
 
@@ -166,11 +122,12 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, tempMsg]);
 
     try {
-      const response = await apiSendMessage(sessionId, content);
+      const response = await sendChatMessage(sessionId, content);
+      if (response.sessionId !== sessionId) setSessionId(response.sessionId);
       if (response?.messages) {
         setMessages((prev) => {
           const withoutTemp = prev.filter((m) => m.id !== tempMsg.id);
-          return [...withoutTemp, ...response.messages];
+          return [...withoutTemp, ...(response.messages as unknown as ChatMessage[])];
         });
       }
     } catch {
@@ -260,7 +217,7 @@ export default function ChatPage() {
       {/* Input */}
       <div className="bg-white border-t border-gray-100 px-4 py-4 shrink-0">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <input
+          <input aria-label="Message"
             ref={inputRef}
             type="text"
             value={inputValue}
@@ -471,7 +428,7 @@ function BudgetSlider({
       <div className="space-y-3">
         <div>
           <label className="text-[10px] text-navy/40 uppercase tracking-wider">Min Budget</label>
-          <input
+          <input aria-label="Min Budget"
             type="range"
             min={meta.minPaise}
             max={meta.maxPaise}
@@ -483,7 +440,7 @@ function BudgetSlider({
         </div>
         <div>
           <label className="text-[10px] text-navy/40 uppercase tracking-wider">Max Budget</label>
-          <input
+          <input aria-label="Max Budget"
             type="range"
             min={meta.minPaise}
             max={meta.maxPaise}

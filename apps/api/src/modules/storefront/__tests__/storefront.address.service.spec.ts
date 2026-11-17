@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { createMockPrismaService, mockTenantContext, resetMocks } from '../../../__tests__/mocks';
 vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid') }));
 import { StorefrontAddressService } from '../storefront.address.service';
@@ -29,6 +29,37 @@ describe('StorefrontAddressService', () => {
       (prisma as any).customerAddress.create.mockResolvedValue(mkAddr({ isDefault: true }));
       await service.createAddress(tenantId, 'c1', { isDefault: true, firstName: 'A', lastName: 'B', phone: '123', addressLine1: '456 St', city: 'Delhi', state: 'DL', country: 'IN', postalCode: '110001' } as any);
       expect((prisma as any).customerAddress.updateMany).toHaveBeenCalled();
+    });
+  });
+
+  describe('country + length validation (HK-SF-01)', () => {
+    const base = { firstName: 'QA', lastName: 'HK', phone: '9876543210', addressLine1: 'QA-HK 12 MG Road', city: 'Mumbai', state: 'Maharashtra', postalCode: '400001' };
+    beforeEach(() => {
+      (prisma as any).customerAddress.count.mockResolvedValue(1);
+      (prisma as any).customerAddress.create.mockResolvedValue(mkAddr());
+    });
+    it.each([['India', 'IN'], ['india', 'IN'], ['  United States ', 'US'], ['in', 'IN'], ['IN', 'IN'], ['UAE', 'AE']])('normalises %s to %s', async (input, iso) => {
+      await service.createAddress(tenantId, 'c1', { ...base, country: input } as any);
+      expect((prisma as any).customerAddress.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ country: iso }) }));
+    });
+    it('rejects unknown country with 400 and does not hit the DB', async () => {
+      await expect(service.createAddress(tenantId, 'c1', { ...base, country: 'Narnia' } as any)).rejects.toThrow(BadRequestException);
+      expect((prisma as any).customerAddress.create).not.toHaveBeenCalled();
+    });
+    it('rejects missing country', async () => {
+      await expect(service.createAddress(tenantId, 'c1', { ...base } as any)).rejects.toThrow(/Country is required/);
+    });
+    it('rejects over-long fields with a clear message', async () => {
+      await expect(service.createAddress(tenantId, 'c1', { ...base, country: 'IN', city: 'x'.repeat(101) } as any)).rejects.toThrow(/City must be at most 100/);
+      await expect(service.createAddress(tenantId, 'c1', { ...base, country: 'IN', phone: '1'.repeat(21) } as any)).rejects.toThrow(/Phone must be at most 20/);
+      await expect(service.createAddress(tenantId, 'c1', { ...base, country: 'IN', postalCode: '1'.repeat(21) } as any)).rejects.toThrow(BadRequestException);
+    });
+    it('update normalises country and validates before touching DB', async () => {
+      await expect(service.updateAddress(tenantId, 'c1', 'a-1', { country: 'Atlantis' })).rejects.toThrow(BadRequestException);
+      (prisma as any).customerAddress.findFirst.mockResolvedValue(mkAddr());
+      (prisma as any).customerAddress.update.mockResolvedValue(mkAddr());
+      await service.updateAddress(tenantId, 'c1', 'a-1', { country: 'India' });
+      expect((prisma as any).customerAddress.update).toHaveBeenCalledWith(expect.objectContaining({ data: { country: 'IN' } }));
     });
   });
 

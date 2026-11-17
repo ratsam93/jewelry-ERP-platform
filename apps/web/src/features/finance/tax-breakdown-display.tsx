@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import type { InvoiceTaxRateRow } from '@/lib/finance-forms';
 
 interface TaxBreakdownProps {
   taxableAmountPaise: number;
@@ -13,6 +14,7 @@ interface TaxBreakdownProps {
   igstRate?: number;
   isInterState: boolean;
   currencyCode?: string;
+  rateRows?: InvoiceTaxRateRow[];
 }
 
 export function TaxBreakdownDisplay({
@@ -26,6 +28,7 @@ export function TaxBreakdownDisplay({
   igstRate,
   isInterState,
   currencyCode: _currencyCode = 'INR',
+  rateRows,
 }: TaxBreakdownProps) {
   const formatAmount = (paise: number) => {
     return (paise / 100).toLocaleString('en-IN', {
@@ -49,7 +52,27 @@ export function TaxBreakdownDisplay({
           <span className="text-muted-foreground">Taxable Amount:</span>
           <span className="font-medium">{formatAmount(taxableAmountPaise)}</span>
         </div>
-        {isInterState ? (
+        {rateRows && rateRows.length > 1 ? (
+          rateRows.map((r) =>
+            isInterState ? (
+              <div key={r.gstRate} className="flex justify-between">
+                <span className="text-muted-foreground">IGST ({(r.gstRate / 100).toFixed(1)}%) on {formatAmount(r.taxablePaise)}:</span>
+                <span className="font-medium">{formatAmount(r.igstPaise)}</span>
+              </div>
+            ) : (
+              <React.Fragment key={r.gstRate}>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">CGST ({(r.gstRate / 200).toFixed(1)}%) on {formatAmount(r.taxablePaise)}:</span>
+                  <span className="font-medium">{formatAmount(r.cgstPaise)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">SGST ({(r.gstRate / 200).toFixed(1)}%) on {formatAmount(r.taxablePaise)}:</span>
+                  <span className="font-medium">{formatAmount(r.sgstPaise)}</span>
+                </div>
+              </React.Fragment>
+            ),
+          )
+        ) : isInterState ? (
           <div className="flex justify-between">
             <span className="text-muted-foreground">IGST {formatRate(igstRate)}:</span>
             <span className="font-medium">{formatAmount(igstPaise)}</span>

@@ -68,9 +68,12 @@ describe('ReportingTrpcRouter (procedure coverage)', () => {
       create: vi.fn(),
       findMany: vi.fn(),
       updateMany: vi.fn(),
+      count: vi.fn(),
+      deleteMany: vi.fn(),
     },
     reportExecution: {
       findMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
   };
 
@@ -534,7 +537,29 @@ describe('ReportingTrpcRouter (procedure coverage)', () => {
       expect(result).toEqual({ id: REPORT_ID });
     });
 
+    it('deleteSavedReport refuses with a readable error while schedules use the report', async () => {
+      prisma.scheduledReport.count.mockResolvedValue(2);
+      await expect(caller.deleteSavedReport({ id: REPORT_ID })).rejects.toThrow(
+        'This report is used by 2 scheduled reports. Delete the schedules first.',
+      );
+      expect(prisma.savedReport.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('deleteScheduledReport removes execution history then the tenant-scoped schedule', async () => {
+      prisma.reportExecution.deleteMany.mockResolvedValue({ count: 3 });
+      prisma.scheduledReport.deleteMany.mockResolvedValue({ count: 1 });
+      const result = await caller.deleteScheduledReport({ id: SCHEDULE_ID });
+      expect(prisma.reportExecution.deleteMany).toHaveBeenCalledWith({
+        where: { scheduledReportId: SCHEDULE_ID, tenantId: 'tenant-1' },
+      });
+      expect(prisma.scheduledReport.deleteMany).toHaveBeenCalledWith({
+        where: { id: SCHEDULE_ID, tenantId: 'tenant-1' },
+      });
+      expect(result).toEqual({ success: true });
+    });
+
     it('deleteSavedReport deletes tenant-scoped row and returns success', async () => {
+      prisma.scheduledReport.count.mockResolvedValue(0);
       prisma.savedReport.deleteMany.mockResolvedValue({ count: 1 });
       const result = await caller.deleteSavedReport({ id: REPORT_ID });
       expect(prisma.savedReport.deleteMany).toHaveBeenCalledWith({

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { useProductsByIds } from "@/lib/product-lookup";
@@ -8,16 +9,37 @@ export default function CompareBar() {
   const { compareIds, removeFromCompare, clearCompare } = useStore();
   const { products } = useProductsByIds(compareIds);
 
-  if (compareIds.length === 0) return null;
+  const barRef = useRef<HTMLDivElement>(null);
+  const visible = compareIds.length > 0;
+
+  // Publish the bar height so floating widgets (chat launcher) can sit above it.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!visible || !barRef.current) {
+      root.style.removeProperty("--compare-bar-h");
+      return;
+    }
+    const el = barRef.current;
+    const update = () => root.style.setProperty("--compare-bar-h", `${el.offsetHeight}px`);
+    update();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    ro?.observe(el);
+    return () => {
+      ro?.disconnect();
+      root.style.removeProperty("--compare-bar-h");
+    };
+  }, [visible, compareIds.length]);
+
+  if (!visible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 compare-bar bg-white border-t border-gray-200 z-40 px-4 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div ref={barRef} className="fixed bottom-0 left-0 right-0 compare-bar bg-white border-t border-gray-200 z-40 px-4 py-3">
+      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
           <span className="text-sm font-semibold text-navy">
             Compare ({compareIds.length}/4)
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {products.map((product) => {
               if (!product) return null;
               const img = product.images.find((i) => i.isPrimary) ?? product.images[0];
@@ -47,7 +69,7 @@ export default function CompareBar() {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 ml-auto">
           <button
             type="button"
             onClick={() => (clearCompare ? clearCompare() : compareIds.forEach((id) => removeFromCompare(id)))}

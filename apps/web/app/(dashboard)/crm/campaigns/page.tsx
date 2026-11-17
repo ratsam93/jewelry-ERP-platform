@@ -7,6 +7,7 @@ import { Megaphone, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatDate } from '@/components/format';
+import { campaignView, orDash, CAMPAIGN_STATUSES } from '@/lib/crm-form';
 
 export default function CampaignsPage() {
   const [page, setPage] = useState(1);
@@ -30,20 +31,17 @@ export default function CampaignsPage() {
           { label: 'Campaigns' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/crm/campaigns/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" /> New Campaign
-          </button>
+          </Link>
         }
       />
 
       <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="h-9 rounded-md border px-2 text-sm">
         <option value="">All statuses</option>
-        <option value="DRAFT">Draft</option>
-        <option value="SCHEDULED">Scheduled</option>
-        <option value="RUNNING">Running</option>
-        <option value="COMPLETED">Completed</option>
-        <option value="PAUSED">Paused</option>
-        <option value="CANCELLED">Cancelled</option>
+        {CAMPAIGN_STATUSES.map((s) => (
+          <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>
+        ))}
       </select>
 
       <div className="rounded-lg border">
@@ -62,11 +60,11 @@ export default function CampaignsPage() {
           <div className="divide-y">
             {items.map((c) => (
               <Link key={c.id as string} href={`/crm/campaigns/${c.id}`} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm hover:bg-accent">
-                <span className="font-medium">{(c.name as string) ?? '-'}</span>
-                <span>{(c.channel as string) ?? '-'}</span>
+                <span className="min-w-0 truncate font-medium">{orDash(c.name)}</span>
+                <span className="min-w-0 truncate">{orDash(c.channel)}</span>
                 <StatusBadge label={(c.status as string) ?? '-'} variant={getStatusVariant(c.status as string)} dot={false} />
                 <span className="text-muted-foreground">{formatDate(c.scheduledAt)}</span>
-                <span className="text-muted-foreground">{String(c.audienceCount ?? '-')}</span>
+                <span className="text-muted-foreground">{orDash(campaignView(c).audience)}</span>
               </Link>
             ))}
           </div>

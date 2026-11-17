@@ -18,7 +18,7 @@ export default function SeoPage() {
       ]} />
       <div className="rounded-lg border">
         <div className="grid grid-cols-[1fr_2fr_2fr] gap-4 border-b bg-muted/50 px-4 py-3 text-xs font-medium uppercase text-muted-foreground">
-          <span>Entity</span>
+          <span>Page</span>
           <span>Title</span>
           <span>Description</span>
         </div>
@@ -30,7 +30,7 @@ export default function SeoPage() {
           <div className="divide-y">
             {items.map((s) => (
               <div key={s.id as string} className="grid grid-cols-[1fr_2fr_2fr] gap-4 px-4 py-3 text-sm">
-                <span className="font-mono text-xs">{(s.entityType as string) ?? '-'}</span>
+                <span className="font-mono text-xs">{(s.pageType as string) ?? '-'}: {(s.pageIdentifier as string) ?? '-'}</span>
                 <span>{(s.metaTitle as string) ?? '-'}</span>
                 <span className="truncate text-muted-foreground">{(s.metaDescription as string) ?? '-'}</span>
               </div>

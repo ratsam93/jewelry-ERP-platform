@@ -3,6 +3,7 @@
 import { useState, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { safeNextPath } from "@/lib/auth-next";
 import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens } from "@/lib/api";
 
@@ -74,7 +75,7 @@ function VerifyOtpPageInner() {
         setTokens(tokens.accessToken, tokens.refreshToken);
       }
       setSuccess("Verified. Redirecting...");
-      router.push("/account");
+      router.push(safeNextPath(params.get("next")) ?? "/account");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error");
     } finally {
@@ -131,7 +132,7 @@ function VerifyOtpPageInner() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex justify-center gap-2.5">
               {otp.map((digit, idx) => (
-                <input
+                <input aria-label={`Digit ${idx + 1} of ${otp.length}`}
                   key={idx}
                   ref={(el) => { inputRefs.current[idx] = el; }}
                   type="text"

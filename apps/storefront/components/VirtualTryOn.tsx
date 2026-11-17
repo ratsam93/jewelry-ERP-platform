@@ -508,7 +508,7 @@ export default function VirtualTryOn({
         {/* Size slider */}
         <div className="flex items-center gap-3">
           <span className="text-white/50 text-[10px] w-8">Size</span>
-          <input
+          <input aria-label="Size"
             type="range"
             min="0.05"
             max="0.8"

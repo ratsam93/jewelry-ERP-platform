@@ -6,6 +6,7 @@ import { Send, XCircle } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
+import { poHeaderView, poLineView } from '@/lib/wholesale-form';
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams<{ id: string }>();
@@ -24,6 +25,7 @@ export default function PurchaseOrderDetailPage() {
   const p = po as unknown as Record<string, unknown>;
   const items = ((p.items as Array<Record<string, unknown>>) ?? []);
   const status = p.status as string;
+  const header = poHeaderView(p);
 
   return (
     <div className="space-y-6">
@@ -67,17 +69,24 @@ export default function PurchaseOrderDetailPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="rounded-lg border p-4 space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Supplier</span><span>{((p.supplier as { name?: string })?.name) ?? '-'}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Location</span><span>{((p.location as { name?: string })?.name) ?? '-'}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Supplier</span><span>{header.supplier}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Location</span><span>{header.location}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Status</span><StatusBadge label={status} variant={getStatusVariant(status)} /></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Expected Delivery</span><span>{formatDate(p.expectedDeliveryDate)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Expected Delivery</span><span>{formatDate(header.expectedDate)}</span></div>
         </div>
         <div className="rounded-lg border p-4 space-y-2 text-sm">
           <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatPaise(p.subtotalPaise)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>{formatPaise(p.taxPaise)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Tax (on whole order)</span><span>{formatPaise(p.taxPaise)}</span></div>
           <div className="flex justify-between font-semibold"><span>Total</span><span>{formatPaise(p.totalPaise)}</span></div>
         </div>
       </div>
+
+      {typeof p.notes === 'string' && p.notes.trim() !== '' && (
+        <div className="rounded-lg border p-4 text-sm">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</h2>
+          <p className="whitespace-pre-wrap break-words">{p.notes}</p>
+        </div>
+      )}
 
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Line Items</h2>
@@ -87,7 +96,7 @@ export default function PurchaseOrderDetailPage() {
             <span>Qty</span>
             <span>Received</span>
             <span>Unit Price</span>
-            <span>Total</span>
+            <span>Amount (Qty x Unit, ex-tax)</span>
           </div>
           {items.length === 0 ? (
             <div className="py-6 text-center text-sm text-muted-foreground">No items</div>
@@ -99,7 +108,7 @@ export default function PurchaseOrderDetailPage() {
                   <span>{String(it.quantity ?? 0)}</span>
                   <span>{String(it.receivedQuantity ?? 0)}</span>
                   <span>{formatPaise(it.unitPricePaise)}</span>
-                  <span className="font-semibold">{formatPaise(it.totalPaise)}</span>
+                  <span className="font-semibold">{formatPaise(poLineView(it).amountPaise)}</span>
                 </div>
               ))}
             </div>

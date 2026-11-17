@@ -1,11 +1,95 @@
 // ─── Storefront Address Service ────────────────────────────────
 // CRUD for customer delivery addresses.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { AddressInput, AddressResponse } from '@caratflow/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
 import { v4 as uuidv4 } from 'uuid';
+
+// Column limits mirror packages/db/prisma/schema/storefront.prisma (CustomerAddress).
+const ADDRESS_FIELD_LIMITS: Record<string, number> = {
+  label: 50,
+  firstName: 100,
+  lastName: 100,
+  phone: 20,
+  addressLine1: 500,
+  addressLine2: 500,
+  city: 100,
+  state: 100,
+  postalCode: 20,
+};
+
+const ADDRESS_FIELD_LABELS: Record<string, string> = {
+  label: 'Label',
+  firstName: 'First name',
+  lastName: 'Last name',
+  phone: 'Phone',
+  addressLine1: 'Address line 1',
+  addressLine2: 'Address line 2',
+  city: 'City',
+  state: 'State',
+  postalCode: 'Postal code',
+};
+
+/** Common countries: lowercase name -> ISO 3166-1 alpha-2. */
+const COUNTRY_NAME_TO_ISO: Record<string, string> = {
+  india: 'IN',
+  'united states': 'US',
+  'united states of america': 'US',
+  usa: 'US',
+  'united kingdom': 'GB',
+  uk: 'GB',
+  'great britain': 'GB',
+  'united arab emirates': 'AE',
+  uae: 'AE',
+  singapore: 'SG',
+  australia: 'AU',
+  canada: 'CA',
+  germany: 'DE',
+  france: 'FR',
+  'saudi arabia': 'SA',
+  qatar: 'QA',
+  kuwait: 'KW',
+  oman: 'OM',
+  bahrain: 'BH',
+  nepal: 'NP',
+  'sri lanka': 'LK',
+  bangladesh: 'BD',
+  malaysia: 'MY',
+  'hong kong': 'HK',
+  'new zealand': 'NZ',
+};
+
+/**
+ * Normalise a country name or 2-letter code to an uppercase ISO alpha-2 code.
+ * Throws BadRequestException (never a DB error) for unknown values.
+ */
+export function normalizeCountry(value: unknown): string {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) throw new BadRequestException('Country is required');
+  if (/^[A-Za-z]{2}$/.test(raw)) return raw.toUpperCase();
+  const iso = COUNTRY_NAME_TO_ISO[raw.toLowerCase().replace(/\s+/g, ' ')];
+  if (!iso) {
+    throw new BadRequestException(
+      `Unsupported country "${raw.slice(0, 50)}". Use a 2-letter ISO country code (e.g. IN) or a known country name.`,
+    );
+  }
+  return iso;
+}
+
+function validateFieldLengths(input: Record<string, unknown>): void {
+  for (const [key, max] of Object.entries(ADDRESS_FIELD_LIMITS)) {
+    const v = input[key];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== 'string') {
+      throw new BadRequestException(`${ADDRESS_FIELD_LABELS[key]} must be text`);
+    }
+    if (v.length > max) {
+      throw new BadRequestException(`${ADDRESS_FIELD_LABELS[key]} must be at most ${max} characters`);
+    }
+  }
+}
 
 @Injectable()
 export class StorefrontAddressService extends TenantAwareService {
@@ -46,6 +130,8 @@ export class StorefrontAddressService extends TenantAwareService {
     customerId: string,
     input: AddressInput,
   ): Promise<AddressResponse> {
+    validateFieldLengths(input as unknown as Record<string, unknown>);
+    const country = normalizeCountry(input.country);
     // If this is the first address or marked as default, ensure uniqueness
     if (input.isDefault) {
       await this.prisma.customerAddress.updateMany({
@@ -73,7 +159,7 @@ export class StorefrontAddressService extends TenantAwareService {
         addressLine2: input.addressLine2 ?? null,
         city: input.city,
         state: input.state,
-        country: input.country,
+        country,
         postalCode: input.postalCode,
         isDefault,
       },
@@ -91,6 +177,8 @@ export class StorefrontAddressService extends TenantAwareService {
     addressId: string,
     input: Partial<AddressInput>,
   ): Promise<AddressResponse> {
+    validateFieldLengths(input as Record<string, unknown>);
+    const country = input.country !== undefined ? normalizeCountry(input.country) : undefined;
     const existing = await this.prisma.customerAddress.findFirst({
       where: { id: addressId, tenantId, customerId },
     });
@@ -114,7 +202,7 @@ export class StorefrontAddressService extends TenantAwareService {
     if (input.addressLine2 !== undefined) data.addressLine2 = input.addressLine2;
     if (input.city !== undefined) data.city = input.city;
     if (input.state !== undefined) data.state = input.state;
-    if (input.country !== undefined) data.country = input.country;
+    if (country !== undefined) data.country = country;
     if (input.postalCode !== undefined) data.postalCode = input.postalCode;
     if (input.isDefault !== undefined) data.isDefault = input.isDefault;
 

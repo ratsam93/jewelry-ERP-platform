@@ -217,6 +217,9 @@ export class RetailService extends TenantAwareService {
         });
       }
 
+      // Decrement stock at the sale location and write OUT movements atomically with the sale
+      await this.decrementStockForSale(tx, tenantId, userId, saleId, input.locationId, input.lineItems);
+
       // Create payments (redeeming stored-value instruments atomically with the sale)
       for (const payment of input.payments) {
         loyaltyPointsRedeemed += await this.redeemPaymentInstrument(tx, tenantId, userId, saleId, input.customerId, payment);
@@ -247,10 +250,12 @@ export class RetailService extends TenantAwareService {
       payload: {
         saleId: sale.id,
         customerId: input.customerId ?? '',
+        locationId: input.locationId,
         totalPaise: totals.totalPaise,
         items: input.lineItems.map((li) => ({
           productId: li.productId ?? '',
           pricePaise: li.unitPricePaise * li.quantity,
+          quantity: li.quantity,
         })),
       },
     });
@@ -268,6 +273,63 @@ export class RetailService extends TenantAwareService {
     }
 
     return this.getSale(tenantId, sale.id);
+  }
+
+  /**
+   * Decrement the sale location's stock row for each catalogue line and write an OUT
+   * movement referencing the sale, inside the sale transaction (so the stock change is
+   * atomic with the sale and does not depend on the async event bus). Uses the shared
+   * stock tables via Prisma directly; no cross-module service import.
+   * Policy: never drive stock negative: the decrement is clamped to the quantity on
+   * hand (a warning is logged for any shortfall) so a sale is not blocked at the counter.
+   * Free-text lines (no productId) and products without a stock row at the location are skipped.
+   */
+  private async decrementStockForSale(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    userId: string,
+    saleId: string,
+    locationId: string,
+    lines: Array<{ productId?: string; quantity: number }>,
+  ): Promise<void> {
+    for (const line of lines) {
+      if (!line.productId) continue;
+      let remaining = Math.max(1, line.quantity ?? 1);
+      const rows = (await tx.stockItem.findMany({
+        where: { tenantId, productId: line.productId, locationId, quantityOnHand: { gt: 0 } },
+        orderBy: [{ quantityOnHand: 'desc' }, { updatedAt: 'desc' }],
+      })) ?? [];
+      for (const row of rows) {
+        if (remaining <= 0) break;
+        const take = Math.min(remaining, row.quantityOnHand);
+        const updated = await tx.stockItem.updateMany({
+          where: { id: row.id, tenantId, quantityOnHand: { gte: take } },
+          data: { quantityOnHand: { decrement: take }, updatedBy: userId },
+        });
+        if (updated.count !== 1) continue; // concurrent change; try the next row
+        await tx.stockMovement.create({
+          data: {
+            id: uuidv4(),
+            tenantId,
+            stockItemId: row.id,
+            movementType: 'OUT',
+            quantityChange: -take,
+            referenceType: 'RETAIL_SALE',
+            referenceId: saleId,
+            notes: `Sold via retail sale ${saleId}`,
+            movedAt: new Date(),
+            createdBy: userId,
+            updatedBy: userId,
+          },
+        });
+        remaining -= take;
+      }
+      if (remaining > 0) {
+        console.warn(
+          `[Retail] Sale ${saleId}: stock short by ${remaining} for product ${line.productId} at location ${locationId}; stock not driven negative`,
+        );
+      }
+    }
   }
 
   /**
@@ -353,6 +415,7 @@ export class RetailService extends TenantAwareService {
       include: {
         lineItems: true,
         payments: true,
+        customer: { select: { firstName: true, lastName: true, phone: true } },
       },
     });
 
@@ -393,7 +456,11 @@ export class RetailService extends TenantAwareService {
     const [items, total] = await Promise.all([
       this.prisma.sale.findMany({
         where,
-        include: { lineItems: true, payments: true },
+        include: {
+          lineItems: true,
+          payments: true,
+          customer: { select: { firstName: true, lastName: true, phone: true } },
+        },
         orderBy: { createdAt: pagination.sortOrder ?? 'desc' },
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
@@ -727,12 +794,15 @@ export class RetailService extends TenantAwareService {
     const s = sale as Record<string, unknown>;
     const lineItems = (s.lineItems as Array<Record<string, unknown>>) ?? [];
     const payments = (s.payments as Array<Record<string, unknown>>) ?? [];
+    const customer = (s.customer as { firstName?: string; lastName?: string; phone?: string | null } | null | undefined) ?? null;
 
     return {
       id: s.id as string,
       tenantId: s.tenantId as string,
       saleNumber: s.saleNumber as string,
       customerId: (s.customerId as string) ?? null,
+      customerName: customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || null : null,
+      customerPhone: customer?.phone ?? null,
       locationId: s.locationId as string,
       userId: s.userId as string,
       status: s.status as SaleStatus,

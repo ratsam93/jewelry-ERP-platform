@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { PageHeader, StatusBadge, getStatusVariant, EmptyState } from '@caratflow/ui';
 import { Sparkles, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
@@ -25,9 +26,9 @@ export default function CustomOrdersPage() {
           { label: 'Custom Orders' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/retail/custom-orders/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" /> New Order
-          </button>
+          </Link>
         }
       />
       <div className="rounded-lg border">
@@ -49,10 +50,10 @@ export default function CustomOrdersPage() {
               return (
                 <div key={o.id as string} className="grid grid-cols-[1.2fr_1.4fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm">
                   <span className="font-mono">{(o.orderNumber as string) ?? '-'}</span>
-                  <span>{c ? `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() : '-'}</span>
-                  <span className="font-semibold">{formatPaise(o.quotedPricePaise)}</span>
+                  <span>{(o.customerName as string | null | undefined) || (c ? `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() : '') || '-'}</span>
+                  <span className="font-semibold">{formatPaise(o.finalPricePaise ?? o.estimatePaise ?? o.quotedPricePaise)}</span>
                   <StatusBadge label={(o.status as string) ?? '-'} variant={getStatusVariant(o.status as string)} dot={false} />
-                  <span className="text-muted-foreground">{formatDate(o.expectedDeliveryDate)}</span>
+                  <span className="text-muted-foreground">{formatDate(o.expectedDate ?? o.expectedDeliveryDate)}</span>
                 </div>
               );
             })}

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens } from "@/lib/api";
+import { nextFromWindow, withNext } from "@/lib/auth-next";
 
 /** API error text: class-validator sends `message` as a string[]; join it for display. */
 function apiErrorText(data: { error?: { message?: unknown }; message?: unknown } | null): string {
@@ -17,6 +18,8 @@ type AuthTokens = { accessToken?: string; refreshToken?: string };
 
 export default function LoginPage() {
   const router = useRouter();
+  const [nextPath, setNextPath] = useState<string | null>(null);
+  useEffect(() => setNextPath(nextFromWindow()), []);
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -41,7 +44,7 @@ export default function LoginPage() {
       const tokens = data.data as AuthTokens | undefined;
       if (tokens?.accessToken) {
         setTokens(tokens.accessToken, tokens.refreshToken);
-        router.push("/account");
+        router.push(nextFromWindow() ?? "/account");
       } else {
         throw new Error("Login response missing access token");
       }
@@ -72,7 +75,7 @@ export default function LoginPage() {
         throw new Error(data?.error?.message || data?.message || "Could not send OTP");
       }
       router.push(
-        `/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=LOGIN`,
+        withNext(`/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=LOGIN`, nextFromWindow()),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error");
@@ -176,7 +179,7 @@ export default function LoginPage() {
               <>
                 <div>
                   <label className="block text-xs font-medium text-navy/60 mb-1">Email</label>
-                  <input
+                  <input aria-label="Email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -192,7 +195,7 @@ export default function LoginPage() {
                       Forgot?
                     </Link>
                   </div>
-                  <input
+                  <input aria-label="Password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -209,7 +212,7 @@ export default function LoginPage() {
                   <span className="flex items-center px-3 border border-gray-200 rounded-lg text-sm text-navy/60 bg-warm-gray">
                     +91
                   </span>
-                  <input
+                  <input aria-label="Phone number"
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
@@ -234,7 +237,7 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-navy/50 mt-5">
           Don't have an account?{" "}
-          <Link href="/auth/register" className="text-gold font-medium hover:text-gold-dark transition-colors">
+          <Link href={withNext("/auth/register", nextPath)} className="text-gold font-medium hover:text-gold-dark transition-colors">
             Create Account
           </Link>
         </p>

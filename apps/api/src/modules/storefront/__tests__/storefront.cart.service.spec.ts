@@ -37,6 +37,29 @@ describe('StorefrontCartService', () => {
     resetAllMocks(mockPrisma);
   });
 
+  // ─── Rounding rule (HK-SF-05): line = unit x qty, exact integer paise ───
+
+  describe('line totals use one integer-paise unit price', () => {
+    // Real seeded product "18K Gold Necklace C9": unit Rs 271,649.73
+    const UNIT = 27164973;
+    it.each([1, 2, 3])('qty %i => line total is exactly unit x qty and subtotal matches', async (qty) => {
+      mockPricingService.calculateLiveProductPrice.mockResolvedValue({
+        metalValuePaise: 25668000, makingValuePaise: 192400, wastageValuePaise: 513360,
+        subtotalPaise: 26373760, gstPaise: 791213, totalPricePaise: UNIT,
+      });
+      (mockPrisma as any).product = {
+        findMany: vi.fn().mockResolvedValue([{ id: 'p1', name: '18K Gold Necklace C9', sku: 'SJ-NECK-18K-029', productType: 'GOLD', metalPurity: 750, metalWeightMg: 27600n, makingCharges: 192400n, wastagePercent: 200, sellingPricePaise: null, images: [] }]),
+      };
+      const cart = { id: 'c1', customerId: null, sessionId: 's', currencyCode: 'INR', couponCode: null, expiresAt: new Date(), items: [{ id: 'i1', productId: 'p1', quantity: qty, metalRatePaiseLocked: null, addedAt: new Date() }] };
+      const res = await (service as any).buildCartResponse(TEST_TENANT_ID, cart);
+      expect(Number.isInteger(res.items[0].unitPricePaise)).toBe(true);
+      expect(res.items[0].unitPricePaise).toBe(UNIT);
+      expect(res.items[0].lineTotalPaise).toBe(UNIT * qty);
+      expect(res.subtotalPaise).toBe(UNIT * qty);
+      expect(res.totalPaise).toBe(UNIT * qty);
+    });
+  });
+
   // ─── getOrCreateCart ───────────────────────────────────────
 
   describe('getOrCreateCart', () => {

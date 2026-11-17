@@ -16,6 +16,7 @@ import {
 import type { PaginatedResult, Pagination } from '@caratflow/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -59,7 +60,7 @@ export class WholesaleAgentService extends TenantAwareService {
       include: { commissions: true },
     });
     if (!agent) throw new NotFoundException('Agent not found');
-    return this.mapAgentToResponse(agent);
+    return maskSensitiveDeep(this.mapAgentToResponse(agent));
   }
 
   async listAgents(
@@ -83,7 +84,7 @@ export class WholesaleAgentService extends TenantAwareService {
 
     const totalPages = Math.ceil(total / pagination.limit);
     return {
-      items: items.map((a) => this.mapAgentToResponse(a)),
+      items: maskSensitiveDeep(items.map((a) => this.mapAgentToResponse(a))),
       total,
       page: pagination.page,
       limit: pagination.limit,

@@ -56,7 +56,8 @@ export default function MetalRecoveryPage() {
       locationId: form.locationId,
       sourceType: form.sourceType,
       metalType: 'GOLD' as never,
-      grossWeightMg: BigInt(Math.round(parseFloat(form.grossGrams) * 1000)),
+      // Decimal string: JSON cannot carry a BigInt (the API converts it back).
+      grossWeightMg: String(Math.round(parseFloat(form.grossGrams) * 1000)),
       purityFineness: form.purityFineness,
       refinerName: form.refinerName || undefined,
       notes: form.notes || undefined,
@@ -66,10 +67,10 @@ export default function MetalRecoveryPage() {
   const handleComplete = (id: string) => {
     completeMutation.mutate({
       id,
-      recoveredFineMg: BigInt(Math.round((parseFloat(recoveredGrams) || 0) * 1000)),
+      recoveredFineMg: String(Math.round((parseFloat(recoveredGrams) || 0) * 1000)),
       recoveredPurityFineness: 999,
-      valuePaise: BigInt(Math.round((parseFloat(valueRupees) || 0) * 100)),
-    });
+      valuePaise: String(Math.round((parseFloat(valueRupees) || 0) * 100)),
+    } as never);
   };
 
   const items = ((data as { items?: RecoveryRow[] } | undefined)?.items ?? []) as RecoveryRow[];

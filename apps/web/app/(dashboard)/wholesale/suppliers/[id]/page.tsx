@@ -46,10 +46,18 @@ export default function SupplierDetailPage() {
           { label: s.name as string },
         ]}
         actions={
-          <StatusBadge
-            label={s.isActive ? 'Active' : 'Inactive'}
-            variant={s.isActive ? 'success' : 'default'}
-          />
+          <div className="flex items-center gap-3">
+            <StatusBadge
+              label={s.isActive ? 'Active' : 'Inactive'}
+              variant={s.isActive ? 'success' : 'default'}
+            />
+            <Link
+              href={`/wholesale/suppliers/${id}/edit`}
+              className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
+            >
+              Edit
+            </Link>
+          </div>
         }
       />
 

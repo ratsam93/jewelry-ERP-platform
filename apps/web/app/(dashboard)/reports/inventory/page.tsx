@@ -4,12 +4,24 @@ import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import type { InventoryReportResponse, LowStockItem } from '@caratflow/shared-types';
 import { formatPaise } from '@/components/format';
+import { ReportExportMenu } from '@/features/reporting';
+import { money, type ExportTable } from '@/lib/report-export';
 
 export default function InventoryReportsPage() {
   const { data: summary } = trpc.reporting.stockSummary.useQuery({});
   const { data: lowStock } = trpc.reporting.lowStockAlert.useQuery();
   const s = (summary as Partial<InventoryReportResponse> | undefined) ?? {};
   const low = Array.isArray(lowStock) ? (lowStock as LowStockItem[]) : [];
+
+  const getTable = (): ExportTable => ({
+    headers: ['Product', 'Location', 'Qty on hand', 'Reorder level'],
+    rows: [
+      ['TOTAL ITEMS', '', s.totalItems ?? 0, ''],
+      ['TOTAL QUANTITY', '', s.totalQuantity ?? 0, ''],
+      ['TOTAL VALUE (INR)', '', money(s.totalValuePaise ?? 0), ''],
+      ...low.map((p) => [p.productName ?? '', p.locationName ?? '', p.quantityOnHand ?? 0, p.reorderLevel ?? 0]),
+    ],
+  });
 
   return (
     <div className="space-y-6">
@@ -18,6 +30,9 @@ export default function InventoryReportsPage() {
         { label: 'Reports', href: '/reports' },
         { label: 'Inventory' },
       ]} />
+      <div className="flex justify-end">
+        <ReportExportMenu fileBase="inventory-report" getTable={getTable} />
+      </div>
       <div className="rounded-lg border p-4 space-y-2 text-sm">
         <div className="flex justify-between"><span className="text-muted-foreground">Total Items</span><span>{String(s.totalItems ?? 0)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Total Quantity</span><span>{String(s.totalQuantity ?? 0)}</span></div>

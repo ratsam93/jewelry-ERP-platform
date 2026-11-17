@@ -8,22 +8,15 @@ import { DeviceType, DeviceStatus } from '@caratflow/shared-types';
 import type { DeviceConfigResponse, CreateDeviceConfig } from '@caratflow/shared-types';
 import { DeviceStatusIndicator } from '@/features/hardware/DeviceStatusIndicator';
 import { DeviceConfigForm } from '@/features/hardware/DeviceConfigForm';
+import { DEVICE_TYPE_LABELS, connectionLabel, deviceTypeLabel } from '@/features/hardware/hardware-utils';
+import { formatServerError } from '@/lib/manufacturing-forms';
 import { Plus, Settings2, Trash2 } from 'lucide-react';
-
-const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
-  [DeviceType.RFID_READER]: 'RFID Reader',
-  [DeviceType.BARCODE_SCANNER]: 'Barcode Scanner',
-  [DeviceType.WEIGHING_SCALE]: 'Weighing Scale',
-  [DeviceType.LABEL_PRINTER]: 'Label Printer',
-  [DeviceType.CUSTOMER_DISPLAY]: 'Customer Display',
-  [DeviceType.BIOMETRIC]: 'Biometric Device',
-};
 
 export default function HardwareSettingsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [filterType, setFilterType] = useState<DeviceType | ''>('');
 
-  const { data: devicesData, isLoading, refetch } = trpc.hardware.devices.list.useQuery({
+  const { data: devicesData, isLoading, isError, error, refetch } = trpc.hardware.devices.list.useQuery({
     page: 1,
     limit: 50,
     deviceType: filterType || undefined,
@@ -123,12 +116,27 @@ export default function HardwareSettingsPage() {
             onCancel={() => setShowAddForm(false)}
             isLoading={registerMutation.isPending}
           />
+          {registerMutation.isError && (
+            <p role="alert" className="mt-3 text-sm text-red-600">
+              {formatServerError(registerMutation.error)}
+            </p>
+          )}
         </div>
       )}
 
       {/* Device List */}
       {isLoading ? (
         <div className="p-8 text-center text-sm text-muted-foreground">Loading devices...</div>
+      ) : isError ? (
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-8 text-center text-sm text-red-700">
+          <p>Could not load hardware devices: {formatServerError(error)}</p>
+          <button
+            onClick={() => void refetch()}
+            className="mt-3 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-red-100"
+          >
+            Retry
+          </button>
+        </div>
       ) : devices.length === 0 ? (
         <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">
           No hardware devices registered. Click "Add Device" to get started.
@@ -147,7 +155,7 @@ export default function HardwareSettingsPage() {
                     <h3 className="truncate text-sm font-semibold">{device.name}</h3>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {DEVICE_TYPE_LABELS[device.deviceType]} | {device.connectionType}
+                    {deviceTypeLabel(device.deviceType)} | {connectionLabel(device.connectionType)}
                   </p>
                   {device.ipAddress && (
                     <p className="text-xs text-muted-foreground">

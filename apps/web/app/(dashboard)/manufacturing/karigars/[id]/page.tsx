@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { PageHeader, StatCard, StatusBadge } from '@caratflow/ui';
 import { User, TrendingUp } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { renderDetailState } from '@/components/detail-states';
-import { formatMg } from '@/components/format';
+import { formatMg, formatPaise } from '@/components/format';
 
 export default function KarigarDetailPage() {
   const params = useParams<{ id: string }>();
@@ -31,7 +32,12 @@ export default function KarigarDetailPage() {
           { label: 'Karigars', href: '/manufacturing/karigars' },
           { label: (k.firstName as string) ?? '' },
         ]}
-        actions={<StatusBadge label={k.isActive ? 'Active' : 'Inactive'} variant={k.isActive ? 'success' : 'default'} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href={`/manufacturing/karigars/${id}/edit`} className="inline-flex h-9 items-center rounded-md border px-4 text-sm hover:bg-accent">Edit</Link>
+            <StatusBadge label={k.isActive ? 'Active' : 'Inactive'} variant={k.isActive ? 'success' : 'default'} />
+          </div>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-4">
@@ -45,6 +51,7 @@ export default function KarigarDetailPage() {
         <div className="flex justify-between"><span className="text-muted-foreground">Specialization</span><span>{(k.specialization as string) ?? '-'}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span>{(k.phone as string) ?? '-'}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Location</span><span>{((k.location as { name?: string })?.name) ?? '-'}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Daily wage</span><span>{formatPaise(k.dailyWagePaise)}</span></div>
       </div>
     </div>
   );

@@ -14,6 +14,21 @@ import type {
   ManufacturingReportResponse,
   DateRange,
 } from '@caratflow/shared-types';
+import { inclusiveRangeEnd } from './date-range.util';
+
+/**
+ * A BOM's estimated cost is for `outputQuantity` units, so a job's estimate is
+ * bomCost / bomOutputQty x jobQuantity (rounded to whole paise).
+ */
+export function jobEstimatedCostPaise(job: {
+  quantity?: number | null;
+  bom?: { estimatedCostPaise: bigint | number; outputQuantity?: number | null } | null;
+}): number {
+  if (!job.bom) return 0;
+  const out = job.bom.outputQuantity && job.bom.outputQuantity > 0 ? job.bom.outputQuantity : 1;
+  const qty = job.quantity && job.quantity > 0 ? job.quantity : 1;
+  return Math.round((Number(job.bom.estimatedCostPaise) * qty) / out);
+}
 
 @Injectable()
 export class ReportingManufacturingService extends TenantAwareService {
@@ -31,7 +46,7 @@ export class ReportingManufacturingService extends TenantAwareService {
   ): Promise<ManufacturingReportResponse> {
     const where = {
       tenantId,
-      createdAt: { gte: dateRange.from, lte: dateRange.to },
+      createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       ...(locationId ? { locationId } : {}),
     };
 
@@ -45,7 +60,8 @@ export class ReportingManufacturingService extends TenantAwareService {
       where,
       select: {
         status: true,
-        bom: { select: { estimatedCostPaise: true } },
+        quantity: true,
+        bom: { select: { estimatedCostPaise: true, outputQuantity: true } },
       },
     });
 
@@ -53,7 +69,7 @@ export class ReportingManufacturingService extends TenantAwareService {
     for (const job of allJobs) {
       const existing = statusMap.get(job.status) ?? { count: 0, estimatedCostPaise: 0 };
       existing.count += 1;
-      existing.estimatedCostPaise += Number(job.bom?.estimatedCostPaise ?? 0);
+      existing.estimatedCostPaise += jobEstimatedCostPaise(job);
       statusMap.set(job.status, existing);
     }
 
@@ -101,7 +117,7 @@ export class ReportingManufacturingService extends TenantAwareService {
         lastName: true,
         jobOrders: {
           where: {
-            createdAt: { gte: dateRange.from, lte: dateRange.to },
+            createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
           },
           select: {
             status: true,
@@ -185,7 +201,7 @@ export class ReportingManufacturingService extends TenantAwareService {
     const transactions = await this.prisma.karigarTransaction.findMany({
       where: {
         tenantId,
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       select: {
         transactionType: true,
@@ -248,7 +264,7 @@ export class ReportingManufacturingService extends TenantAwareService {
     const transactions = await this.prisma.karigarTransaction.findMany({
       where: {
         tenantId,
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       select: {
         karigarId: true,
@@ -305,7 +321,7 @@ export class ReportingManufacturingService extends TenantAwareService {
     const jobs = await this.prisma.jobOrder.findMany({
       where: {
         tenantId,
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       select: {
         id: true,
@@ -355,20 +371,21 @@ export class ReportingManufacturingService extends TenantAwareService {
       where: {
         tenantId,
         status: 'COMPLETED',
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       select: {
         id: true,
         jobNumber: true,
         product: { select: { name: true } },
-        bom: { select: { estimatedCostPaise: true } },
+        quantity: true,
+        bom: { select: { estimatedCostPaise: true, outputQuantity: true } },
         costs: { select: { amountPaise: true } },
       },
     });
 
     return jobs
       .map((job) => {
-        const estimatedCost = Number(job.bom?.estimatedCostPaise ?? 0);
+        const estimatedCost = jobEstimatedCostPaise(job);
         const actualCost = job.costs.reduce(
           (sum, c) => sum + Number(c.amountPaise),
           0,

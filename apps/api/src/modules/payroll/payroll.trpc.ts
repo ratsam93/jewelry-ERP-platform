@@ -58,6 +58,11 @@ export class PayrollTrpcRouter {
           .input(z.object({ id: UuidSchema }))
           .query(({ ctx, input }) => this.employeeService.getById(ctx.tenantId, input.id)),
 
+        // Raw PAN / Aadhaar / bank account: used only by the edit form.
+        getForEdit: t.authedProcedure
+          .input(z.object({ id: UuidSchema }))
+          .query(({ ctx, input }) => this.employeeService.getForEdit(ctx.tenantId, input.id)),
+
         create: t.authedProcedure
           .input(EmployeeInputSchema)
           .mutation(({ ctx, input }) => this.employeeService.create(ctx.tenantId, input)),
@@ -174,6 +179,13 @@ export class PayrollTrpcRouter {
           .input(z.object({ id: UuidSchema }))
           .mutation(({ ctx, input }) =>
             this.processingService.cancelPeriod(ctx.tenantId, input.id),
+          ),
+
+        // Only DRAFT periods without payslips can be deleted.
+        deleteDraft: t.authedProcedure
+          .input(z.object({ id: UuidSchema }))
+          .mutation(({ ctx, input }) =>
+            this.processingService.deleteDraftPeriod(ctx.tenantId, input.id),
           ),
       }),
 

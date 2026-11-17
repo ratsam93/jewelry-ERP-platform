@@ -95,19 +95,39 @@ export enum GiftCardStatus {
   CANCELLED = 'CANCELLED',
 }
 
+// ─── Integer coercion for money / weight inputs ───────────────────
+// The tRPC wire format serializes BigInt-backed money (paise) and weights (mg)
+// as decimal strings, so clients that echo API values back send strings.
+// Accept a whole number or a decimal-integer string and coerce to a number.
+const wholeNumber = z
+  .union([
+    z.number(),
+    z
+      .string()
+      .trim()
+      .regex(/^-?\d+$/, 'Must be a whole number'),
+  ])
+  .transform((v) => (typeof v === 'string' ? Number(v) : v))
+  .pipe(z.number().int());
+
+/** Non-negative integer paise/mg (number or numeric string). */
+export const NonNegativeIntInput = wholeNumber.pipe(z.number().nonnegative());
+/** Positive integer paise/mg (number or numeric string). */
+export const PositiveIntInput = wholeNumber.pipe(z.number().positive());
+
 // ─── Sale Line Item ───────────────────────────────────────────────
 
 export const SaleLineItemInputSchema = z.object({
   productId: z.guid().optional(),
   description: z.string().min(1).max(500),
   quantity: z.number().int().min(1).default(1),
-  unitPricePaise: z.number().int().nonnegative(),
-  discountPaise: z.number().int().nonnegative().default(0),
+  unitPricePaise: NonNegativeIntInput,
+  discountPaise: NonNegativeIntInput.default(0),
   discountType: z.nativeEnum(SaleDiscountType).optional(),
-  makingChargesPaise: z.number().int().nonnegative().default(0),
-  wastageChargesPaise: z.number().int().nonnegative().default(0),
-  metalRatePaise: z.number().int().nonnegative().default(0),
-  metalWeightMg: z.number().int().nonnegative().default(0),
+  makingChargesPaise: NonNegativeIntInput.default(0),
+  wastageChargesPaise: NonNegativeIntInput.default(0),
+  metalRatePaise: NonNegativeIntInput.default(0),
+  metalWeightMg: NonNegativeIntInput.default(0),
   hsnCode: z.string().default('7113'),
   gstRate: z.number().int().nonnegative().default(300), // percent * 100
 });
@@ -144,7 +164,7 @@ export type PricingCalculation = z.infer<typeof PricingCalculationSchema>;
 
 export const SalePaymentInputSchema = z.object({
   method: z.nativeEnum(SalePaymentMethod),
-  amountPaise: z.number().int().positive(),
+  amountPaise: PositiveIntInput,
   reference: z.string().max(255).optional(),
 });
 export type SalePaymentInput = z.infer<typeof SalePaymentInputSchema>;
@@ -164,7 +184,7 @@ export const SaleInputSchema = z.object({
   locationId: z.guid(),
   lineItems: z.array(SaleLineItemInputSchema).min(1),
   payments: z.array(SalePaymentInputSchema).min(1),
-  discountPaise: z.number().int().nonnegative().default(0),
+  discountPaise: NonNegativeIntInput.default(0),
   notes: z.string().optional(),
   currencyCode: z.string().length(3).default('INR'),
 });
@@ -175,6 +195,8 @@ export const SaleResponseSchema = z.object({
   tenantId: z.guid(),
   saleNumber: z.string(),
   customerId: z.guid().nullable(),
+  customerName: z.string().nullable().optional(),
+  customerPhone: z.string().nullable().optional(),
   locationId: z.guid(),
   userId: z.guid(),
   status: z.nativeEnum(SaleStatus),
@@ -198,7 +220,7 @@ export const SaleReturnItemInputSchema = z.object({
   originalLineItemId: z.guid(),
   productId: z.guid().optional(),
   quantity: z.number().int().min(1).default(1),
-  returnPricePaise: z.number().int().nonnegative(),
+  returnPricePaise: NonNegativeIntInput,
   reason: z.string().optional(),
 });
 export type SaleReturnItemInput = z.infer<typeof SaleReturnItemInputSchema>;
@@ -219,6 +241,7 @@ export const SaleReturnResponseSchema = z.object({
   returnNumber: z.string(),
   originalSaleId: z.guid(),
   customerId: z.guid().nullable(),
+  customerName: z.string().nullable().optional(),
   locationId: z.guid(),
   reason: z.string().nullable(),
   status: z.nativeEnum(SaleReturnStatus),
@@ -230,6 +253,7 @@ export const SaleReturnResponseSchema = z.object({
     id: z.guid(),
     originalLineItemId: z.guid(),
     productId: z.guid().nullable(),
+    description: z.string().nullable().optional(),
     quantity: z.number().int(),
     returnPricePaise: z.number().int(),
     reason: z.string().nullable(),
@@ -270,6 +294,8 @@ export const RepairOrderResponseSchema = z.object({
   tenantId: z.guid(),
   repairNumber: z.string(),
   customerId: z.guid(),
+  customerName: z.string().nullable().optional(),
+  customerPhone: z.string().nullable().optional(),
   locationId: z.guid(),
   status: z.nativeEnum(RepairOrderStatus),
   itemDescription: z.string(),
@@ -310,6 +336,8 @@ export const CustomOrderResponseSchema = z.object({
   tenantId: z.guid(),
   orderNumber: z.string(),
   customerId: z.guid(),
+  customerName: z.string().nullable().optional(),
+  customerPhone: z.string().nullable().optional(),
   locationId: z.guid(),
   status: z.nativeEnum(CustomOrderStatus),
   description: z.string(),

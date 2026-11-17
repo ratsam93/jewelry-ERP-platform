@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import {
   type KarigarInput,
   type KarigarAttendanceInput,
@@ -26,7 +27,7 @@ export class ManufacturingKarigarService extends TenantAwareService {
     });
     if (existing) throw new BadRequestException('Employee code already exists');
 
-    return this.prisma.karigar.create({
+    const created = await this.prisma.karigar.create({
       data: {
         tenantId,
         ...input,
@@ -37,6 +38,7 @@ export class ManufacturingKarigarService extends TenantAwareService {
       },
       include: { location: true },
     });
+    return maskSensitiveDeep(created);
   }
 
   async updateKarigar(tenantId: string, userId: string, karigarId: string, input: Partial<KarigarInput>) {
@@ -50,11 +52,12 @@ export class ManufacturingKarigarService extends TenantAwareService {
       data.dailyWagePaise = BigInt(input.dailyWagePaise);
     }
 
-    return this.prisma.karigar.update({
+    const updated = await this.prisma.karigar.update({
       where: { id: karigarId },
       data,
       include: { location: true },
     });
+    return maskSensitiveDeep(updated);
   }
 
   async findKarigarById(tenantId: string, karigarId: string) {
@@ -72,7 +75,9 @@ export class ManufacturingKarigarService extends TenantAwareService {
       },
     });
     if (!karigar) throw new NotFoundException('Karigar not found');
-    return karigar;
+    // The karigar edit form (karigarToFormValues) does not read PAN/Aadhaar/bank
+    // fields, so masking here does not affect prefill.
+    return maskSensitiveDeep(karigar);
   }
 
   async findAllKarigars(tenantId: string, pagination: Pagination, filter?: KarigarFilter) {
@@ -108,7 +113,7 @@ export class ManufacturingKarigarService extends TenantAwareService {
 
     const totalPages = Math.ceil(total / pagination.limit);
     return {
-      items,
+      items: maskSensitiveDeep(items),
       total,
       page: pagination.page,
       limit: pagination.limit,

@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-navy/60 mb-1">Email</label>
-                <input
+                <input aria-label="Email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

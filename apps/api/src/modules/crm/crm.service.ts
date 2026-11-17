@@ -1,10 +1,11 @@
 // ─── CRM Service ───────────────────────────────────────────────
 // Main customer service: 360 view, search, segmentation, CSV import.
 
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@caratflow/db';
+import { maskAadhaar, maskCustomerIdentifiers, maskPan, type CustomerCreateInput } from './crm.customer.schema';
 import type {
   Customer360Response,
   CrmDashboardResponse,
@@ -90,8 +91,9 @@ export class CrmService extends TenantAwareService {
         country: customer.country,
         postalCode: customer.postalCode,
         customerType: customer.customerType,
-        panNumber: customer.panNumber,
-        aadhaarNumber: customer.aadhaarNumber,
+        // Full PAN/Aadhaar never leave the API; KYC verification owns the raw values.
+        panNumber: maskPan(customer.panNumber),
+        aadhaarNumber: maskAadhaar(customer.aadhaarNumber),
         gstinNumber: customer.gstinNumber,
         dateOfBirth: customer.dateOfBirth,
         anniversary: customer.anniversary,
@@ -214,7 +216,7 @@ export class CrmService extends TenantAwareService {
 
     const totalPages = Math.ceil(total / limit);
     return {
-      items,
+      items: items.map((c) => maskCustomerIdentifiers(c)),
       total,
       page,
       limit,
@@ -222,6 +224,41 @@ export class CrmService extends TenantAwareService {
       hasNext: page < totalPages,
       hasPrevious: page > 1,
     };
+  }
+
+  /** Create a customer (admin "Add Customer"); rejects duplicate phone/email within the tenant. */
+  async createCustomer(tenantId: string, userId: string, input: CustomerCreateInput) {
+    const or = [
+      ...(input.phone ? [{ phone: input.phone }] : []),
+      ...(input.email ? [{ email: input.email }] : []),
+    ];
+    if (or.length > 0) {
+      const existing = await this.prisma.customer.findFirst({ where: { tenantId, OR: or } });
+      if (existing) {
+        const by = input.phone && existing.phone === input.phone ? 'phone number' : 'email';
+        throw new ConflictException(`A customer with this ${by} already exists`);
+      }
+    }
+    const created = await this.prisma.customer.create({
+      data: {
+        tenantId,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        phone: input.phone,
+        alternatePhone: input.alternatePhone,
+        email: input.email,
+        address: input.address,
+        city: input.city,
+        state: input.state,
+        country: input.country ?? 'IN',
+        postalCode: input.postalCode,
+        customerType: input.customerType,
+        notes: input.notes,
+        createdBy: userId,
+        updatedBy: userId,
+      },
+    });
+    return maskCustomerIdentifiers(created);
   }
 
   /** CRM Dashboard aggregates */

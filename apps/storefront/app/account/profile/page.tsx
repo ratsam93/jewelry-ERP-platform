@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
+import { validateProfile, type ProfileErrors } from "@/lib/profile-validation";
 
 interface ProfileResponse {
   firstName?: string;
@@ -27,6 +28,7 @@ export default function ProfilePage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<ProfileErrors>({});
 
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
@@ -64,6 +66,9 @@ export default function ProfilePage() {
     e.preventDefault();
     setProfileError("");
     setProfileSuccess("");
+    const errs = validateProfile(form);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     setSavingProfile(true);
     try {
       await apiFetch("/api/v1/store/account/profile", {
@@ -138,7 +143,7 @@ export default function ProfilePage() {
           {loadingProfile ? (
             <p className="text-sm text-navy/50">Loading profile...</p>
           ) : (
-            <form className="space-y-4" onSubmit={handleSaveProfile}>
+            <form className="space-y-4" onSubmit={handleSaveProfile} noValidate>
               {profileError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{profileError}</div>
               )}
@@ -147,40 +152,52 @@ export default function ProfilePage() {
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-navy/60 mb-1">First Name</label>
+                  <label htmlFor="profile-firstName" className="block text-xs font-medium text-navy/60 mb-1">First Name *</label>
                   <input
+                    id="profile-firstName"
                     type="text"
                     value={form.firstName}
-                    onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                    aria-invalid={fieldErrors.firstName ? true : undefined}
+                    onChange={(e) => { setForm({ ...form, firstName: e.target.value }); if (fieldErrors.firstName) setFieldErrors({ ...fieldErrors, firstName: undefined }); }}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
                   />
+                  {fieldErrors.firstName && <p role="alert" className="text-xs text-red-600 mt-1">{fieldErrors.firstName}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-navy/60 mb-1">Last Name</label>
+                  <label htmlFor="profile-lastName" className="block text-xs font-medium text-navy/60 mb-1">Last Name</label>
                   <input
+                    id="profile-lastName"
                     type="text"
                     value={form.lastName}
-                    onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                    aria-invalid={fieldErrors.lastName ? true : undefined}
+                    onChange={(e) => { setForm({ ...form, lastName: e.target.value }); if (fieldErrors.lastName) setFieldErrors({ ...fieldErrors, lastName: undefined }); }}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
                   />
+                  {fieldErrors.lastName && <p role="alert" className="text-xs text-red-600 mt-1">{fieldErrors.lastName}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-navy/60 mb-1">Email</label>
+                  <label htmlFor="profile-email" className="block text-xs font-medium text-navy/60 mb-1">Email</label>
                   <input
+                    id="profile-email"
                     type="email"
                     value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    aria-invalid={fieldErrors.email ? true : undefined}
+                    onChange={(e) => { setForm({ ...form, email: e.target.value }); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined }); }}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
                   />
+                  {fieldErrors.email && <p role="alert" className="text-xs text-red-600 mt-1">{fieldErrors.email}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-navy/60 mb-1">Phone</label>
+                  <label htmlFor="profile-phone" className="block text-xs font-medium text-navy/60 mb-1">Phone</label>
                   <input
+                    id="profile-phone"
                     type="tel"
                     value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    aria-invalid={fieldErrors.phone ? true : undefined}
+                    onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); }}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
                   />
+                  {fieldErrors.phone && <p role="alert" className="text-xs text-red-600 mt-1">{fieldErrors.phone}</p>}
                 </div>
               </div>
               {fullName && <p className="text-xs text-navy/40">Displayed as: {fullName}</p>}
@@ -207,7 +224,7 @@ export default function ProfilePage() {
             )}
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">Current Password</label>
-              <input
+              <input aria-label="Current Password"
                 type="password"
                 value={passwordForm.current}
                 onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
@@ -216,7 +233,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">New Password</label>
-              <input
+              <input aria-label="New Password"
                 type="password"
                 value={passwordForm.newPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
@@ -225,7 +242,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">Confirm New Password</label>
-              <input
+              <input aria-label="Confirm New Password"
                 type="password"
                 value={passwordForm.confirm}
                 onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}

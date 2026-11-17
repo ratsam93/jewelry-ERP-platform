@@ -238,6 +238,17 @@ export default function I18nPage() {
                             type="text"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.nativeEvent.isComposing) return;
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleUpdateTranslation(tk, editValue);
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setEditingKey(null);
+                              }
+                            }}
+                            aria-label="Translation"
                             className="w-full rounded border px-2 py-1 text-sm"
                             autoFocus
                           />
@@ -245,8 +256,18 @@ export default function I18nPage() {
                             onClick={() => handleUpdateTranslation(tk, editValue)}
                             disabled={updateMutation.isPending}
                             className="rounded bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
+                            aria-label="Save translation"
+                            title="Save (Enter)"
                           >
                             <Save className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => setEditingKey(null)}
+                            className="rounded border px-2 py-1 text-xs"
+                            aria-label="Cancel edit"
+                            title="Cancel (Esc)"
+                          >
+                            Cancel
                           </button>
                         </div>
                       ) : (

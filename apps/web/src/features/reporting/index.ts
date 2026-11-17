@@ -7,3 +7,4 @@ export { PeriodComparison } from './PeriodComparison';
 export { ExportButton } from './ExportButton';
 export { CustomReportBuilder } from './CustomReportBuilder';
 export { WidgetGrid } from './WidgetGrid';
+export { ReportExportMenu } from './ReportExportMenu';

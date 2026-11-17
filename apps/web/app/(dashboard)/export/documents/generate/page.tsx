@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { listItems } from '@/features/export/form-helpers';
 
 type DocType = 'PACKING_LIST' | 'CERTIFICATE_OF_ORIGIN' | 'SHIPPING_BILL';
 
@@ -19,8 +20,8 @@ export default function GenerateDocumentsPage() {
     pagination: { page: 1, limit: 100, sortOrder: 'desc' },
   });
 
-  const orders = ((ordersQuery.data as { data?: Array<{ id: string; orderNumber?: string }> } | undefined)?.data) ?? [];
-  const invoices = ((invoicesQuery.data as { data?: Array<{ id: string; invoiceNumber?: string }> } | undefined)?.data) ?? [];
+  const orders = listItems<{ id: string; orderNumber?: string }>(ordersQuery.data);
+  const invoices = listItems<{ id: string; invoiceNumber?: string }>(invoicesQuery.data);
 
   const packingListQuery = trpc.export.generatePackingList.useQuery(
     { exportOrderId },

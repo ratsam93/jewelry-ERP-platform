@@ -102,3 +102,28 @@ export type BiometricEventResponse = any;
 export type RfidStockTakeResult = any;
 export type RfidTagData = any;
 export type CreateDeviceConfig = any;
+
+// ─── Manufacturing job status machine (mirror of shared-types/manufacturing.ts) ───
+export enum MfgJobOrderStatus {
+  DRAFT = 'DRAFT',
+  PLANNED = 'PLANNED',
+  MATERIAL_ISSUED = 'MATERIAL_ISSUED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  QC_PENDING = 'QC_PENDING',
+  QC_PASSED = 'QC_PASSED',
+  QC_FAILED = 'QC_FAILED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+export const JOB_ORDER_TRANSITIONS: Record<MfgJobOrderStatus, MfgJobOrderStatus[]> = {
+  [MfgJobOrderStatus.DRAFT]: [MfgJobOrderStatus.PLANNED, MfgJobOrderStatus.CANCELLED],
+  [MfgJobOrderStatus.PLANNED]: [MfgJobOrderStatus.MATERIAL_ISSUED, MfgJobOrderStatus.CANCELLED],
+  [MfgJobOrderStatus.MATERIAL_ISSUED]: [MfgJobOrderStatus.IN_PROGRESS, MfgJobOrderStatus.CANCELLED],
+  [MfgJobOrderStatus.IN_PROGRESS]: [MfgJobOrderStatus.QC_PENDING, MfgJobOrderStatus.CANCELLED],
+  [MfgJobOrderStatus.QC_PENDING]: [MfgJobOrderStatus.QC_PASSED, MfgJobOrderStatus.QC_FAILED],
+  [MfgJobOrderStatus.QC_PASSED]: [MfgJobOrderStatus.COMPLETED],
+  [MfgJobOrderStatus.QC_FAILED]: [MfgJobOrderStatus.IN_PROGRESS, MfgJobOrderStatus.CANCELLED],
+  [MfgJobOrderStatus.COMPLETED]: [],
+  [MfgJobOrderStatus.CANCELLED]: [],
+};

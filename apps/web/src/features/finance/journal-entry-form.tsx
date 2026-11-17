@@ -10,6 +10,17 @@ interface JournalLine {
   description: string;
 }
 
+/** Why a journal cannot be saved yet (shown next to the disabled Save button), or null when it can. */
+export function journalBlockReason(lines: JournalLine[]): string | null {
+  const debit = lines.reduce((s, l) => s + l.debitPaise, 0);
+  const credit = lines.reduce((s, l) => s + l.creditPaise, 0);
+  if (debit + credit === 0) return 'Enter an amount: at least one debit line and one credit line are needed.';
+  if (lines.some((l) => l.debitPaise + l.creditPaise > 0 && !l.accountId)) return 'Select an account on every line that has an amount.';
+  if (debit !== credit) return `Debits and credits must balance. Difference: ${((Math.abs(debit - credit)) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  if (lines.some((l) => l.debitPaise > 0 && l.creditPaise > 0)) return 'A line cannot have both a debit and a credit amount.';
+  return null;
+}
+
 interface JournalEntryFormProps {
   accounts: Array<{ id: string; accountCode: string; name: string }>;
   onSubmit: (data: {
@@ -33,6 +44,7 @@ export function JournalEntryForm({ accounts, onSubmit, isLoading }: JournalEntry
   const totalDebit = lines.reduce((sum, l) => sum + l.debitPaise, 0);
   const totalCredit = lines.reduce((sum, l) => sum + l.creditPaise, 0);
   const isBalanced = totalDebit === totalCredit && totalDebit > 0;
+  const blockReason = journalBlockReason(lines);
 
   const addLine = () => {
     setLines([...lines, { accountId: '', debitPaise: 0, creditPaise: 0, description: '' }]);
@@ -180,9 +192,9 @@ export function JournalEntryForm({ accounts, onSubmit, isLoading }: JournalEntry
         </table>
       </div>
 
-      {!isBalanced && totalDebit + totalCredit > 0 && (
-        <p className="text-sm text-destructive">
-          Debits and credits must balance. Difference: {formatAmount(Math.abs(totalDebit - totalCredit))}
+      {blockReason && (
+        <p id="journal-save-hint" role="status" className="text-sm text-destructive">
+          {blockReason}
         </p>
       )}
 
@@ -196,7 +208,8 @@ export function JournalEntryForm({ accounts, onSubmit, isLoading }: JournalEntry
         </button>
         <button
           type="submit"
-          disabled={!isBalanced || isLoading}
+          disabled={!isBalanced || Boolean(blockReason) || isLoading}
+          aria-describedby={blockReason ? 'journal-save-hint' : undefined}
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {isLoading ? 'Saving...' : 'Save Journal Entry'}

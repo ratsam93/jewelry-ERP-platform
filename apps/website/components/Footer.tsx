@@ -15,21 +15,28 @@ const footerLinks = {
   ],
   Resources: [
     { label: "Blog", href: "/blog" },
-    { label: "Help Center", href: "/contact" },
-    { label: "API Documentation", href: "/contact" },
-    { label: "HUID Compliance Guide", href: "/blog" },
-    { label: "Webinars", href: "/contact" },
+    { label: "HUID Compliance Guide", href: "/blog/huid-compliance-guide" },
   ],
   Company: [
     { label: "About Us", href: "/about" },
     { label: "Contact", href: "/contact" },
-    { label: "Careers", href: "/about" },
-    { label: "Partners", href: "/contact" },
-    { label: "Privacy Policy", href: "/about" },
+    { label: "Careers", href: "/careers" },
+    { label: "Privacy Policy", href: "/privacy" },
   ],
 };
 
+// NEXT_PUBLIC_* must be referenced literally so Next can inline them at build time.
+function getSocialLinks() {
+  return [
+    { label: "X", name: "X (Twitter)", href: process.env.NEXT_PUBLIC_SOCIAL_X },
+    { label: "Li", name: "LinkedIn", href: process.env.NEXT_PUBLIC_SOCIAL_LINKEDIN },
+    { label: "Fb", name: "Facebook", href: process.env.NEXT_PUBLIC_SOCIAL_FACEBOOK },
+    { label: "Yt", name: "YouTube", href: process.env.NEXT_PUBLIC_SOCIAL_YOUTUBE },
+  ].filter((l): l is { label: string; name: string; href: string } => Boolean(l.href));
+}
+
 export default function Footer() {
+  const socialLinks = getSocialLinks();
   return (
     <footer className="bg-navy text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
@@ -49,18 +56,23 @@ export default function Footer() {
             <p className="text-gray-400 text-sm leading-relaxed mb-4">
               The complete jewelry ERP platform -- built for jewelers, by design.
             </p>
-            {/* Social links */}
-            <div className="flex gap-3">
-              {["X", "Li", "Fb", "Yt"].map((s) => (
-                <a
-                  key={s}
-                  href="#"
-                  className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-xs font-bold text-gray-400 hover:bg-gold hover:text-white transition-colors"
-                >
-                  {s}
-                </a>
-              ))}
-            </div>
+            {/* Social links (only shown when configured) */}
+            {socialLinks.length > 0 && (
+              <div className="flex gap-3">
+                {socialLinks.map((s) => (
+                  <a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.name}
+                    className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-xs font-bold text-gray-400 hover:bg-gold hover:text-white transition-colors"
+                  >
+                    {s.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Link columns */}
@@ -88,10 +100,10 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} CaratFlow by Globussoft Technologies. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <a href="#" className="text-gray-500 text-sm hover:text-gold transition-colors">
+            <a href="/terms" className="text-gray-500 text-sm hover:text-gold transition-colors">
               Terms of Service
             </a>
-            <a href="#" className="text-gray-500 text-sm hover:text-gold transition-colors">
+            <a href="/privacy" className="text-gray-500 text-sm hover:text-gold transition-colors">
               Privacy Policy
             </a>
           </div>

@@ -10,8 +10,6 @@ import {
   installCatalogFetch,
   serverErrorRes,
   defaultRouter,
-  ok,
-  page,
 } from "../fixtures/api-catalog";
 
 vi.mock("next/navigation", () => ({
@@ -49,7 +47,7 @@ describe("ProductDetailPage (server)", () => {
   it("shows API-derived price and weights", async () => {
     await renderProduct(PRODUCT_B_ID);
     // 5,337,357 paise
-    expect(screen.getAllByText("₹53,374").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("₹53,373.57").length).toBeGreaterThan(0);
     expect(screen.getByText("Price Breakdown")).toBeInTheDocument();
     expect(screen.getAllByText("8.28g").length).toBeGreaterThan(0);
   });

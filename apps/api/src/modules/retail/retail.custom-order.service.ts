@@ -196,6 +196,7 @@ export class RetailCustomOrderService extends TenantAwareService {
   async getCustomOrder(tenantId: string, orderId: string): Promise<CustomOrderResponse> {
     const order = await this.prisma.customOrder.findFirst({
       where: this.tenantWhere(tenantId, { id: orderId }) as { tenantId: string; id: string },
+      include: { customer: { select: { firstName: true, lastName: true, phone: true } } },
     });
 
     if (!order) throw new NotFoundException('Custom order not found');
@@ -214,6 +215,7 @@ export class RetailCustomOrderService extends TenantAwareService {
     const [items, total] = await Promise.all([
       this.prisma.customOrder.findMany({
         where,
+        include: { customer: { select: { firstName: true, lastName: true, phone: true } } },
         orderBy: { createdAt: 'desc' },
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
@@ -235,11 +237,14 @@ export class RetailCustomOrderService extends TenantAwareService {
   }
 
   private mapToResponse(order: Record<string, unknown>): CustomOrderResponse {
+    const customer = (order.customer as { firstName?: string; lastName?: string; phone?: string | null } | null | undefined) ?? null;
     return {
       id: order.id as string,
       tenantId: order.tenantId as string,
       orderNumber: order.orderNumber as string,
       customerId: order.customerId as string,
+      customerName: customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || null : null,
+      customerPhone: customer?.phone ?? null,
       locationId: order.locationId as string,
       status: order.status as CustomOrderStatus,
       description: order.description as string,

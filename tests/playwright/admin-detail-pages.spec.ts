@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin } from './helpers/admin-login';
 
 // ---------------------------------------------------------------------------
 // 1. Dynamic Route Pages -- test that [id], /new, and sub-pages load without
@@ -155,6 +156,11 @@ test.describe('Admin Missed List Pages', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Admin Page Content Verification', () => {
+  // Unauthenticated visits now redirect to the login page, so sign in (shared tokens) first.
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+  });
+
   test('Dashboard has stat cards or welcome content', async ({ page }) => {
     await page.goto('/admin/dashboard');
     await page.waitForLoadState('networkidle');

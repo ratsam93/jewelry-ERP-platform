@@ -258,17 +258,56 @@ describe('FinancialReportingService (Unit)', () => {
       const result = await service.agingReport(TEST_TENANT_ID, 'AR');
 
       expect(result.type).toBe('AR');
-      expect(result.buckets).toHaveLength(5);
-      expect(result.buckets[0]!.label).toBe('0-30 days');
-      expect(result.buckets[0]!.count).toBe(1);
-      expect(result.buckets[1]!.label).toBe('31-60 days');
+      expect(result.buckets).toHaveLength(6);
+      expect(result.buckets[0]!.label).toBe('Not yet due');
+      expect(result.buckets[0]!.count).toBe(0);
+      expect(result.buckets[1]!.label).toBe('0-30 days');
       expect(result.buckets[1]!.count).toBe(1);
-      expect(result.buckets[2]!.label).toBe('61-90 days');
+      expect(result.buckets[2]!.label).toBe('31-60 days');
       expect(result.buckets[2]!.count).toBe(1);
-      expect(result.buckets[3]!.label).toBe('91-120 days');
+      expect(result.buckets[3]!.label).toBe('61-90 days');
       expect(result.buckets[3]!.count).toBe(1);
-      expect(result.buckets[4]!.label).toBe('120+ days');
+      expect(result.buckets[4]!.label).toBe('91-120 days');
       expect(result.buckets[4]!.count).toBe(1);
+      expect(result.buckets[5]!.label).toBe('120+ days');
+      expect(result.buckets[5]!.count).toBe(1);
+    });
+
+    it('puts not-yet-due invoices in their own bucket so buckets sum to the total', async () => {
+      const now = new Date();
+      const due = (offsetDays: number) => {
+        const d = new Date(now);
+        d.setDate(d.getDate() + offsetDays);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+      const inv = (id: string, offsetDays: number, total: number) => ({
+        id,
+        invoiceNumber: id,
+        invoiceType: 'SALES',
+        status: 'SENT',
+        totalPaise: BigInt(total),
+        paidPaise: BigInt(0),
+        createdAt: now,
+        dueDate: due(offsetDays),
+        customer: { firstName: 'A', lastName: 'B' },
+        supplier: null,
+      });
+      mockPrisma.invoice.findMany.mockResolvedValue([
+        inv('FIN-INV-00008', 5, 100000),   // due in future
+        inv('FIN-INV-00013', 9, 250000),   // due in future
+        inv('FIN-INV-00003', -10, 400000), // 10 days overdue
+      ]);
+
+      const result = await service.agingReport(TEST_TENANT_ID, 'AR');
+
+      expect(result.buckets[0]!.label).toBe('Not yet due');
+      expect(result.buckets[0]!.count).toBe(2);
+      expect(result.buckets[0]!.amountPaise).toBe(350000);
+      expect(result.buckets[1]!.count).toBe(1);
+      const sum = result.buckets.reduce((s, b) => s + b.amountPaise, 0);
+      expect(sum).toBe(result.totalOutstanding);
+      expect(result.buckets.reduce((s, b) => s + b.count, 0)).toBe(result.entries.length);
     });
 
     it('calculates correct outstanding amounts', async () => {

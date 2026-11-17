@@ -6,6 +6,7 @@ import Link from "next/link";
 import { apiFetch, ApiError, getAccessToken } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
+import { normalizeShippingAddress, summarizePayment, type RawShippingAddress } from "@/lib/order-view";
 
 interface OrderItem {
   id: string;
@@ -27,18 +28,13 @@ interface ShipmentInfo {
   estimatedDeliveryDate?: string | null;
 }
 
-interface AddressShape {
-  fullName?: string;
-  firstName?: string;
-  lastName?: string;
-  addressLine1?: string;
-  addressLine2?: string | null;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  postalCode?: string;
-  phone?: string;
-  [key: string]: unknown;
+type AddressShape = RawShippingAddress;
+
+interface PaymentInfo {
+  id?: string;
+  method?: string | null;
+  status?: string | null;
+  amountPaise?: number;
 }
 
 interface OrderDetail {
@@ -53,6 +49,7 @@ interface OrderDetail {
   discountPaise: number;
   totalPaise: number;
   shippingAddress?: AddressShape | null;
+  payments?: PaymentInfo[];
   items: OrderItem[];
   shipments?: ShipmentInfo[];
   invoiceUrl?: string;
@@ -191,8 +188,8 @@ export default function OrderDetailPage() {
   }
 
   const addr = order.shippingAddress;
-  const fullName = addr?.fullName ?? `${addr?.firstName ?? ""} ${addr?.lastName ?? ""}`.trim();
-  const pin = addr?.pincode ?? addr?.postalCode ?? "";
+  const av = addr ? normalizeShippingAddress(addr) : null;
+  const payment = summarizePayment(order.payments);
   const tracking = order.shipments?.[0];
 
   return (
@@ -304,16 +301,25 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {addr && (
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
+          {payment && (
+            <div className="bg-white rounded-xl border border-gray-100 p-5" data-testid="order-payment">
+              <h3 className="font-semibold text-navy mb-3 text-sm">Payment</h3>
+              <p className="text-sm text-navy/70">Method: <span className="font-medium text-navy">{payment.method}</span></p>
+              <p className="text-sm text-navy/70">Status: <span className="font-medium text-navy">{payment.status}</span></p>
+            </div>
+          )}
+
+          {av && (
+            <div className="bg-white rounded-xl border border-gray-100 p-5" data-testid="order-shipping-address">
               <h3 className="font-semibold text-navy mb-3 text-sm">Shipping Address</h3>
               <p className="text-sm text-navy/70">
-                {fullName}<br />
-                {addr.addressLine1}<br />
-                {addr.addressLine2 && <>{addr.addressLine2}<br /></>}
-                {addr.city}, {addr.state} - {pin}
+                {av.name}<br />
+                {av.line1 && <>{av.line1}<br /></>}
+                {av.line2 && <>{av.line2}<br /></>}
+                {av.city}{av.state && `, ${av.state}`}{av.pincode && ` - ${av.pincode}`}
+                {av.country && <><br />{av.country}</>}
               </p>
-              {addr.phone && <p className="text-xs text-navy/40 mt-2">{addr.phone}</p>}
+              {av.phone && <p className="text-xs text-navy/40 mt-2">{av.phone}</p>}
             </div>
           )}
         </div>
@@ -347,7 +353,7 @@ export default function OrderDetailPage() {
                     {order.items.map((item, idx) => (
                       <div key={item.id} className="flex items-center gap-2">
                         <div className="flex-1 text-sm text-navy">{item.title}</div>
-                        <input
+                        <input aria-label={`Quantity to return for ${item.title}`}
                           type="number"
                           min={0}
                           max={item.quantity}
@@ -367,7 +373,7 @@ export default function OrderDetailPage() {
 
                 <div>
                   <label className="block text-xs font-medium text-navy/60 mb-1">Reason for Return</label>
-                  <textarea
+                  <textarea aria-label="Reason for Return"
                     value={returnReason}
                     onChange={(e) => setReturnReason(e.target.value)}
                     rows={3}
@@ -379,7 +385,7 @@ export default function OrderDetailPage() {
 
                 <div>
                   <label className="block text-xs font-medium text-navy/60 mb-1">Refund Method</label>
-                  <select
+                  <select aria-label="Refund Method"
                     value={returnRefundMethod}
                     onChange={(e) => setReturnRefundMethod(e.target.value as typeof returnRefundMethod)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"

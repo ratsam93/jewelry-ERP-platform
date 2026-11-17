@@ -297,10 +297,17 @@ export class FinancialReportingService extends TenantAwareService {
         invoiceType,
         status: { in: ['SENT', 'PARTIALLY_PAID', 'OVERDUE'] },
       },
-      include: { customer: true, supplier: true },
+      include: {
+        // narrow select: aging only needs party display names (no PAN / Aadhaar / bank)
+        customer: { select: { id: true, firstName: true, lastName: true } },
+        supplier: { select: { id: true, name: true } },
+      },
     });
 
+    // Invoices whose due date is still in the future (ageDays < 0) get their
+    // own "Not yet due" bucket so the buckets always sum to totalOutstanding.
     const bucketDefs = [
+      { label: 'Not yet due', min: -Infinity, max: -1 },
       { label: '0-30 days', min: 0, max: 30 },
       { label: '31-60 days', min: 31, max: 60 },
       { label: '61-90 days', min: 61, max: 90 },

@@ -39,14 +39,14 @@ export function StatCard({ title, value, icon, trend, className, isLoading }: St
       </div>
       {trend && (
         <div className="mt-2 flex items-center gap-1">
-          {trendDirection === 'up' && <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />}
-          {trendDirection === 'down' && <TrendingDown className="h-3.5 w-3.5 text-red-600" />}
+          {trendDirection === 'up' && <TrendingUp className="h-3.5 w-3.5 text-success" />}
+          {trendDirection === 'down' && <TrendingDown className="h-3.5 w-3.5 text-danger" />}
           {trendDirection === 'flat' && <Minus className="h-3.5 w-3.5 text-muted-foreground" />}
           <span
             className={cn(
               'text-xs font-medium',
-              trendDirection === 'up' && 'text-emerald-600',
-              trendDirection === 'down' && 'text-red-600',
+              trendDirection === 'up' && 'text-success',
+              trendDirection === 'down' && 'text-danger',
               trendDirection === 'flat' && 'text-muted-foreground',
             )}
           >

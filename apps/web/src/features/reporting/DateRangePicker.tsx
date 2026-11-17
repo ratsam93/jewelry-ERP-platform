@@ -2,104 +2,127 @@
 
 import * as React from 'react';
 import { Calendar } from 'lucide-react';
+import {
+  DATE_PRESETS,
+  END_BEFORE_START_MESSAGE,
+  computePreset,
+  isRangeOrdered,
+  rangeFromDateStrings,
+  toLocalDateString,
+  type DatePresetKey,
+} from '@/lib/date-presets';
 
 interface DateRangePickerProps {
   from: Date;
   to: Date;
   onChange: (from: Date, to: Date) => void;
   presets?: boolean;
+  /** Called when the typed range becomes invalid (end before start) or valid again. */
+  onValidityChange?: (valid: boolean) => void;
 }
-
-const PRESETS = [
-  { label: 'Today', days: 0 },
-  { label: 'Last 7 Days', days: 7 },
-  { label: 'Last 30 Days', days: 30 },
-  { label: 'This Month', days: -1 }, // Special handling
-  { label: 'Last Month', days: -2 }, // Special handling
-  { label: 'This Quarter', days: -3 },
-] as const;
 
 export function DateRangePicker({
   from,
   to,
   onChange,
   presets = true,
+  onValidityChange,
 }: DateRangePickerProps) {
   const [showPresets, setShowPresets] = React.useState(false);
+  // What the inputs display. It can briefly differ from the committed range
+  // (from/to) while the user has typed an invalid combination.
+  const [draftFrom, setDraftFrom] = React.useState(() => toLocalDateString(from));
+  const [draftTo, setDraftTo] = React.useState(() => toLocalDateString(to));
+  const [error, setError] = React.useState<string | null>(null);
 
-  const handlePreset = (preset: (typeof PRESETS)[number]) => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  // Re-sync the inputs whenever the committed range changes (preset click, parent reset).
+  const fromKey = toLocalDateString(from);
+  const toKey = toLocalDateString(to);
+  React.useEffect(() => {
+    setDraftFrom(fromKey);
+    setDraftTo(toKey);
+    setError(null);
+  }, [fromKey, toKey]);
 
-    switch (preset.days) {
-      case 0:
-        onChange(todayStart, todayEnd);
-        break;
-      case -1: // This month
-        onChange(
-          new Date(now.getFullYear(), now.getMonth(), 1),
-          todayEnd,
-        );
-        break;
-      case -2: // Last month
-        onChange(
-          new Date(now.getFullYear(), now.getMonth() - 1, 1),
-          new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999),
-        );
-        break;
-      case -3: { // This quarter
-        const qMonth = Math.floor(now.getMonth() / 3) * 3;
-        onChange(
-          new Date(now.getFullYear(), qMonth, 1),
-          todayEnd,
-        );
-        break;
-      }
-      default:
-        onChange(
-          new Date(todayStart.getTime() - preset.days * 86400000),
-          todayEnd,
-        );
+  const validityRef = React.useRef(onValidityChange);
+  validityRef.current = onValidityChange;
+  React.useEffect(() => {
+    validityRef.current?.(error === null);
+  }, [error]);
+
+  const handleDraft = (nextFrom: string, nextTo: string) => {
+    setDraftFrom(nextFrom);
+    setDraftTo(nextTo);
+    const range = rangeFromDateStrings(nextFrom, nextTo);
+    if (!range) {
+      // Cleared or partially typed: wait for a complete date, keep the last valid range.
+      setError(null);
+      return;
     }
+    if (!isRangeOrdered(range.from, range.to)) {
+      // Do not query: the last valid range stays in effect.
+      setError(END_BEFORE_START_MESSAGE);
+      return;
+    }
+    setError(null);
+    onChange(range.from, range.to);
+  };
 
+  const handlePreset = (key: DatePresetKey) => {
+    const range = computePreset(key);
+    setDraftFrom(toLocalDateString(range.from));
+    setDraftTo(toLocalDateString(range.to));
+    setError(null);
+    onChange(range.from, range.to);
     setShowPresets(false);
   };
 
+  const errorId = 'date-range-error';
+
   return (
-    <div className="relative inline-flex items-center gap-2">
-      <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
+    <div className="relative inline-flex max-w-full flex-wrap items-center gap-2">
+      <div className="flex min-h-10 min-w-0 flex-wrap items-center gap-2 rounded-md border px-3 py-1 text-sm">
+        <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <input
           type="date"
-          value={from.toISOString().split('T')[0]}
-          onChange={(e) => onChange(new Date(e.target.value), to)}
-          className="bg-transparent border-none outline-none w-32"
+          aria-label="From date"
+          value={draftFrom}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          onChange={(e) => handleDraft(e.target.value, draftTo)}
+          className="w-32 min-w-0 rounded-sm border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <span className="text-muted-foreground">to</span>
         <input
           type="date"
-          value={to.toISOString().split('T')[0]}
-          onChange={(e) => onChange(from, new Date(e.target.value))}
-          className="bg-transparent border-none outline-none w-32"
+          aria-label="To date"
+          value={draftTo}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          onChange={(e) => handleDraft(draftFrom, e.target.value)}
+          className="w-32 min-w-0 rounded-sm border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
       {presets && (
         <div className="relative">
           <button
+            type="button"
             onClick={() => setShowPresets(!showPresets)}
-            className="px-3 py-2 text-sm border rounded-md hover:bg-accent"
+            aria-haspopup="menu"
+            aria-expanded={showPresets}
+            className="min-h-10 px-3 py-2 text-sm border rounded-md hover:bg-accent"
           >
             Presets
           </button>
           {showPresets && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-popover border rounded-md shadow-md py-1 min-w-[140px]">
-              {PRESETS.map((preset) => (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-popover border rounded-md shadow-md py-1 min-w-[180px]">
+              {DATE_PRESETS.map((preset) => (
                 <button
                   key={preset.label}
-                  onClick={() => handlePreset(preset)}
-                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
+                  type="button"
+                  onClick={() => handlePreset(preset.key)}
+                  className="block min-h-10 w-full text-left px-3 py-2 text-sm hover:bg-accent"
                 >
                   {preset.label}
                 </button>
@@ -107,6 +130,11 @@ export function DateRangePicker({
             </div>
           )}
         </div>
+      )}
+      {error && (
+        <p id={errorId} role="alert" className="basis-full text-xs text-destructive">
+          {error}
+        </p>
       )}
     </div>
   );

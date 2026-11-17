@@ -10,15 +10,20 @@
     --card-foreground: 222 47% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 20%;
+    /* Brand gold: fills / decoration only. Text on it is navy (5.38:1). */
     --primary: 41 80% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 222 47% 20%;
+    /* Accessible text variants (>= 4.5:1 on background/card/muted/tints) */
+    --primary-text: 40 100% 27%;
+    --success-text: 162 93% 24%;
+    --danger-text: 0 72% 45%;
     --secondary: 220 30% 96%;
     --secondary-foreground: 222 47% 20%;
     --muted: 220 20% 96%;
-    --muted-foreground: 220 10% 46%;
+    --muted-foreground: 220 10% 42%;
     --accent: 220 30% 96%;
     --accent-foreground: 222 47% 20%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
@@ -35,13 +40,16 @@
     --popover-foreground: 210 20% 96%;
     --primary: 41 80% 50%;
     --primary-foreground: 222 47% 8%;
+    --primary-text: 41 80% 55%;
+    --success-text: 160 64% 52%;
+    --danger-text: 0 86% 72%;
     --secondary: 222 30% 18%;
     --secondary-foreground: 210 20% 96%;
     --muted: 222 30% 18%;
     --muted-foreground: 220 10% 60%;
     --accent: 222 30% 18%;
     --accent-foreground: 210 20% 96%;
-    --destructive: 0 62% 50%;
+    --destructive: 0 63% 45%;
     --destructive-foreground: 0 0% 100%;
     --border: 222 30% 22%;
     --input: 222 30% 22%;

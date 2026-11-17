@@ -1,24 +1,28 @@
 'use client';
 
-import { useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import type { SalesReportResponse } from '@caratflow/shared-types';
 import { formatPaise } from '@/components/format';
+import { DateRangePicker, ReportExportMenu } from '@/features/reporting';
+import { useReportRange } from '@/features/reporting/useReportRange';
+import { money, type ExportTable } from '@/lib/report-export';
 
 export default function SalesReportPage() {
-  const today = new Date();
-  const first = new Date(today.getFullYear(), today.getMonth(), 1);
-  const [from, setFrom] = useState(first.toISOString().slice(0, 10));
-  const [to, setTo] = useState(today.toISOString().slice(0, 10));
+  const { range, onChange } = useReportRange();
 
   const { data, isLoading, isError } = trpc.reporting.salesByPeriod.useQuery({
-    dateRange: { from: new Date(from), to: new Date(to) },
+    dateRange: { from: range.from, to: range.to },
     groupBy: 'day',
   } as never);
   // The API returns { summary: SalesSummaryRow[], totals }, not a bare array.
   const report = data as Partial<SalesReportResponse> | undefined;
   const rows = Array.isArray(report?.summary) ? report.summary : [];
+
+  const getTable = (): ExportTable => ({
+    headers: ['Period', 'Orders', 'Revenue (INR)', 'Avg Ticket (INR)', 'Returns', 'Net Revenue (INR)'],
+    rows: rows.map((r) => [r.date ?? '', r.salesCount ?? 0, money(r.totalRevenuePaise), money(r.avgTicketPaise), r.returnCount ?? 0, money(r.netRevenuePaise)]),
+  });
 
   return (
     <div className="space-y-6">
@@ -27,9 +31,9 @@ export default function SalesReportPage() {
         { label: 'Reports', href: '/reports' },
         { label: 'Sales' },
       ]} />
-      <div className="flex gap-3">
-        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 rounded-md border px-2 text-sm" />
-        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 rounded-md border px-2 text-sm" />
+      <div className="flex flex-wrap items-start gap-3">
+        <DateRangePicker from={range.from} to={range.to} onChange={onChange} />
+        <ReportExportMenu fileBase="sales-report" from={range.from} to={range.to} getTable={getTable} disabled={isLoading || isError || rows.length === 0} />
       </div>
       <div className="rounded-lg border">
         <div className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 border-b bg-muted/50 px-4 py-3 text-xs font-medium uppercase text-muted-foreground">

@@ -31,7 +31,7 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-navy-50 px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-brand-600">CaratFlow</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-brand-700">CaratFlow</h1>
           <p className="mt-2 text-sm text-muted-foreground">Create your account</p>
         </div>
 
@@ -43,7 +43,7 @@ export default function RegisterPage() {
                 type="text"
                 value={form.firstName}
                 onChange={(e) => updateField('firstName', e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 required
               />
             </div>
@@ -53,7 +53,7 @@ export default function RegisterPage() {
                 type="text"
                 value={form.lastName}
                 onChange={(e) => updateField('lastName', e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 required
               />
             </div>
@@ -65,7 +65,7 @@ export default function RegisterPage() {
               type="email"
               value={form.email}
               onChange={(e) => updateField('email', e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               required
             />
           </div>
@@ -76,7 +76,7 @@ export default function RegisterPage() {
               type="password"
               value={form.password}
               onChange={(e) => updateField('password', e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               required
               minLength={8}
             />
@@ -88,7 +88,7 @@ export default function RegisterPage() {
               type="password"
               value={form.confirmPassword}
               onChange={(e) => updateField('confirmPassword', e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               required
             />
           </div>
@@ -99,14 +99,14 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+            className="flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Create Account
           </button>
 
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               Sign in
             </Link>
           </p>

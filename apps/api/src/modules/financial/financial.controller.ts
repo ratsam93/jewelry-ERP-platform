@@ -44,10 +44,12 @@ export class FinancialController {
   ): Promise<void> {
     const tenantId = getTenantId(req);
     const buf = await this.financialService.generateInvoicePdf(tenantId, id);
+    const inv = (await Promise.resolve(this.financialService.getInvoice(tenantId, id)).catch(() => null)) as { invoiceNumber?: string } | null;
+    const base = (inv?.invoiceNumber ?? `invoice-${id}`).replace(/[^A-Za-z0-9._-]/g, '_');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `inline; filename="invoice-${id}.pdf"`,
+      `inline; filename="${base}.pdf"`,
     );
     res.setHeader('Content-Length', String(buf.length));
     res.end(buf);

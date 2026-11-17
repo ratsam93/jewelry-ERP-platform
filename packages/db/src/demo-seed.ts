@@ -17,6 +17,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as bcrypt from 'bcryptjs';
 import * as path from 'path';
+import { seedBomItems } from './seed-demo-bom-items';
 import {
   categoryNameFor,
   ensureStockForProducts,
@@ -475,7 +476,11 @@ async function main() {
   for (let i = 0; i < 15; i++) {
     const id = did(`po-${tenantId}-${i}`);
     const supId = supplierIds[i % supplierIds.length]!;
-    const subtotal = BigInt(randInt(50000, 500000) * 100);
+    // Line amount is always quantity x unit price; PO subtotal is the sum of line amounts.
+    const lineQty = randInt(5, 20);
+    const lineUnit = BigInt(randInt(5000, 10000) * 100);
+    const lineTotal = lineUnit * BigInt(lineQty);
+    const subtotal = lineTotal;
     const tax = subtotal * BigInt(3) / BigInt(100);
     const total = subtotal + tax;
     const status = pick(['DRAFT', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'RECEIVED'] as const);
@@ -498,9 +503,9 @@ async function main() {
             id: did(`po-item-${id}-1`),
             tenantId,
             description: 'Gold 22K bulk',
-            quantity: randInt(5, 20),
-            unitPricePaise: BigInt(randInt(5000, 10000) * 100),
-            totalPaise: subtotal,
+            quantity: lineQty,
+            unitPricePaise: lineUnit,
+            totalPaise: lineTotal,
             weightMg: BigInt(randInt(50, 500) * 1000),
             purityFineness: 916,
           }],
@@ -553,7 +558,9 @@ async function main() {
       },
     });
   }
-  console.warn('  ✓ BOMs (5)');
+  // Components so each BOM page shows lines that sum to the estimate (HK-MFG-01).
+  const bomItemCounts = await seedBomItems(prisma, tenantId);
+  console.warn(`  ✓ BOMs (5) + ${bomItemCounts.inserted} BOM component lines`);
 
   // ─── Job Orders (8) ───────────────────────────────────────
   const jobStatuses = ['DRAFT', 'PLANNED', 'MATERIAL_ISSUED', 'IN_PROGRESS', 'QC_PENDING', 'QC_PASSED', 'COMPLETED', 'CANCELLED'] as const;

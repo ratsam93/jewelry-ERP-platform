@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Plus, Trash2, Play, Save } from 'lucide-react';
+import { reportColumnLabel } from '@/lib/custom-report';
 import type {
   SupportedEntity,
   CustomReportFilter,
@@ -153,7 +154,7 @@ export function CustomReportBuilder({
                   : 'hover:bg-accent'
               }`}
             >
-              {field.label}
+              {reportColumnLabel(field.label)}
             </button>
           ))}
         </div>
@@ -181,7 +182,7 @@ export function CustomReportBuilder({
                 .filter((f) => f.filterable)
                 .map((f) => (
                   <option key={f.name} value={f.name}>
-                    {f.label}
+                    {reportColumnLabel(f.label)}
                   </option>
                 ))}
             </select>
@@ -237,7 +238,7 @@ export function CustomReportBuilder({
                   : 'hover:bg-accent'
               }`}
             >
-              {field.label}
+              {reportColumnLabel(field.label)}
             </button>
           ))}
         </div>
@@ -290,7 +291,7 @@ export function CustomReportBuilder({
                 .filter((f) => f.aggregatable)
                 .map((f) => (
                   <option key={f.name} value={f.name}>
-                    {f.label}
+                    {reportColumnLabel(f.label)}
                   </option>
                 ))}
             </select>

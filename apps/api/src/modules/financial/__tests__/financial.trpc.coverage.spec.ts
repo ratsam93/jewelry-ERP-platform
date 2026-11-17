@@ -320,10 +320,11 @@ describe('FinancialTrpcRouter (procedure coverage)', () => {
     it('returns the PDF as base64 with metadata', async () => {
       const pdf = Buffer.from('%PDF-1.4 test');
       financialService.generateInvoicePdf.mockResolvedValue(pdf);
+      financialService.getInvoice.mockResolvedValue({ id: INVOICE_ID, invoiceNumber: 'FIN-INV-00001' });
       const result = await caller.invoices.downloadPdf({ invoiceId: INVOICE_ID });
       expect(financialService.generateInvoicePdf).toHaveBeenCalledWith('tenant-1', INVOICE_ID);
       expect(result).toEqual({
-        filename: `invoice-${INVOICE_ID}.pdf`,
+        filename: 'FIN-INV-00001.pdf',
         mimeType: 'application/pdf',
         base64: pdf.toString('base64'),
         size: pdf.length,

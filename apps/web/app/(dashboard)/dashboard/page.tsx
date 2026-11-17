@@ -5,9 +5,15 @@ import { PageHeader } from '@caratflow/ui';
 import { IndianRupee, Users, ShoppingCart, TrendingUp, Settings2, RotateCcw, Check, Eye } from 'lucide-react';
 import { DateRangePicker } from '@/features/reporting';
 import { trpc } from '@/lib/trpc';
+import { defaultMonthToDate, toLocalDateString, type DateRangeValue } from '@/lib/date-presets';
+import { useUiStore } from '@/store/ui-store';
+import { toLocationFilter } from '@/features/shell/location-utils';
 import {
   DEFAULT_LAYOUT_STATE,
   WIDGET_DEFINITIONS,
+  readLocalLayout,
+  resolveInitialLayout,
+  writeLocalLayout,
   buildLayoutState,
   getWidgetDefinition,
   moveWidget,
@@ -23,6 +29,8 @@ import {
   MetalRatesWidget,
   RecentSalesWidget,
   RevenueChartWidget,
+  InvalidRangeNotice,
+  saleCustomerName,
   toNumber,
   type BranchRow,
   type MetalRateRow,
@@ -36,39 +44,77 @@ const KPI_META: Partial<Record<WidgetId, { label: string; icon: React.ReactNode 
   'kpi-new-customers': { label: 'New Customers', icon: <Users className="h-5 w-5" /> },
 };
 
-function currentMonthStart(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
-}
-
 export default function DashboardPage() {
-  const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => ({
-    from: currentMonthStart(),
-    to: new Date(),
-  }));
+  // Local-calendar range: 1st of this month (00:00) to today (23:59:59.999), both inclusive.
+  const [range, setRange] = React.useState<DateRangeValue>(() => defaultMonthToDate());
+  // True while the picker shows an unusable range (end before start). The queries keep the
+  // last valid range, so the range-dependent widgets must not show its numbers meanwhile.
+  const [rangeInvalid, setRangeInvalid] = React.useState(false);
   const dateRange = React.useMemo(
     () => ({ from: range.from, to: range.to }),
     [range.from, range.to],
   );
 
   // ─── Data ────────────────────────────────────────────────────
-  const analyticsQ = trpc.reporting.getAnalyticsDashboard.useQuery({ dateRange });
+  // Header location switcher: undefined = all locations.
+  const locationId = toLocationFilter(useUiStore((s) => s.activeBranchId));
+  const analyticsQ = trpc.reporting.getAnalyticsDashboard.useQuery({ dateRange, locationId });
   const branchesQ = trpc.reporting.salesByLocation.useQuery({ dateRange });
   const salesQ = trpc.retail.listSales.useQuery({
+    filters: { locationId },
     pagination: { page: 1, limit: 5, sortOrder: 'desc' },
   });
   const ratesQ = trpc.india.rates.getAll.useQuery();
   const layoutQ = trpc.reporting.getDashboardLayout.useQuery();
 
+  const utils = trpc.useUtils();
+  // The layout is saved to localStorage first (optimistic) and then synced. `dirty`
+  // stays true until the server confirms, so a reload in between keeps the layout
+  // and the next load pushes it to the server.
+  // Saves are serialized: only one request is in flight and a newer layout replaces any
+  // queued one. Concurrent requests can commit out of order on the server (an older
+  // layout overwriting a Reset), and an older ack must never mark a newer layout synced.
+  const inFlightRef = React.useRef<WidgetLayoutState | null>(null);
+  const queuedRef = React.useRef<WidgetLayoutState | null>(null);
+  const flushRef = React.useRef<() => void>(() => undefined);
   const saveLayout = trpc.reporting.saveDashboardLayout.useMutation({
     onSuccess: () => {
-      setEditMode(false);
+      const saved = inFlightRef.current;
+      inFlightRef.current = null;
+      if (queuedRef.current) {
+        flushRef.current();
+        return;
+      }
       setSaveError(null);
+      if (saved) writeLocalLayout(saved, false);
       void utils.reporting.getDashboardLayout.invalidate();
     },
-    onError: (err) => setSaveError(err.message),
+    onError: (err) => {
+      inFlightRef.current = null;
+      if (queuedRef.current) {
+        flushRef.current();
+        return;
+      }
+      setSaveError(`${err.message} Your layout is kept on this device and will sync when you next open the dashboard.`);
+    },
   });
-  const utils = trpc.useUtils();
+  flushRef.current = () => {
+    if (inFlightRef.current || !queuedRef.current) return;
+    const next = queuedRef.current;
+    queuedRef.current = null;
+    inFlightRef.current = next;
+    saveLayout.mutate({ name: 'My Dashboard', isDefault: true, layout: toLayoutPayload(next) });
+  };
+  /** Persist locally (dirty until the server confirms) and sync to the server. */
+  const lastPersistedRef = React.useRef<string | null>(null);
+  const persistLayout = (state: WidgetLayoutState) => {
+    const key = JSON.stringify(state);
+    if (key === lastPersistedRef.current) return; // e.g. Done right after Reset: nothing new to save
+    lastPersistedRef.current = key;
+    writeLocalLayout(state, true);
+    queuedRef.current = state;
+    flushRef.current();
+  };
 
   // ─── Layout state ────────────────────────────────────────────
   const [layout, setLayout] = React.useState<WidgetLayoutState>(DEFAULT_LAYOUT_STATE);
@@ -81,10 +127,20 @@ export default function DashboardPage() {
   React.useEffect(() => {
     if (layoutReady) return;
     if (layoutQ.isSuccess) {
-      setLayout(buildLayoutState(layoutQ.data?.layout));
+      const { state, needsSync } = resolveInitialLayout(layoutQ.data?.layout, readLocalLayout());
+      setLayout(state);
+      lastPersistedRef.current = JSON.stringify(state);
       setLayoutReady(true);
+      if (needsSync) {
+        queuedRef.current = state;
+        flushRef.current();
+      } else {
+        writeLocalLayout(state, false);
+      }
     } else if (layoutQ.isError) {
-      setLayoutReady(true); // fall back to the default layout
+      // Server unavailable: fall back to the locally saved layout, else the default.
+      setLayout(readLocalLayout()?.state ?? DEFAULT_LAYOUT_STATE);
+      setLayoutReady(true);
     }
   }, [layoutReady, layoutQ.isSuccess, layoutQ.isError, layoutQ.data]);
 
@@ -109,12 +165,15 @@ export default function DashboardPage() {
     id: string;
     saleNumber: string;
     customerId: string | null;
+    customerName?: unknown;
+    customer?: unknown;
     totalPaise: unknown;
     createdAt: string | Date;
   }>).map((s) => ({
     id: s.id,
     saleNumber: s.saleNumber,
     customerId: s.customerId,
+    customerName: saleCustomerName(s),
     totalPaise: toNumber(s.totalPaise),
     createdAt: new Date(s.createdAt).toISOString(),
   }));
@@ -135,16 +194,20 @@ export default function DashboardPage() {
     setLayout((l) => (l.hidden.includes(id) ? l : { ...l, hidden: [...l.hidden, id] }));
   const showWidget = (id: WidgetId) =>
     setLayout((l) => ({ ...l, hidden: l.hidden.filter((h) => h !== id) }));
-  const resetLayout = () => setLayout(DEFAULT_LAYOUT_STATE);
+  // Reset restores every widget in the default order and persists it right away
+  // (local + server), so a stale hidden layout can never come back on reload.
+  const resetLayout = () => {
+    setSaveError(null);
+    setLayout(DEFAULT_LAYOUT_STATE);
+    persistLayout(DEFAULT_LAYOUT_STATE);
+  };
 
   const handleDone = () => {
     if (!editMode) return;
     setSaveError(null);
-    saveLayout.mutate({
-      name: 'My Dashboard',
-      isDefault: true,
-      layout: toLayoutPayload(layout),
-    });
+    // Optimistic: persist locally and leave edit mode immediately, then sync.
+    setEditMode(false);
+    persistLayout(layout);
   };
 
   const cancelEdit = () => {
@@ -152,8 +215,10 @@ export default function DashboardPage() {
     setDragId(null);
     setDropId(null);
     setSaveError(null);
-    // Discard unsaved changes by reloading the saved layout.
-    setLayout(buildLayoutState(layoutQ.data?.layout));
+    // Discard unsaved changes: back to the last saved layout (local first, else server).
+    const local = readLocalLayout();
+    const restored = local ? local.state : buildLayoutState(layoutQ.data?.layout);
+    setLayout(restored);
   };
 
   const endDrag = () => {
@@ -184,14 +249,17 @@ export default function DashboardPage() {
           isLoading={analyticsQ.isLoading}
           isError={analyticsQ.isError}
           onRetry={retryAnalytics}
+          invalidRange={rangeInvalid}
         />
       );
     } else {
       switch (id) {
         case 'revenue-chart':
-          body = (
+          body = rangeInvalid ? <InvalidRangeNotice /> : (
             <RevenueChartWidget
               chart={analytics?.charts[0]}
+              from={toLocalDateString(range.from)}
+              to={toLocalDateString(range.to)}
               isLoading={analyticsQ.isLoading}
               isError={analyticsQ.isError}
               onRetry={retryAnalytics}
@@ -209,7 +277,7 @@ export default function DashboardPage() {
           );
           break;
         case 'branch-performance':
-          body = (
+          body = rangeInvalid ? <InvalidRangeNotice /> : (
             <BranchPerformanceWidget
               rows={branchRows}
               isLoading={branchesQ.isLoading}
@@ -269,35 +337,35 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Welcome back! Here is an overview of your business."
         actions={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex max-w-full flex-wrap items-center gap-2 sm:gap-3">
             <DateRangePicker
               from={range.from}
               to={range.to}
               onChange={(from, to) => setRange({ from, to })}
+              onValidityChange={(valid) => setRangeInvalid(!valid)}
             />
             {editMode ? (
               <>
                 <button
                   type="button"
                   onClick={resetLayout}
-                  className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
                 >
                   <RotateCcw className="h-4 w-4" /> Reset
                 </button>
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleDone}
-                  disabled={saveLayout.isPending}
-                  className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
-                  <Check className="h-4 w-4" /> {saveLayout.isPending ? 'Saving...' : 'Done'}
+                  <Check className="h-4 w-4" /> Done
                 </button>
               </>
             ) : (
@@ -305,7 +373,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setEditMode(true)}
                 disabled={!layoutReady}
-                className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
               >
                 <Settings2 className="h-4 w-4" /> Customize
               </button>

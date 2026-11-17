@@ -5,6 +5,10 @@ import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { RfidScanMonitor } from '@/features/hardware/RfidScanMonitor';
 import { RfidStockTakeWizard } from '@/features/hardware/RfidStockTakeWizard';
+import { SerialPicker } from '@/features/hardware/SerialPicker';
+import { LocationSelect } from '@/features/inventory/location-select';
+import { validateEpc } from '@/features/hardware/hardware-utils';
+import { formatServerError } from '@/lib/manufacturing-forms';
 
 type ActiveTab = 'stock-take' | 'encode' | 'monitor' | 'anti-theft';
 
@@ -16,6 +20,13 @@ export default function RfidManagementPage() {
   const [monitorLocationId, setMonitorLocationId] = useState('');
   const [antiTheftEpc, setAntiTheftEpc] = useState('');
   const [antiTheftLocationId, setAntiTheftLocationId] = useState('');
+  const [epcTouched, setEpcTouched] = useState(false);
+  const epcError = validateEpc(encodeTagData);
+  const encodeHint = !encodeSerialId
+    ? 'Select a stock item to enable Write Tag.'
+    : epcError
+      ? epcError
+      : null;
 
   const writeTagMutation = trpc.hardware.rfid.writeTag.useMutation({
     onSuccess: () => {
@@ -31,10 +42,12 @@ export default function RfidManagementPage() {
   );
 
   const handleEncodeTag = () => {
-    if (!encodeSerialId || !encodeTagData) return;
+    setEpcTouched(true);
+    if (!encodeSerialId || epcError) return;
+    const epc = encodeTagData.trim().toUpperCase();
     writeTagMutation.mutate({
       serialNumberId: encodeSerialId,
-      data: { tagId: encodeTagData, data: encodeTagData },
+      data: { tagId: epc, data: epc },
     });
   };
 
@@ -89,34 +102,41 @@ export default function RfidManagementPage() {
           </p>
           <div className="max-w-md space-y-4">
             <div>
-              <label className="block text-sm font-medium" htmlFor="encode-serial-id">Serial Number ID</label>
-              <input
-                id="encode-serial-id"
-                type="text"
-                value={encodeSerialId}
-                onChange={(e) => setEncodeSerialId(e.target.value)}
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="UUID of the serial number record"
-              />
+              <label className="block text-sm font-medium" htmlFor="encode-serial-id">
+                Stock Item <span className="text-red-600" aria-hidden="true">*</span>
+              </label>
+              <div className="mt-1">
+                <SerialPicker id="encode-serial-id" value={encodeSerialId} onChange={setEncodeSerialId} />
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium" htmlFor="encode-tag-data">RFID Tag EPC Data</label>
+              <label className="block text-sm font-medium" htmlFor="encode-tag-data">
+                RFID Tag EPC Data (hex) <span className="text-red-600" aria-hidden="true">*</span>
+              </label>
               <input
                 id="encode-tag-data"
                 type="text"
                 value={encodeTagData}
                 onChange={(e) => setEncodeTagData(e.target.value)}
-                className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="EPC code to write to the tag"
+                onBlur={() => setEpcTouched(true)}
+                aria-invalid={epcTouched && !!epcError}
+                className={`mt-1 w-full rounded-md border px-3 py-2 font-mono text-sm ${epcTouched && epcError ? 'border-red-500' : ''}`}
+                placeholder="e.g. 3034257BF7194E4000000001"
               />
+              {epcTouched && epcError && (
+                <p role="alert" className="mt-1 text-xs text-red-600">{epcError}</p>
+              )}
             </div>
             <button
               onClick={handleEncodeTag}
-              disabled={!encodeSerialId || !encodeTagData || writeTagMutation.isPending}
+              disabled={!!encodeHint || writeTagMutation.isPending}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {writeTagMutation.isPending ? 'Writing...' : 'Write Tag'}
             </button>
+            {encodeHint && (
+              <p className="text-xs text-muted-foreground">{encodeHint}</p>
+            )}
             {writeTagMutation.isSuccess && (
               <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">
                 Tag encoded successfully.
@@ -124,7 +144,7 @@ export default function RfidManagementPage() {
             )}
             {writeTagMutation.isError && (
               <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                Failed to encode tag: {writeTagMutation.error.message}
+                Failed to encode tag: {formatServerError(writeTagMutation.error)}
               </div>
             )}
           </div>
@@ -135,15 +155,16 @@ export default function RfidManagementPage() {
       {activeTab === 'monitor' && (
         <div className="space-y-4">
           <div className="max-w-md">
-            <label className="block text-sm font-medium" htmlFor="monitor-location">Location ID</label>
-            <input
+            <label className="block text-sm font-medium" htmlFor="monitor-location">Location</label>
+            <LocationSelect
               id="monitor-location"
-              type="text"
               value={monitorLocationId}
-              onChange={(e) => setMonitorLocationId(e.target.value)}
+              onChange={setMonitorLocationId}
               className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-              placeholder="Enter location UUID to monitor"
             />
+            {!monitorLocationId && (
+              <p className="mt-1 text-xs text-muted-foreground">Select a location to start monitoring scans.</p>
+            )}
           </div>
           {monitorLocationId && (
             <RfidScanMonitor locationId={monitorLocationId} />
@@ -171,14 +192,12 @@ export default function RfidManagementPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium" htmlFor="at-location">Location ID</label>
-              <input
+              <label className="block text-sm font-medium" htmlFor="at-location">Exit point location</label>
+              <LocationSelect
                 id="at-location"
-                type="text"
                 value={antiTheftLocationId}
-                onChange={(e) => setAntiTheftLocationId(e.target.value)}
+                onChange={setAntiTheftLocationId}
                 className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="Exit point location UUID"
               />
             </div>
             <button
@@ -188,6 +207,12 @@ export default function RfidManagementPage() {
             >
               {antiTheftQuery.isFetching ? 'Checking...' : 'Check Tag'}
             </button>
+            {(!antiTheftEpc || !antiTheftLocationId) && (
+              <p className="text-xs text-muted-foreground">Enter a tag EPC and select a location to enable Check Tag.</p>
+            )}
+            {antiTheftQuery.isError && (
+              <p role="alert" className="text-sm text-red-600">{formatServerError(antiTheftQuery.error)}</p>
+            )}
             {antiTheftQuery.data && (
               <div
                 className={`rounded-md border p-4 ${

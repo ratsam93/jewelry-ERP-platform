@@ -43,6 +43,14 @@ export enum PayslipStatus {
   PAID = 'PAID',
 }
 
+// ─── Format patterns ─────────────────────────────────────────────
+
+/** YYYY-MM with a real month (01-12). `2026-13` and `2026-00` are rejected. */
+export const PAYROLL_PERIOD_LABEL_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+export const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+export const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+export const AADHAAR_REGEX = /^\d{12}$/;
+
 // ─── Zod Schemas ─────────────────────────────────────────────────
 
 export const EmployeeInputSchema = z.object({
@@ -62,12 +70,12 @@ export const EmployeeInputSchema = z.object({
   conveyancePaise: z.number().int().nonnegative().default(0),
   medicalPaise: z.number().int().nonnegative().default(0),
   otherAllowancePaise: z.number().int().nonnegative().default(0),
-  panNumber: z.string().max(20).optional(),
-  aadhaarNumber: z.string().max(20).optional(),
+  panNumber: z.string().regex(PAN_REGEX, 'PAN must look like ABCDE1234F').optional(),
+  aadhaarNumber: z.string().regex(AADHAAR_REGEX, 'Aadhaar must be 12 digits').optional(),
   pfNumber: z.string().max(50).optional(),
   esiNumber: z.string().max(50).optional(),
   bankAccountNumber: z.string().max(50).optional(),
-  bankIfsc: z.string().max(20).optional(),
+  bankIfsc: z.string().regex(IFSC_REGEX, 'IFSC must look like HDFC0001234').optional(),
   bankName: z.string().max(100).optional(),
 });
 export type EmployeeInput = z.infer<typeof EmployeeInputSchema>;
@@ -84,8 +92,8 @@ export const AttendanceInputSchema = z.object({
   status: z.nativeEnum(PayrollAttendanceStatus),
   checkInTime: z.coerce.date().optional(),
   checkOutTime: z.coerce.date().optional(),
-  hoursWorked: z.number().nonnegative().default(0),
-  overtimeHours: z.number().nonnegative().default(0),
+  hoursWorked: z.number().min(0).max(24, 'Hours worked cannot exceed 24').default(0),
+  overtimeHours: z.number().min(0).max(24, 'Overtime hours cannot exceed 24').default(0),
   source: z.nativeEnum(PayrollAttendanceSource).default(PayrollAttendanceSource.MANUAL),
 });
 export type AttendanceInput = z.infer<typeof AttendanceInputSchema>;
@@ -96,9 +104,14 @@ export const BulkAttendanceInputSchema = z.object({
 export type BulkAttendanceInput = z.infer<typeof BulkAttendanceInputSchema>;
 
 export const PayrollPeriodInputSchema = z.object({
-  periodLabel: z.string().regex(/^\d{4}-\d{2}$/, 'Format: YYYY-MM'),
+  periodLabel: z
+    .string()
+    .regex(PAYROLL_PERIOD_LABEL_REGEX, 'Period must be YYYY-MM with a month from 01 to 12'),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
+}).refine((v) => v.endDate.getTime() >= v.startDate.getTime(), {
+  message: 'End date must not be before start date',
+  path: ['endDate'],
 });
 export type PayrollPeriodInput = z.infer<typeof PayrollPeriodInputSchema>;
 

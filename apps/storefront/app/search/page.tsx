@@ -135,7 +135,7 @@ function SearchContent() {
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-end mb-4">
-              <select
+              <select aria-label="Sort products"
                 value={filters.sortBy}
                 onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as FilterState["sortBy"] })}
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-gold"

@@ -40,6 +40,17 @@ vi.mock('@/lib/trpc', () => {
   return { trpc: createProxy([]) };
 });
 
+// Recharts does not lay out in jsdom, so expose the chart's labels and values as plain text.
+vi.mock('@/features/reporting/ReportChart', () => ({
+  ReportChart: ({ data }: { data: { labels: string[]; datasets: Array<{ data: number[] }> } }) => (
+    <ul data-testid="report-chart">
+      {data.labels.map((label, i) => (
+        <li key={label}>{`${label}: ${data.datasets[0]?.data[i]}`}</li>
+      ))}
+    </ul>
+  ),
+}));
+
 import SalesReportPage from '../../../../app/(dashboard)/reports/sales/page';
 import SalesComparisonPage from '../../../../app/(dashboard)/reports/sales/comparison/page';
 import InventoryReportsPage from '../../../../app/(dashboard)/reports/inventory/page';
@@ -269,8 +280,8 @@ describe('ADM-010: report pages consume the real API shapes', () => {
     ];
     render(<ForecastReportsPage />);
     fireEvent.click(screen.getByText('Seasonality'));
-    expect(screen.getByText('Jan')).toBeTruthy();
-    expect(screen.getByText('Feb')).toBeTruthy();
+    expect(screen.getByText('Jan: 1.2')).toBeTruthy();
+    expect(screen.getByText('Feb: 0.9')).toBeTruthy();
   });
   it('forecast page does not throw when predictions is missing', () => {
     mockState.queries['reporting.demandForecast'] = { entityId: 'x', entityName: 'x', method: 'sma', accuracy: 0, mape: 0 };

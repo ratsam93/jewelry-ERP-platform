@@ -80,7 +80,7 @@ const faqs = [
   {
     question: "Do you offer annual billing discounts?",
     answer:
-      "Yes, we offer a 20% discount on annual billing. Pay for 10 months and get 12 months of access. Contact our sales team for annual billing options.",
+      "Yes. With annual billing you pay for 10 months and get 12 (about 17% off). Contact our sales team for annual billing options.",
   },
   {
     question: "What happens to my data if I cancel?",

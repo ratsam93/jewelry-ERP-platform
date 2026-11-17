@@ -338,6 +338,7 @@ export class EcommercePaymentService extends TenantAwareService {
     const [items, total] = await Promise.all([
       this.prisma.onlinePayment.findMany({
         where,
+        include: { gateway: { select: { name: true } }, order: { select: { orderNumber: true } } },
         orderBy: { createdAt: pagination.sortOrder ?? 'desc' },
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
@@ -391,6 +392,8 @@ export class EcommercePaymentService extends TenantAwareService {
       completedAt: p.completedAt ? new Date(p.completedAt as string) : null,
       refundedAt: p.refundedAt ? new Date(p.refundedAt as string) : null,
       refundAmountPaise: p.refundAmountPaise ? Number(p.refundAmountPaise) : null,
+      gatewayName: (p.gateway as { name?: string } | null | undefined)?.name ?? null,
+      orderNumber: (p.order as { orderNumber?: string } | null | undefined)?.orderNumber ?? null,
       createdAt: new Date(p.createdAt as string),
       updatedAt: new Date(p.updatedAt as string),
     };

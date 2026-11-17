@@ -7,14 +7,18 @@ import { Plus, FileText } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatPaise, formatDate } from '@/components/format';
+import { poHeaderView } from '@/lib/wholesale-form';
 
 interface PORow {
   id: string;
   poNumber: string;
   status: string;
   totalPaise: string | number | bigint | null;
-  expectedDeliveryDate: string | null;
+  expectedDate?: string | null;
+  expectedDeliveryDate?: string | null;
   createdAt: string;
+  supplierName?: string;
+  locationName?: string;
   supplier?: { name: string } | null;
   location?: { name: string } | null;
 }
@@ -96,20 +100,23 @@ export default function PurchaseOrdersPage() {
           />
         ) : (
           <div className="divide-y">
-            {items.map((po) => (
+            {items.map((po) => {
+              const v = poHeaderView(po as unknown as Record<string, unknown>);
+              return (
               <Link
                 key={po.id}
                 href={`/wholesale/purchase-orders/${po.id}`}
                 className="grid grid-cols-[1.2fr_1.4fr_1fr_1fr_1fr_0.8fr] gap-4 px-4 py-3 text-sm hover:bg-accent"
               >
                 <span className="font-mono font-medium">{po.poNumber}</span>
-                <span>{po.supplier?.name ?? '-'}</span>
-                <span className="text-muted-foreground">{po.location?.name ?? '-'}</span>
+                <span>{v.supplier}</span>
+                <span className="text-muted-foreground">{v.location}</span>
                 <span className="font-semibold">{formatPaise(po.totalPaise)}</span>
                 <StatusBadge label={po.status.replace(/_/g, ' ')} variant={getStatusVariant(po.status)} dot={false} />
-                <span className="text-muted-foreground">{formatDate(po.expectedDeliveryDate)}</span>
+                <span className="text-muted-foreground">{formatDate(v.expectedDate)}</span>
               </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

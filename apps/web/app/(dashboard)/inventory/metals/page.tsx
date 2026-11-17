@@ -5,39 +5,53 @@ import { PageHeader, FormField } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { MetalStockCard } from '@/features/inventory/metal-stock-card';
 import { InventoryMetalType } from '@caratflow/shared-types';
+import { LocationSelect } from '@/features/inventory/location-select';
+import { buildMetalAdjustInput, type MetalAdjustForm } from '@/lib/inventory-forms';
+import { formatServerError } from '@/lib/manufacturing-forms';
 
 export default function MetalsPage() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [showAdjustForm, setShowAdjustForm] = useState(false);
   const [adjustData, setAdjustData] = useState({
-    metalType: InventoryMetalType.GOLD,
-    purityFineness: 916,
-    weightChangeMg: '',
-    valueChangePaise: '',
+    metalType: InventoryMetalType.GOLD as string,
+    purityFineness: '916',
+    weightGrams: '',
+    valueRupees: '',
     notes: '',
   });
+  const [errors, setErrors] = useState<Partial<Record<keyof MetalAdjustForm, string>>>({});
+  const [success, setSuccess] = useState('');
 
-  // For location selection, we'd normally fetch locations via platform.locations
-  // Using the metal stock query with a selected location
-  const { data: metalStocks, isLoading, refetch } = trpc.inventory.metalStock.getByLocation.useQuery(
+  const {
+    data: metalStocks,
+    isLoading,
+    error: stockError,
+    refetch,
+  } = trpc.inventory.metalStock.getByLocation.useQuery(
     { locationId: selectedLocationId },
     { enabled: !!selectedLocationId },
   );
 
   const adjustMutation = trpc.inventory.metalStock.adjust.useMutation({
-    onSuccess: () => { setShowAdjustForm(false); refetch(); },
+    onSuccess: () => {
+      setShowAdjustForm(false);
+      setErrors({});
+      setSuccess('Metal stock adjusted.');
+      setAdjustData((d) => ({ ...d, weightGrams: '', valueRupees: '', notes: '' }));
+      refetch();
+    },
   });
 
   const handleAdjust = () => {
-    if (!selectedLocationId) return;
-    adjustMutation.mutate({
-      locationId: selectedLocationId,
-      metalType: adjustData.metalType,
-      purityFineness: adjustData.purityFineness,
-      weightChangeMg: BigInt(adjustData.weightChangeMg || '0'),
-      valueChangePaise: BigInt(adjustData.valueChangePaise || '0'),
-      notes: adjustData.notes || undefined,
-    });
+    setSuccess('');
+    const result = buildMetalAdjustInput({ ...adjustData, locationId: selectedLocationId });
+    if (!result.ok) {
+      setErrors(result.errors);
+      return;
+    }
+    setErrors({});
+    // Weights (mg) and money (paise) go over the wire as decimal strings: JSON cannot carry a BigInt.
+    adjustMutation.mutate(result.input as never);
   };
 
   return (
@@ -65,19 +79,30 @@ export default function MetalsPage() {
       {/* Location Selector */}
       <div className="flex items-center gap-3">
         <FormField label="Location" htmlFor="location-select">
-          <input
+          <LocationSelect
             id="location-select"
-            type="text"
-            placeholder="Enter location ID to view metal stock..."
             value={selectedLocationId}
-            onChange={(e) => setSelectedLocationId(e.target.value)}
-            className="h-9 w-96 rounded-md border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            onChange={(id) => { setSelectedLocationId(id); setSuccess(''); }}
+            placeholder="Select a location to view metal stock"
+            className="h-9 w-96 rounded-md border border-input bg-transparent px-3 text-sm"
           />
         </FormField>
       </div>
 
+      {success && (
+        <p role="status" className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {success}
+        </p>
+      )}
+
+      {selectedLocationId && stockError && (
+        <p role="alert" className="text-sm text-destructive">
+          Could not load metal stock: {formatServerError(stockError)}
+        </p>
+      )}
+
       {/* Metal Stock Cards */}
-      {selectedLocationId && (
+      {selectedLocationId && !stockError && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
@@ -112,10 +137,10 @@ export default function MetalsPage() {
         <div className="rounded-lg border p-6 space-y-4">
           <h3 className="font-semibold">Adjust Metal Stock</h3>
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Metal Type" required>
+            <FormField label="Metal Type" required error={errors.metalType}>
               <select
                 value={adjustData.metalType}
-                onChange={(e) => setAdjustData({ ...adjustData, metalType: e.target.value as InventoryMetalType })}
+                onChange={(e) => setAdjustData({ ...adjustData, metalType: e.target.value })}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
               >
                 <option value="GOLD">Gold</option>
@@ -123,35 +148,35 @@ export default function MetalsPage() {
                 <option value="PLATINUM">Platinum</option>
               </select>
             </FormField>
-            <FormField label="Purity Fineness" required>
+            <FormField label="Purity Fineness" required error={errors.purityFineness}>
               <input
                 type="number"
                 value={adjustData.purityFineness}
-                onChange={(e) => setAdjustData({ ...adjustData, purityFineness: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setAdjustData({ ...adjustData, purityFineness: e.target.value })}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                 min={1}
                 max={999}
               />
             </FormField>
-            <FormField label="Weight Change (mg)" description="Positive to add, negative to deduct" required>
+            <FormField label="Weight Change (g)" description="Positive to add, negative to deduct (up to 3 decimals)" required error={errors.weightGrams}>
               <input
                 type="text"
-                value={adjustData.weightChangeMg}
-                onChange={(e) => setAdjustData({ ...adjustData, weightChangeMg: e.target.value })}
+                value={adjustData.weightGrams}
+                onChange={(e) => setAdjustData({ ...adjustData, weightGrams: e.target.value })}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                placeholder="e.g. 10000 for 10g"
+                placeholder="e.g. 10.5"
               />
             </FormField>
-            <FormField label="Value Change (paise)" required>
+            <FormField label="Value Change (Rs.)" description="Optional; use a minus sign to reduce" error={errors.valueRupees}>
               <input
                 type="text"
-                value={adjustData.valueChangePaise}
-                onChange={(e) => setAdjustData({ ...adjustData, valueChangePaise: e.target.value })}
+                value={adjustData.valueRupees}
+                onChange={(e) => setAdjustData({ ...adjustData, valueRupees: e.target.value })}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                placeholder="e.g. 500000 for Rs.5000"
+                placeholder="e.g. 5000"
               />
             </FormField>
-            <FormField label="Notes" className="md:col-span-2">
+            <FormField label="Reason / Notes" className="md:col-span-2">
               <textarea
                 value={adjustData.notes}
                 onChange={(e) => setAdjustData({ ...adjustData, notes: e.target.value })}
@@ -160,8 +185,12 @@ export default function MetalsPage() {
               />
             </FormField>
           </div>
+          {adjustMutation.error && (
+            <p role="alert" className="text-sm text-destructive">{formatServerError(adjustMutation.error)}</p>
+          )}
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={handleAdjust}
               disabled={adjustMutation.isPending}
               className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
@@ -169,6 +198,7 @@ export default function MetalsPage() {
               {adjustMutation.isPending ? 'Adjusting...' : 'Apply Adjustment'}
             </button>
             <button
+              type="button"
               onClick={() => setShowAdjustForm(false)}
               className="h-9 rounded-md border px-4 text-sm"
             >

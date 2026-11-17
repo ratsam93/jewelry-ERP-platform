@@ -252,7 +252,7 @@ export default function SearchBar({ className, expanded = false }: SearchBarProp
           />
         </svg>
 
-        <input
+        <input aria-label="Search jewelry"
           ref={inputRef}
           type="text"
           value={localQuery}

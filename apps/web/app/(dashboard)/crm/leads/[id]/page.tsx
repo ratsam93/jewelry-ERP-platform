@@ -3,7 +3,8 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
-import { formatDate } from '@/components/format';
+import { formatDate, formatPaise } from '@/components/format';
+import { leadView, orDash } from '@/lib/crm-form';
 import { renderDetailState } from '@/components/detail-states';
 
 export default function LeadDetailPage() {
@@ -23,18 +24,19 @@ export default function LeadDetailPage() {
   });
   if (state) return state;
   const l = data as Record<string, unknown>;
+  const lv = leadView(l);
   const acts = (activities as Array<Record<string, unknown>> | undefined) ?? [];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={(l.name as string) ?? 'Lead'}
+        title={lv.name || 'Lead'}
         description={(l.phone as string) ?? (l.email as string) ?? ''}
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'CRM', href: '/crm' },
           { label: 'Leads', href: '/crm/leads' },
-          { label: (l.name as string) ?? '' },
+          { label: lv.name || 'Lead' },
         ]}
         actions={
           <div className="flex gap-2">
@@ -49,10 +51,12 @@ export default function LeadDetailPage() {
       />
 
       <div className="rounded-lg border p-4 space-y-2 text-sm">
-        <div className="flex justify-between"><span className="text-muted-foreground">Source</span><span>{(l.source as string) ?? '-'}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span>{(l.phone as string) ?? '-'}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span>{(l.email as string) ?? '-'}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Notes</span><span>{(l.notes as string) ?? '-'}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Source</span><span>{orDash(l.source)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span>{orDash(l.phone)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span>{orDash(l.email)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Estimated value</span><span>{formatPaise(lv.estimatedValuePaise)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Next follow-up</span><span>{formatDate(l.nextFollowUpDate)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Notes</span><span>{orDash(l.notes)}</span></div>
       </div>
 
       <div>

@@ -5,10 +5,13 @@ import { PageHeader, StatCard } from '@caratflow/ui';
 import { Globe, ShoppingCart, Truck, CreditCard, Star, Package, ArrowRight } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { formatPaise } from '@/components/format';
+import { dashboardKpis } from '@/lib/ecommerce-forms';
 
 export default function EcommerceDashboardPage() {
   const { data } = trpc.ecommerce.getDashboard.useQuery();
   const d = (data as Record<string, unknown> | undefined) ?? {};
+
+  const k = dashboardKpis(d);
 
   const links = [
     { label: 'Channels', href: '/ecommerce/channels', icon: Globe },
@@ -24,11 +27,12 @@ export default function EcommerceDashboardPage() {
     <div className="space-y-6">
       <PageHeader title="E-Commerce" breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'E-Commerce' }]} />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Active Channels" value={String((d.activeChannels as number) ?? 0)} icon={<Globe className="h-4 w-4" />} />
-        <StatCard title="MTD Orders" value={String((d.mtdOrders as number) ?? 0)} icon={<ShoppingCart className="h-4 w-4" />} />
-        <StatCard title="MTD Revenue" value={formatPaise(d.mtdRevenuePaise)} icon={<CreditCard className="h-4 w-4" />} />
-        <StatCard title="Pending Shipments" value={String((d.pendingShipments as number) ?? 0)} icon={<Truck className="h-4 w-4" />} />
+        <StatCard title="Active Channels" value={String(k.activeChannels)} icon={<Globe className="h-4 w-4" />} />
+        <StatCard title="MTD Orders" value={String(k.mtdOrders)} icon={<ShoppingCart className="h-4 w-4" />} />
+        <StatCard title="MTD Revenue" value={formatPaise(k.mtdRevenuePaise)} icon={<CreditCard className="h-4 w-4" />} />
+        <StatCard title="Pending Shipments" value={String(k.pendingShipments)} icon={<Truck className="h-4 w-4" />} />
       </div>
+      <p className="text-xs text-muted-foreground">Pending Shipments counts confirmed or processing orders that have no shipment yet.</p>
       <div className="space-y-2">
         {links.map((l) => (
           <Link key={l.label} href={l.href} className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent">

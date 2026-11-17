@@ -15,6 +15,7 @@ import type {
   SalesComparisonResponse,
   DateRange,
 } from '@caratflow/shared-types';
+import { inclusiveRangeEnd } from './date-range.util';
 
 @Injectable()
 export class ReportingSalesService extends TenantAwareService {
@@ -120,7 +121,7 @@ export class ReportingSalesService extends TenantAwareService {
     const where: Record<string, unknown> = {
       tenantId,
       status: 'COMPLETED',
-      createdAt: { gte: dateRange.from, lte: dateRange.to },
+      createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       ...(locationId ? { locationId } : {}),
     };
 
@@ -139,7 +140,7 @@ export class ReportingSalesService extends TenantAwareService {
       where: {
         tenantId,
         status: 'COMPLETED',
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
         ...(locationId ? { locationId } : {}),
       },
       select: {
@@ -217,7 +218,7 @@ export class ReportingSalesService extends TenantAwareService {
         sale: {
           tenantId,
           status: 'COMPLETED',
-          createdAt: { gte: dateRange.from, lte: dateRange.to },
+          createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
           ...(locationId ? { locationId } : {}),
         },
       },
@@ -268,7 +269,7 @@ export class ReportingSalesService extends TenantAwareService {
       where: {
         tenantId,
         status: 'COMPLETED',
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
         ...(locationId ? { locationId } : {}),
       },
       select: {
@@ -316,7 +317,7 @@ export class ReportingSalesService extends TenantAwareService {
         sale: {
           tenantId,
           status: 'COMPLETED',
-          createdAt: { gte: dateRange.from, lte: dateRange.to },
+          createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
         },
       },
       select: {
@@ -371,7 +372,7 @@ export class ReportingSalesService extends TenantAwareService {
       where: {
         tenantId,
         status: 'COMPLETED',
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       select: {
         locationId: true,

@@ -7,6 +7,7 @@ import { Plus, Truck } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatDate } from '@/components/format';
+import { consignmentPartyName } from '@/lib/wholesale-form';
 
 export default function ConsignmentsInPage() {
   const [page, setPage] = useState(1);
@@ -28,10 +29,10 @@ export default function ConsignmentsInPage() {
           { label: 'Consignments In' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/wholesale/consignments-in/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" />
             Record Consignment
-          </button>
+          </Link>
         }
       />
 
@@ -63,7 +64,6 @@ export default function ConsignmentsInPage() {
         ) : (
           <div className="divide-y">
             {items.map((c) => {
-              const supplier = c.supplier as { name?: string } | undefined;
               return (
                 <Link
                   key={c.id as string}
@@ -71,7 +71,7 @@ export default function ConsignmentsInPage() {
                   className="grid grid-cols-[1.4fr_1.4fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm hover:bg-accent"
                 >
                   <span className="font-mono font-medium">{c.consignmentNumber as string}</span>
-                  <span>{supplier?.name ?? '-'}</span>
+                  <span>{consignmentPartyName(c, 'supplier')}</span>
                   <StatusBadge label={(c.status as string).replace(/_/g, ' ')} variant={getStatusVariant(c.status as string)} dot={false} />
                   <span className="text-muted-foreground">{formatDate(c.receivedDate)}</span>
                   <span className="text-muted-foreground">{formatDate(c.dueDate)}</span>

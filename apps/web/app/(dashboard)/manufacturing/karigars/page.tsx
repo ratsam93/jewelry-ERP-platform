@@ -25,9 +25,9 @@ export default function KarigarsPage() {
           { label: 'Karigars' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/manufacturing/karigars/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" /> Add Karigar
-          </button>
+          </Link>
         }
       />
 

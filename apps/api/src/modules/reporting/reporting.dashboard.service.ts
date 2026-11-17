@@ -16,6 +16,7 @@ import type {
   DateRange,
 } from '@caratflow/shared-types';
 import { ChartTypeEnum } from '@caratflow/shared-types';
+import { inclusiveRangeEnd } from './date-range.util';
 
 @Injectable()
 export class ReportingDashboardService extends TenantAwareService {
@@ -33,7 +34,7 @@ export class ReportingDashboardService extends TenantAwareService {
   ): Promise<AnalyticsDashboardResponse> {
     const now = new Date();
     const from = dateRange?.from ?? new Date(now.getFullYear(), now.getMonth(), 1);
-    const to = dateRange?.to ?? now;
+    const to = dateRange?.to ? inclusiveRangeEnd(dateRange.to) : now;
 
     // Calculate previous period for comparison
     const periodMs = to.getTime() - from.getTime();
@@ -364,7 +365,7 @@ export class ReportingDashboardService extends TenantAwareService {
   ): Promise<unknown> {
     const now = new Date();
     const from = dateRange?.from ?? new Date(now.getFullYear(), now.getMonth(), 1);
-    const to = dateRange?.to ?? now;
+    const to = dateRange?.to ? inclusiveRangeEnd(dateRange.to) : now;
 
     switch (widgetType) {
       case 'STAT_CARD':

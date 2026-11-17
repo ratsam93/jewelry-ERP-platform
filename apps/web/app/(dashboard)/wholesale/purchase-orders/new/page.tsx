@@ -3,12 +3,18 @@
 import { PageHeader } from '@caratflow/ui';
 import { useRouter } from 'next/navigation';
 import { PurchaseOrderForm } from '@/features/wholesale/PurchaseOrderForm';
+import { useWholesaleLookups } from '@/features/wholesale/useWholesaleLookups';
 import { trpc } from '@/lib/trpc';
+import { readableError } from '@/lib/wholesale-form';
 
 export default function NewPurchaseOrderPage() {
   const router = useRouter();
+  const { supplierOptions, locationOptions, productOptions } = useWholesaleLookups();
   const createMutation = trpc.wholesale.createPurchaseOrder.useMutation({
-    onSuccess: () => router.push('/wholesale/purchase-orders'),
+    onSuccess: (result: unknown) => {
+      const id = (result as { id?: string } | null)?.id;
+      router.push(id ? `/wholesale/purchase-orders/${id}` : '/wholesale/purchase-orders');
+    },
   });
 
   return (
@@ -24,9 +30,12 @@ export default function NewPurchaseOrderPage() {
         ]}
       />
       <PurchaseOrderForm
-        onSubmit={(data) => {
-          createMutation.mutate(data as never);
-        }}
+        suppliers={supplierOptions}
+        locations={locationOptions}
+        products={productOptions}
+        submitting={createMutation.isPending}
+        error={createMutation.error ? readableError(createMutation.error, 'Could not create the purchase order.') : null}
+        onSubmit={(data) => createMutation.mutate(data as never)}
         onCancel={() => router.push('/wholesale/purchase-orders')}
       />
     </div>

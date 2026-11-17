@@ -1,3 +1,5 @@
+import { validateSupplierFormats } from './wholesale-form';
+
 export interface SupplierFormValues {
   name: string;
   contactPerson: string;
@@ -32,13 +34,21 @@ export function buildSupplierInput(form: SupplierFormValues): {
     if (max && v.length > max) errors[key] = `Must be at most ${max} characters`;
   }
   if (!input.name) errors.name = 'Supplier name is required';
-  if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email as string)) {
-    errors.email = 'Enter a valid email address';
-  }
   if (input.country && !/^[A-Za-z]{2}$/.test(input.country as string)) {
     errors.country = 'Use a 2-letter country code (e.g. IN)';
   } else if (input.country) {
     input.country = (input.country as string).toUpperCase();
   }
+  // Format checks (GSTIN, PAN, pincode, phone, email) run on top of the length checks.
+  for (const [k, msg] of Object.entries(
+    validateSupplierFormats({
+      gstinNumber: form.gstinNumber, panNumber: form.panNumber, postalCode: form.postalCode,
+      country: form.country, phone: form.phone, email: form.email,
+    }),
+  )) {
+    if (!errors[k]) errors[k] = msg;
+  }
+  if (typeof input.gstinNumber === 'string') input.gstinNumber = input.gstinNumber.toUpperCase();
+  if (typeof input.panNumber === 'string') input.panNumber = input.panNumber.toUpperCase();
   return Object.keys(errors).length ? { input: null, errors } : { input, errors };
 }

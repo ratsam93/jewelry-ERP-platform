@@ -10,6 +10,17 @@ import { TenantAwareService } from '../../common/base.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import { v4 as uuidv4 } from 'uuid';
 
+function returnCustomerName(c: { firstName?: string; lastName?: string } | null | undefined): string | null {
+  if (!c) return null;
+  return `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || null;
+}
+
+/** Human-readable item label: the original sale line description, else the product name. */
+function returnItemDescription(item: unknown): string | null {
+  const i = item as { originalLineItem?: { description?: string } | null; product?: { name?: string } | null };
+  return i.originalLineItem?.description ?? i.product?.name ?? null;
+}
+
 @Injectable()
 export class RetailReturnService extends TenantAwareService {
   constructor(
@@ -156,7 +167,7 @@ export class RetailReturnService extends TenantAwareService {
   async completeReturn(tenantId: string, userId: string, returnId: string): Promise<SaleReturnResponse> {
     const saleReturn = await this.prisma.saleReturn.findFirst({
       where: this.tenantWhere(tenantId, { id: returnId }) as { tenantId: string; id: string },
-      include: { items: true },
+      include: { items: { include: { originalLineItem: { select: { description: true, unitPricePaise: true } }, product: { select: { name: true, sku: true } } } }, customer: { select: { firstName: true, lastName: true, phone: true } } },
     });
 
     if (!saleReturn) throw new NotFoundException('Return not found');
@@ -234,7 +245,7 @@ export class RetailReturnService extends TenantAwareService {
   async getReturn(tenantId: string, returnId: string): Promise<SaleReturnResponse> {
     const saleReturn = await this.prisma.saleReturn.findFirst({
       where: this.tenantWhere(tenantId, { id: returnId }) as { tenantId: string; id: string },
-      include: { items: true },
+      include: { items: { include: { originalLineItem: { select: { description: true, unitPricePaise: true } }, product: { select: { name: true, sku: true } } } }, customer: { select: { firstName: true, lastName: true, phone: true } } },
     });
 
     if (!saleReturn) throw new NotFoundException('Return not found');
@@ -245,6 +256,7 @@ export class RetailReturnService extends TenantAwareService {
       returnNumber: saleReturn.returnNumber,
       originalSaleId: saleReturn.originalSaleId,
       customerId: saleReturn.customerId,
+      customerName: returnCustomerName((saleReturn as any).customer),
       locationId: saleReturn.locationId,
       reason: saleReturn.reason,
       status: saleReturn.status as SaleReturnStatus,
@@ -256,6 +268,7 @@ export class RetailReturnService extends TenantAwareService {
         id: item.id,
         originalLineItemId: item.originalLineItemId,
         productId: item.productId,
+        description: returnItemDescription(item),
         quantity: item.quantity,
         returnPricePaise: Number(item.returnPricePaise),
         reason: item.reason,
@@ -277,7 +290,7 @@ export class RetailReturnService extends TenantAwareService {
     const [items, total] = await Promise.all([
       this.prisma.saleReturn.findMany({
         where,
-        include: { items: true },
+        include: { items: { include: { originalLineItem: { select: { description: true, unitPricePaise: true } }, product: { select: { name: true, sku: true } } } }, customer: { select: { firstName: true, lastName: true, phone: true } } },
         orderBy: { createdAt: 'desc' },
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
@@ -294,6 +307,7 @@ export class RetailReturnService extends TenantAwareService {
         returnNumber: r.returnNumber,
         originalSaleId: r.originalSaleId,
         customerId: r.customerId,
+        customerName: returnCustomerName((r as any).customer),
         locationId: r.locationId,
         reason: r.reason,
         status: r.status as SaleReturnStatus,
@@ -305,6 +319,7 @@ export class RetailReturnService extends TenantAwareService {
           id: item.id,
           originalLineItemId: item.originalLineItemId,
           productId: item.productId,
+          description: returnItemDescription(item),
           quantity: item.quantity,
           returnPricePaise: Number(item.returnPricePaise),
           reason: item.reason,

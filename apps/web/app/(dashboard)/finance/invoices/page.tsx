@@ -6,7 +6,8 @@ import { PageHeader, StatusBadge, getStatusVariant, EmptyState } from '@caratflo
 import { FileText, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
-import { formatPaise, formatDate } from '@/components/format';
+import { formatPaise } from '@/components/format';
+import { formatDateOnly, formatTimestampDate } from '@/lib/date-only';
 import { invoiceCounterpartyName } from '@/lib/invoice-party';
 
 export default function InvoicesPage() {
@@ -53,8 +54,8 @@ export default function InvoicesPage() {
                 <span>{invoiceCounterpartyName(i)}</span>
                 <span className="font-semibold">{formatPaise(i.totalPaise)}</span>
                 <StatusBadge label={(i.status as string) ?? '-'} variant={getStatusVariant(i.status as string)} dot={false} />
-                <span className="text-muted-foreground">{formatDate(i.issuedDate ?? i.createdAt)}</span>
-                <span className="text-muted-foreground">{formatDate(i.dueDate)}</span>
+                <span className="text-muted-foreground">{formatTimestampDate(i.issuedDate ?? i.createdAt)}</span>
+                <span className="text-muted-foreground">{formatDateOnly(i.dueDate)}</span>
               </Link>
             ))}
           </div>

@@ -65,19 +65,20 @@ export function WidgetCard({
       className={cn(
         SPAN_CLASSES[span],
         'relative min-w-0',
-        editMode && 'cursor-move rounded-lg ring-2 ring-dashed ring-primary/40',
+        // pt-12 reserves a row for the toolbar so it never covers KPI icons / card headers.
+        editMode && 'cursor-move rounded-lg pt-12 ring-2 ring-dashed ring-primary/40',
         isDragging && 'opacity-40',
         isDropTarget && !isDragging && 'ring-primary',
       )}
     >
       {editMode && (
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md border bg-background/95 px-1 py-0.5 shadow-sm">
+        <div className="absolute right-2 top-1 z-10 flex items-center gap-1 rounded-md border bg-background/95 px-1 py-0.5 shadow-sm">
           <GripVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <button
             type="button"
             onClick={() => onHide(id)}
             draggable={false}
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="inline-flex h-10 w-10 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
             aria-label={`Hide ${title}`}
             title={`Hide ${title}`}
           >

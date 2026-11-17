@@ -8,6 +8,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { PlatformPdfService } from '../platform/platform.pdf.service';
 import { parsePagination, buildPaginatedResult } from '../../common/pagination.helper';
 import type { Prisma } from '@caratflow/db';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import type {
   JournalEntryInput,
   JournalEntryListInput,
@@ -20,6 +21,19 @@ import type {
 } from '@caratflow/shared-types';
 
 type AccountTypeValue = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
+
+interface LedgerAccountSpec { code: string; name: string; type: AccountTypeValue }
+
+/** Standard chart-of-accounts entries used when posting system journals (codes match the demo ledger seed). */
+export const LEDGER = {
+  CASH: { code: '1000', name: 'Cash / Bank', type: 'ASSET' },
+  AR: { code: '1200', name: 'Accounts Receivable', type: 'ASSET' },
+  INVENTORY: { code: '1400', name: 'Inventory', type: 'ASSET' },
+  GST_INPUT: { code: '1500', name: 'GST Input Credit', type: 'ASSET' },
+  AP: { code: '2000', name: 'Accounts Payable', type: 'LIABILITY' },
+  GST_OUTPUT: { code: '2100', name: 'GST Output Payable', type: 'LIABILITY' },
+  REVENUE: { code: '4000', name: 'Sales Revenue', type: 'REVENUE' },
+} as const satisfies Record<string, LedgerAccountSpec>;
 
 @Injectable()
 export class FinancialService extends TenantAwareService {
@@ -369,7 +383,9 @@ export class FinancialService extends TenantAwareService {
     let totalDiscountPaise = BigInt(0);
     let totalTaxPaise = BigInt(0);
 
-    const lineItemsData = input.lineItems.map((line) => {
+    // Distinct, increasing createdAt per line keeps entry order stable (detail pages sort by it).
+    const lineBaseMs = Date.now();
+    const lineItemsData = input.lineItems.map((line, lineIdx) => {
       const lineTotal = BigInt(line.unitPricePaise) * BigInt(line.quantity);
       const discountPaise = BigInt(line.discountPaise ?? 0);
       const taxableAmountPaise = lineTotal - discountPaise;
@@ -401,6 +417,7 @@ export class FinancialService extends TenantAwareService {
         sgstPaise: BigInt(gst.sgstPaise),
         igstPaise: BigInt(gst.igstPaise),
         totalPaise: lineTotalWithTax,
+        createdAt: new Date(lineBaseMs + lineIdx),
       };
     });
 
@@ -497,8 +514,19 @@ export class FinancialService extends TenantAwareService {
       }
     }
 
-    return invoice;
+    return maskSensitiveDeep(invoice);
   }
+
+  /** Allowed invoice status transitions (DRAFT -> SENT is "issue invoice"). */
+  static readonly INVOICE_TRANSITIONS: Record<string, string[]> = {
+    DRAFT: ['SENT', 'CANCELLED'],
+    SENT: ['CANCELLED', 'VOIDED'],
+    PARTIALLY_PAID: ['VOIDED'],
+    OVERDUE: ['CANCELLED', 'VOIDED'],
+    PAID: ['VOIDED'],
+    CANCELLED: [],
+    VOIDED: [],
+  };
 
   async updateInvoiceStatus(tenantId: string, userId: string, id: string, status: string) {
     const invoice = await this.prisma.invoice.findFirst({
@@ -506,26 +534,37 @@ export class FinancialService extends TenantAwareService {
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
 
-    return this.prisma.invoice.update({
+    const allowed = FinancialService.INVOICE_TRANSITIONS[invoice.status as string];
+    if (allowed && !allowed.includes(status)) {
+      throw new BadRequestException(`Cannot change invoice from ${invoice.status} to ${status}`);
+    }
+
+    // Issuing posts the ledger journal first so a ledger failure leaves the invoice DRAFT.
+    if (status === 'SENT' && invoice.status === 'DRAFT') {
+      await this.postInvoiceJournal(tenantId, userId, invoice as never);
+    }
+
+    return maskSensitiveDeep(await this.prisma.invoice.update({
       where: { id },
       data: { status: status as 'DRAFT' | 'SENT' | 'CANCELLED' | 'VOIDED', updatedBy: userId },
       include: { lineItems: true, customer: true, supplier: true },
-    });
+    }));
   }
 
   async getInvoice(tenantId: string, id: string) {
     const invoice = await this.prisma.invoice.findFirst({
       where: this.tenantWhere(tenantId, { id }) as Prisma.InvoiceWhereInput,
       include: {
-        lineItems: { include: { product: true } },
+        lineItems: { include: { product: true }, orderBy: { createdAt: 'asc' } },
         customer: true,
         supplier: true,
+        location: true,
         payments: true,
         taxTransactions: true,
       },
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
-    return invoice;
+    return maskSensitiveDeep(invoice);
   }
 
   async listInvoices(tenantId: string, input: InvoiceListInput) {
@@ -556,7 +595,7 @@ export class FinancialService extends TenantAwareService {
       this.prisma.invoice.count({ where }),
     ]);
 
-    return buildPaginatedResult(items, total, page, limit);
+    return buildPaginatedResult(maskSensitiveDeep(items), total, page, limit);
   }
 
   // ─── Payments ─────────────────────────────────────────────────
@@ -604,7 +643,54 @@ export class FinancialService extends TenantAwareService {
       include: { customer: true, supplier: true, invoice: true },
     });
 
-    return payment;
+    return maskSensitiveDeep(payment);
+  }
+
+  /**
+   * Resolve a ledger account by explicit chart-of-accounts code (falling back to
+   * an exact name match of the same type). Never returns an account already
+   * chosen for another leg (see `exclude`). Auto-provisions the standard
+   * demo-chart account when the tenant has none yet; throws a clear error if that
+   * is impossible, so a journal is never posted against the wrong account.
+   */
+  private async resolveLedgerAccount(
+    tenantId: string,
+    userId: string,
+    spec: LedgerAccountSpec,
+    exclude: string[] = [],
+  ): Promise<{ id: string }> {
+    const notExcluded = exclude.length ? { id: { notIn: exclude } } : {};
+    let found = await this.prisma.account.findFirst({
+      where: { tenantId, accountCode: spec.code, ...notExcluded },
+    });
+    if (!found) {
+      found = await this.prisma.account.findFirst({
+        where: { tenantId, accountType: spec.type, name: spec.name, ...notExcluded },
+      });
+    }
+    if (found && typeof (found as { id?: unknown }).id === 'string' && !exclude.includes(found.id)) {
+      return found as { id: string };
+    }
+    const created = await this.safeCreateAccount(tenantId, userId, spec.code, spec.name, spec.type);
+    if (!created) {
+      throw new BadRequestException(
+        `Ledger account "${spec.name}" (${spec.code}) is not set up. Create it in the chart of accounts before posting.`,
+      );
+    }
+    return created;
+  }
+
+  /** Cash/Bank leg: the payment's bank account ledger when given, else default Cash / Bank. */
+  private async resolveCashAccount(tenantId: string, userId: string, bankAccountId?: string | null) {
+    if (bankAccountId) {
+      const bank = await this.prisma.bankAccount.findFirst({
+        where: { id: bankAccountId, tenantId },
+        select: { accountId: true },
+      });
+      if (!bank) throw new BadRequestException('Bank account not found');
+      return { id: bank.accountId };
+    }
+    return this.resolveLedgerAccount(tenantId, userId, LEDGER.CASH);
   }
 
   private async createPaymentJournalEntry(tenantId: string, userId: string, input: PaymentInput) {
@@ -614,94 +700,27 @@ export class FinancialService extends TenantAwareService {
       ? `Payment received via ${input.method}`
       : `Payment made via ${input.method}`;
 
-    // For simplicity, use a generic cash/bank account and AR/AP account
-    // In production, these would be configured per tenant
-    const cashAccount = await this.prisma.account.findFirst({
-      where: { tenantId, accountType: 'ASSET', accountCode: { startsWith: '1' } },
-    });
-    const counterAccount = await this.prisma.account.findFirst({
-      where: {
-        tenantId,
-        accountType: isReceived ? 'ASSET' : 'LIABILITY',
-        accountCode: { startsWith: isReceived ? '1' : '2' },
-      },
-    });
+    // Receipt: Dr Cash/Bank, Cr Accounts Receivable.
+    // Supplier payment: Dr Accounts Payable, Cr Cash/Bank.
+    const cashAccount = await this.resolveCashAccount(
+      tenantId,
+      userId,
+      (input as { bankAccountId?: string }).bankAccountId,
+    );
+    const counterAccount = await this.resolveLedgerAccount(
+      tenantId,
+      userId,
+      isReceived ? LEDGER.AR : LEDGER.AP,
+      [cashAccount.id],
+    );
 
-    if (!cashAccount || !counterAccount) {
-      // No chart-of-accounts configured yet: auto-provision the
-      // minimum pair (Cash/Bank + AR or AP) so the journal entry still
-      // balances (sum of debits === sum of credits) per double-entry
-      // bookkeeping. Admins can rename these later via settings UI.
-      //
-      // If auto-provisioning is unavailable (e.g. account.create not
-      // wired in a test mock, or DB read-only), fall back to a
-      // header-only entry so the payment still records.
-      const ensuredCash =
-        cashAccount ??
-        (await this.safeCreateAccount(tenantId, userId, '1000', 'Cash / Bank', 'ASSET'));
-      const ensuredCounter =
-        counterAccount ??
-        (await this.safeCreateAccount(
-          tenantId,
-          userId,
-          isReceived ? '1200' : '2000',
-          isReceived ? 'Accounts Receivable' : 'Accounts Payable',
-          isReceived ? 'ASSET' : 'LIABILITY',
-        ));
-
-      if (!ensuredCash || !ensuredCounter) {
-        return this.prisma.journalEntry.create({
-          data: {
-            tenantId,
-            entryNumber,
-            date: new Date(),
-            description,
-            reference: input.reference ?? null,
-            status: 'POSTED',
-            postedAt: new Date(),
-            createdBy: userId,
-            updatedBy: userId,
-          },
-        });
-      }
-
-      return this.prisma.journalEntry.create({
-        data: {
-          tenantId,
-          entryNumber,
-          date: new Date(),
-          description,
-          reference: input.reference ?? null,
-          status: 'POSTED',
-          postedAt: new Date(),
-          createdBy: userId,
-          updatedBy: userId,
-          lines: {
-            create: [
-              {
-                tenantId,
-                accountId: ensuredCash.id,
-                debitPaise: isReceived ? BigInt(input.amountPaise) : BigInt(0),
-                creditPaise: isReceived ? BigInt(0) : BigInt(input.amountPaise),
-                description,
-                currencyCode: input.currencyCode ?? 'INR',
-                exchangeRate: 10000,
-              },
-              {
-                tenantId,
-                accountId: ensuredCounter.id,
-                debitPaise: isReceived ? BigInt(0) : BigInt(input.amountPaise),
-                creditPaise: isReceived ? BigInt(input.amountPaise) : BigInt(0),
-                description,
-                currencyCode: input.currencyCode ?? 'INR',
-                exchangeRate: 10000,
-              },
-            ],
-          },
-        },
-      });
-    }
-
+    const amount = BigInt(input.amountPaise);
+    const zero = BigInt(0);
+    const common = {
+      description,
+      currencyCode: input.currencyCode ?? 'INR',
+      exchangeRate: 10000,
+    };
     return this.prisma.journalEntry.create({
       data: {
         tenantId,
@@ -718,22 +737,90 @@ export class FinancialService extends TenantAwareService {
             {
               tenantId,
               accountId: cashAccount.id,
-              debitPaise: isReceived ? BigInt(input.amountPaise) : BigInt(0),
-              creditPaise: isReceived ? BigInt(0) : BigInt(input.amountPaise),
-              description,
-              currencyCode: input.currencyCode ?? 'INR',
-              exchangeRate: 10000,
+              debitPaise: isReceived ? amount : zero,
+              creditPaise: isReceived ? zero : amount,
+              ...common,
             },
             {
               tenantId,
               accountId: counterAccount.id,
-              debitPaise: isReceived ? BigInt(0) : BigInt(input.amountPaise),
-              creditPaise: isReceived ? BigInt(input.amountPaise) : BigInt(0),
-              description,
-              currencyCode: input.currencyCode ?? 'INR',
-              exchangeRate: 10000,
+              debitPaise: isReceived ? zero : amount,
+              creditPaise: isReceived ? amount : zero,
+              ...common,
             },
           ],
+        },
+      },
+    });
+  }
+
+  /**
+   * Post the ledger journal for an invoice when it is issued (DRAFT -> SENT).
+   * Sales: Dr Accounts Receivable (total), Cr Sales Revenue (net), Cr GST Output (tax).
+   * Purchase: Dr Inventory/Purchases (net), Dr GST Input (tax), Cr Accounts Payable (total).
+   * Idempotent: skips when an entry referencing the invoice number already exists.
+   */
+  private async postInvoiceJournal(
+    tenantId: string,
+    userId: string,
+    invoice: { invoiceNumber: string; invoiceType: string; totalPaise: bigint; taxPaise: bigint },
+  ) {
+    const existing = await this.prisma.journalEntry.findFirst({
+      where: { tenantId, reference: invoice.invoiceNumber, description: { startsWith: 'Invoice ' } },
+      select: { id: true },
+    });
+    if (existing) return existing;
+
+    const isSales = invoice.invoiceType === 'SALES';
+    const total = invoice.totalPaise;
+    const tax = invoice.taxPaise;
+    const net = total - tax;
+    const zero = BigInt(0);
+    if (total <= zero) return null;
+
+    const lines: Array<{ accountId: string; debit: bigint; credit: bigint; description: string }> = [];
+    if (isSales) {
+      const ar = await this.resolveLedgerAccount(tenantId, userId, LEDGER.AR);
+      const rev = await this.resolveLedgerAccount(tenantId, userId, LEDGER.REVENUE);
+      lines.push({ accountId: ar.id, debit: total, credit: zero, description: 'Receivable' });
+      lines.push({ accountId: rev.id, debit: zero, credit: net, description: 'Sales revenue' });
+      if (tax > zero) {
+        const gst = await this.resolveLedgerAccount(tenantId, userId, LEDGER.GST_OUTPUT);
+        lines.push({ accountId: gst.id, debit: zero, credit: tax, description: 'GST output' });
+      }
+    } else {
+      const ap = await this.resolveLedgerAccount(tenantId, userId, LEDGER.AP);
+      const inv = await this.resolveLedgerAccount(tenantId, userId, LEDGER.INVENTORY);
+      lines.push({ accountId: inv.id, debit: net, credit: zero, description: 'Purchases / inventory' });
+      if (tax > zero) {
+        const gst = await this.resolveLedgerAccount(tenantId, userId, LEDGER.GST_INPUT);
+        lines.push({ accountId: gst.id, debit: tax, credit: zero, description: 'GST input' });
+      }
+      lines.push({ accountId: ap.id, debit: zero, credit: total, description: 'Payable' });
+    }
+
+    const entryNumber = await this.generateNumber(tenantId, 'JE', 'journalEntry');
+    return this.prisma.journalEntry.create({
+      data: {
+        tenantId,
+        entryNumber,
+        date: new Date(),
+        description: `Invoice ${invoice.invoiceNumber} issued`,
+        reference: invoice.invoiceNumber,
+        status: 'POSTED',
+        postedAt: new Date(),
+        createdBy: userId,
+        updatedBy: userId,
+        lines: {
+          create: lines.map((l) => ({
+            tenantId,
+            accountId: l.accountId,
+            debitPaise: l.debit,
+            creditPaise: l.credit,
+            description: l.description,
+            currencyCode: 'INR',
+            exchangeRate: 10000,
+          })),
         },
       },
     });
@@ -750,7 +837,7 @@ export class FinancialService extends TenantAwareService {
     userId: string,
     accountCode: string,
     name: string,
-    accountType: 'ASSET' | 'LIABILITY',
+    accountType: AccountTypeValue,
   ): Promise<{ id: string } | null> {
     try {
       const created = await this.prisma.account.create({
@@ -779,7 +866,7 @@ export class FinancialService extends TenantAwareService {
       include: { customer: true, supplier: true, invoice: true },
     });
     if (!payment) throw new NotFoundException('Payment not found');
-    return payment;
+    return maskSensitiveDeep(payment);
   }
 
   async listPayments(tenantId: string, input: PaymentListInput) {
@@ -811,7 +898,7 @@ export class FinancialService extends TenantAwareService {
       this.prisma.payment.count({ where }),
     ]);
 
-    return buildPaginatedResult(items, total, page, limit);
+    return buildPaginatedResult(maskSensitiveDeep(items), total, page, limit);
   }
 
   // ─── Collections (Agent Mobile) ───────────────────────────────

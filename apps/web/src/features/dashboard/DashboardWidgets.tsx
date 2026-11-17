@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { StatCard } from '@caratflow/ui';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { ReportChart } from '@/features/reporting';
+import { isSessionExpired } from '@/lib/auth-session';
+import { trpc } from '@/lib/trpc';
+import { fillDailySeries, formatCompactRupees, formatDayLabel } from '@/lib/revenue-trend';
 import type { AlertItem, ChartData, KpiData } from '@caratflow/shared-types';
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -77,12 +80,14 @@ export function WidgetBody({
         </div>
       ) : isError ? (
         <div className="flex items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          <span>Could not load this widget.</span>
+          <span>
+            {isSessionExpired() ? 'Your session expired. Redirecting to sign in...' : 'Could not load this widget.'}
+          </span>
           {onRetry && (
             <button
               type="button"
               onClick={onRetry}
-              className="inline-flex items-center gap-1 text-xs font-medium underline"
+              className="inline-flex min-h-10 items-center gap-1 text-xs font-medium underline"
             >
               <RefreshCw className="h-3 w-3" /> Retry
             </button>
@@ -106,6 +111,7 @@ export function KpiWidget({
   isLoading,
   isError,
   onRetry,
+  invalidRange = false,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -113,13 +119,24 @@ export function KpiWidget({
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  /** The picker holds an invalid (end before start) range: show a neutral state, never stale numbers. */
+  invalidRange?: boolean;
 }) {
+  if (invalidRange) {
+    return (
+      <div className="h-full rounded-lg border bg-card p-6" data-testid="kpi-invalid-range">
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <p className="mt-2 text-2xl font-bold text-muted-foreground">--</p>
+        <p className="mt-1 text-xs text-muted-foreground">Select a valid date range</p>
+      </div>
+    );
+  }
   if (isError && !kpi) {
     return (
       <div className="h-full rounded-lg border bg-card p-6">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
         <button type="button" onClick={onRetry} className="mt-2 text-xs font-medium text-red-700 underline">
-          Could not load. Retry
+          {isSessionExpired() ? 'Session expired. Signing in again...' : 'Could not load. Retry'}
         </button>
       </div>
     );
@@ -140,20 +157,33 @@ export function KpiWidget({
 
 export function RevenueChartWidget({
   chart,
+  from,
+  to,
   isLoading,
   isError,
   onRetry,
 }: {
   chart: ChartData | undefined;
+  /** Range start/end as 'YYYY-MM-DD' (local); used to fill days with no sales. */
+  from?: string;
+  to?: string;
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
 }) {
+  // Continuous x-axis: days without sales are plotted as zero.
+  const filled = React.useMemo<ChartData | undefined>(() => {
+    if (!chart || chart.labels.length === 0 || !from || !to) return chart;
+    const first = chart.datasets[0];
+    const series = fillDailySeries(chart.labels, first?.data ?? [], from, to);
+    return { ...chart, labels: series.labels, datasets: chart.datasets.map((ds, i) => (i === 0 ? { ...ds, data: series.data } : ds)) };
+  }, [chart, from, to]);
+
   return (
     <WidgetBody
       title="Revenue Trend"
       action={
-        <Link href="/reports/sales" className="text-sm text-primary hover:underline">
+        <Link href="/reports/sales" className="inline-flex min-h-10 items-center text-sm text-primary underline-offset-2 hover:underline">
           View Details
         </Link>
       }
@@ -163,8 +193,14 @@ export function RevenueChartWidget({
       isEmpty={!chart || chart.labels.length === 0}
       emptyText="No completed sales in this period."
     >
-      {chart && (
-        <ReportChart data={chart} height={280} formatValue={(v) => formatPaiseINR(v)} />
+      {filled && (
+        <ReportChart
+          data={filled}
+          height={280}
+          formatValue={(v) => formatPaiseINR(v)}
+          formatAxisValue={formatCompactRupees}
+          formatLabel={formatDayLabel}
+        />
       )}
     </WidgetBody>
   );
@@ -277,8 +313,52 @@ export interface RecentSaleRow {
   id: string;
   saleNumber: string;
   customerId: string | null;
+  /** Name when the sales response carries one (customerName / customer). */
+  customerName?: string | null;
   totalPaise: number;
   createdAt: string;
+}
+
+/** Pull a display name from a sale row: customerName, or a nested customer object. */
+export function saleCustomerName(sale: {
+  customerName?: unknown;
+  customer?: unknown;
+}): string | null {
+  const direct = typeof sale.customerName === 'string' ? sale.customerName.trim() : '';
+  if (direct) return direct;
+  const c = sale.customer;
+  if (typeof c === 'string' && c.trim()) return c.trim();
+  if (c && typeof c === 'object') {
+    const o = c as { name?: unknown; firstName?: unknown; lastName?: unknown };
+    if (typeof o.name === 'string' && o.name.trim()) return o.name.trim();
+    const full = [o.firstName, o.lastName].filter((v): v is string => typeof v === 'string' && v.trim() !== '').join(' ');
+    if (full) return full;
+  }
+  return null;
+}
+
+/**
+ * Customer label for a sale: the name if the sale carries one, otherwise looked up
+ * from the customer record (the sales list only returns customerId), 'Walk-in' when
+ * there is no customer.
+ */
+export function SaleCustomerName({
+  customerId,
+  customerName,
+}: {
+  customerId: string | null;
+  customerName?: string | null;
+}) {
+  const needsLookup = Boolean(customerId) && !customerName;
+  const { data } = trpc.crm.customer360.useQuery(
+    { customerId: customerId ?? '' },
+    { enabled: needsLookup, staleTime: 5 * 60 * 1000 },
+  );
+  if (!customerId) return <>Walk-in</>;
+  if (customerName) return <>{customerName}</>;
+  const profile = (data as { profile?: { firstName?: string; lastName?: string } } | undefined)?.profile;
+  const full = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ').trim();
+  return <>{full || 'Customer'}</>;
 }
 
 export function RecentSalesWidget({
@@ -296,7 +376,7 @@ export function RecentSalesWidget({
     <WidgetBody
       title="Recent Sales"
       action={
-        <Link href="/retail/sales" className="text-sm text-primary hover:underline">
+        <Link href="/retail/sales" className="inline-flex min-h-10 items-center text-sm text-primary underline-offset-2 hover:underline">
           View All
         </Link>
       }
@@ -311,7 +391,9 @@ export function RecentSalesWidget({
           <div key={sale.id} className="flex items-center justify-between border-b py-2 last:border-0">
             <div>
               <p className="text-sm font-medium">{sale.saleNumber}</p>
-              <p className="text-xs text-muted-foreground">{sale.customerId ? 'Customer' : 'Walk-in'}</p>
+              <p className="text-xs text-muted-foreground">
+                <SaleCustomerName customerId={sale.customerId} customerName={sale.customerName} />
+              </p>
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold">{formatPaiseINR(sale.totalPaise)}</p>
@@ -358,7 +440,7 @@ export function MetalRatesWidget({
     <WidgetBody
       title="Metal Rates"
       action={
-        <Link href="/finance/rates" className="text-sm text-primary hover:underline">
+        <Link href="/finance/rates" className="inline-flex min-h-10 items-center text-sm text-primary underline-offset-2 hover:underline">
           Manage
         </Link>
       }
@@ -381,7 +463,7 @@ export function MetalRatesWidget({
                 <p className="text-sm font-semibold">{formatPaiseINR(row.ratePerGramPaise)}/g</p>
                 <p
                   className={`text-xs ${
-                    change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-muted-foreground'
+                    change > 0 ? 'text-success' : change < 0 ? 'text-danger' : 'text-muted-foreground'
                   }`}
                 >
                   {row.changePercent === null ? '--' : `${change > 0 ? '+' : ''}${change.toFixed(2)}%`}
@@ -392,5 +474,14 @@ export function MetalRatesWidget({
         })}
       </div>
     </WidgetBody>
+  );
+}
+
+/** Neutral body for range-dependent widgets while the picker range is invalid. */
+export function InvalidRangeNotice() {
+  return (
+    <p role="status" className="py-6 text-center text-sm text-muted-foreground">
+      Select a valid date range
+    </p>
   );
 }

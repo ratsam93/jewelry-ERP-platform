@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import {
   type BomInput,
@@ -253,6 +254,12 @@ export class ManufacturingService extends TenantAwareService {
   // ─── Job Orders ───────────────────────────────────────────────
 
   async createJobOrder(tenantId: string, userId: string, input: JobOrderInput) {
+    // A BOM describes how to make one specific product: reject mismatches (HK-MFG-02).
+    const bom = input.bomId ? await this.findBomById(tenantId, input.bomId) : null;
+    if (bom && input.productId && bom.productId && bom.productId !== input.productId) {
+      throw new BadRequestException('BOM belongs to a different product');
+    }
+
     // Generate job number
     const count = await this.prisma.jobOrder.count({ where: { tenantId } });
     const jobNumber = `JO-${String(count + 1).padStart(6, '0')}`;
@@ -277,17 +284,14 @@ export class ManufacturingService extends TenantAwareService {
       },
       include: {
         product: true,
-        customer: true,
         location: true,
-        assignedKarigar: true,
         items: true,
         costs: true,
       },
     });
 
     // If BOM is specified, create job order items from BOM
-    if (input.bomId) {
-      const bom = await this.findBomById(tenantId, input.bomId);
+    if (bom) {
       await this.prisma.jobOrderItem.createMany({
         data: bom.items.map((item) => ({
           tenantId,
@@ -385,11 +389,12 @@ export class ManufacturingService extends TenantAwareService {
     });
     if (!karigar) throw new NotFoundException('Karigar not found or inactive');
 
-    return this.prisma.jobOrder.update({
+    const updated = await this.prisma.jobOrder.update({
       where: { id: jobId },
       data: { assignedKarigarId: karigarId, updatedBy: userId },
       include: { product: true, assignedKarigar: true, location: true },
     });
+    return maskSensitiveDeep(updated);
   }
 
   async cancelJobOrder(tenantId: string, userId: string, jobId: string, reason?: string) {
@@ -431,7 +436,8 @@ export class ManufacturingService extends TenantAwareService {
 
     const totalPages = Math.ceil(total / pagination.limit);
     return {
-      items,
+      // job orders embed the customer and karigar rows: mask PAN/Aadhaar/bank
+      items: maskSensitiveDeep(items),
       total,
       page: pagination.page,
       limit: pagination.limit,
@@ -457,15 +463,28 @@ export class ManufacturingService extends TenantAwareService {
       },
     });
     if (!job) throw new NotFoundException('Job order not found');
-    return job;
+    return maskSensitiveDeep(job);
   }
 
   async getJobCost(tenantId: string, jobId: string) {
     const job = await this.prisma.jobOrder.findFirst({
       where: this.tenantWhere(tenantId, { id: jobId }),
-      include: { costs: true, items: true },
+      include: {
+        costs: true,
+        items: true,
+        bom: { select: { estimatedCostPaise: true, outputQuantity: true } },
+      },
     });
     if (!job) throw new NotFoundException('Job order not found');
+
+    // A BOM's cost is for `outputQuantity` units, so the job estimate is
+    // bomCost / outputQuantity x job.quantity (same basis as the manufacturing
+    // cost report). Jobs without a BOM fall back to the sum of their item costs.
+    const outputQty = BigInt(job.bom?.outputQuantity && job.bom.outputQuantity > 0 ? job.bom.outputQuantity : 1);
+    const jobQty = BigInt(job.quantity && job.quantity > 0 ? job.quantity : 1);
+    const estimatedCostPaise = job.bom
+      ? (job.bom.estimatedCostPaise * jobQty * BigInt(2) + outputQty) / (outputQty * BigInt(2))
+      : job.items.reduce((sum, item) => sum + (item.costPaise ?? BigInt(0)), BigInt(0));
 
     const costsByType = job.costs.reduce(
       (acc, cost) => {
@@ -483,6 +502,8 @@ export class ManufacturingService extends TenantAwareService {
       jobNumber: job.jobNumber,
       costsByType,
       totalCostPaise,
+      estimatedCostPaise,
+      estimatedForQuantity: Number(jobQty),
       itemCount: job.items.length,
       costEntryCount: job.costs.length,
     };

@@ -6,6 +6,7 @@ import { TrpcService } from '../../trpc/trpc.service';
 import { InventoryService } from './inventory.service';
 import { InventoryValuationService } from './inventory.valuation.service';
 import { z } from 'zod';
+import { withBigIntFields } from './inventory.bigint-input';
 import {
   CreateStockItemSchema,
   UpdateStockItemSchema,
@@ -77,7 +78,7 @@ export class InventoryTrpcRouter {
           ),
 
         record: this.trpc.authedProcedure
-          .input(CreateStockMovementSchema)
+          .input(withBigIntFields(CreateStockMovementSchema, ['unitCostPaise']))
           .mutation(({ ctx, input }) =>
             this.inventoryService.recordMovement(ctx.tenantId, ctx.userId, input),
           ),
@@ -128,6 +129,12 @@ export class InventoryTrpcRouter {
             this.inventoryService.createStockTake(ctx.tenantId, ctx.userId, input),
           ),
 
+        start: this.trpc.authedProcedure
+          .input(z.object({ id: z.guid() }))
+          .mutation(({ ctx, input }) =>
+            this.inventoryService.startStockTake(ctx.tenantId, ctx.userId, input.id),
+          ),
+
         addCounts: this.trpc.authedProcedure
           .input(z.object({
             stockTakeId: z.guid(),
@@ -154,7 +161,7 @@ export class InventoryTrpcRouter {
           ),
 
         adjust: this.trpc.authedProcedure
-          .input(MetalStockAdjustSchema)
+          .input(withBigIntFields(MetalStockAdjustSchema, ['weightChangeMg', 'valueChangePaise']))
           .mutation(({ ctx, input }) =>
             this.inventoryService.adjustMetalStock(ctx.tenantId, ctx.userId, input),
           ),
@@ -169,13 +176,13 @@ export class InventoryTrpcRouter {
           }),
 
         create: this.trpc.authedProcedure
-          .input(StoneStockInputSchema)
+          .input(withBigIntFields(StoneStockInputSchema, ['totalWeightMg', 'valuePaise']))
           .mutation(({ ctx, input }) =>
             this.inventoryService.createStoneStock(ctx.tenantId, ctx.userId, input),
           ),
 
         adjust: this.trpc.authedProcedure
-          .input(StoneStockAdjustSchema)
+          .input(withBigIntFields(StoneStockAdjustSchema, ['weightChangeMg', 'valueChangePaise']))
           .mutation(({ ctx, input }) =>
             this.inventoryService.adjustStoneStock(ctx.tenantId, ctx.userId, input),
           ),
@@ -189,13 +196,13 @@ export class InventoryTrpcRouter {
           ),
 
         create: this.trpc.authedProcedure
-          .input(CreateMetalRecoverySchema)
+          .input(withBigIntFields(CreateMetalRecoverySchema, ['grossWeightMg']))
           .mutation(({ ctx, input }) =>
             this.inventoryService.createMetalRecovery(ctx.tenantId, ctx.userId, input),
           ),
 
         complete: this.trpc.authedProcedure
-          .input(CompleteMetalRecoverySchema)
+          .input(withBigIntFields(CompleteMetalRecoverySchema, ['recoveredFineMg', 'valuePaise']))
           .mutation(({ ctx, input }) =>
             this.inventoryService.completeMetalRecovery(ctx.tenantId, ctx.userId, input),
           ),
@@ -249,7 +256,7 @@ export class InventoryTrpcRouter {
 
       valuation: this.trpc.router({
         calculate: this.trpc.authedProcedure
-          .input(StockValuationRequestSchema)
+          .input(withBigIntFields(StockValuationRequestSchema, ['currentRatePaise']))
           .query(({ ctx, input }) =>
             this.valuationService.calculateValuation(ctx.tenantId, input),
           ),

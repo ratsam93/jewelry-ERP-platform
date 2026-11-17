@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Address } from "@/lib/types";
 import { generateId } from "@/lib/utils";
+import { COUNTRY_OPTIONS } from "@/lib/countries";
 
 interface AddressFormProps {
   address?: Address;
@@ -28,6 +29,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
     city: address?.city ?? "",
     state: address?.state ?? "",
     pincode: address?.pincode ?? "",
+    country: COUNTRY_OPTIONS.some((c) => c.code === address?.country) ? (address?.country as string) : "IN",
     isDefault: address?.isDefault ?? false,
   });
 
@@ -36,7 +38,6 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
     onSave({
       id: address?.id ?? generateId(),
       ...form,
-      country: "India",
     });
   }
 
@@ -49,7 +50,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-navy/60 mb-1">Label</label>
-          <input
+          <input aria-label="Label"
             type="text"
             value={form.label}
             onChange={(e) => updateField("label", e.target.value)}
@@ -59,7 +60,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
         </div>
         <div>
           <label className="block text-xs font-medium text-navy/60 mb-1">Full Name *</label>
-          <input
+          <input aria-label="Full Name"
             type="text"
             value={form.fullName}
             onChange={(e) => updateField("fullName", e.target.value)}
@@ -71,7 +72,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
 
       <div>
         <label className="block text-xs font-medium text-navy/60 mb-1">Phone *</label>
-        <input
+        <input aria-label="Phone"
           type="tel"
           value={form.phone}
           onChange={(e) => updateField("phone", e.target.value)}
@@ -83,7 +84,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
 
       <div>
         <label className="block text-xs font-medium text-navy/60 mb-1">Address Line 1 *</label>
-        <input
+        <input aria-label="Address Line 1"
           type="text"
           value={form.addressLine1}
           onChange={(e) => updateField("addressLine1", e.target.value)}
@@ -95,7 +96,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
 
       <div>
         <label className="block text-xs font-medium text-navy/60 mb-1">Address Line 2</label>
-        <input
+        <input aria-label="Address Line 2"
           type="text"
           value={form.addressLine2}
           onChange={(e) => updateField("addressLine2", e.target.value)}
@@ -107,7 +108,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
       <div className="grid grid-cols-3 gap-4">
         <div>
           <label className="block text-xs font-medium text-navy/60 mb-1">City *</label>
-          <input
+          <input aria-label="City"
             type="text"
             value={form.city}
             onChange={(e) => updateField("city", e.target.value)}
@@ -119,6 +120,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
           <label className="block text-xs font-medium text-navy/60 mb-1">State *</label>
           <select
             value={form.state}
+            aria-label="State"
             onChange={(e) => updateField("state", e.target.value)}
             required
             className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 bg-white"
@@ -131,7 +133,7 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
         </div>
         <div>
           <label className="block text-xs font-medium text-navy/60 mb-1">Pincode *</label>
-          <input
+          <input aria-label="Pincode"
             type="text"
             value={form.pincode}
             onChange={(e) => updateField("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -140,6 +142,21 @@ export default function AddressForm({ address, onSave, onCancel }: AddressFormPr
             className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
           />
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="address-country" className="block text-xs font-medium text-navy/60 mb-1">Country *</label>
+        <select
+          id="address-country"
+          value={form.country}
+          onChange={(e) => updateField("country", e.target.value)}
+          required
+          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 bg-white"
+        >
+          {COUNTRY_OPTIONS.map((c) => (
+            <option key={c.code} value={c.code}>{c.name}</option>
+          ))}
+        </select>
       </div>
 
       <label className="flex items-center gap-2 cursor-pointer">

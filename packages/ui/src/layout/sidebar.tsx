@@ -16,9 +16,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Gem,
+  X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useRenderLink, type RenderLink } from './link-context';
+import { useDrawerBehavior, useMobileNav } from './mobile-nav';
 
 export interface SidebarItem {
   label: string;
@@ -214,13 +216,30 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  collapsed,
+  collapsed: collapsedProp,
   onToggle,
   items = defaultNavItems,
   currentPath = '',
   renderLink,
 }: SidebarProps) {
   const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
+  const asideRef = React.useRef<HTMLElement>(null);
+  const { open: mobileOpen, setOpen: setMobileOpen, triggerRef } = useMobileNav();
+  const closeMobile = React.useCallback(() => setMobileOpen(false), [setMobileOpen]);
+
+  // The icon-only collapsed mode is a desktop feature: the open drawer always shows labels.
+  const collapsed = collapsedProp && !mobileOpen;
+
+  useDrawerBehavior(mobileOpen, asideRef, closeMobile, triggerRef);
+
+  // Close the drawer whenever the route changes.
+  const lastPath = React.useRef(currentPath);
+  React.useEffect(() => {
+    if (lastPath.current !== currentPath) {
+      lastPath.current = currentPath;
+      closeMobile();
+    }
+  }, [currentPath, closeMobile]);
 
   const toggleGroup = (label: string) => {
     setExpandedGroups((prev) => {
@@ -240,89 +259,137 @@ export function Sidebar({
   const Link = renderLink ?? contextRenderLink;
 
   return (
-    <aside
-      className={cn(
-        'flex h-full flex-col border-r bg-card transition-all duration-200',
-        collapsed ? 'w-16' : 'w-64',
+    <>
+      {/* Overlay (below lg only): click to dismiss */}
+      {mobileOpen && (
+        <div
+          data-testid="sidebar-overlay"
+          aria-hidden="true"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={closeMobile}
+        />
       )}
-    >
-      {/* Logo */}
-      <div className="flex h-14 items-center border-b px-4">
-        <Gem className="h-6 w-6 shrink-0 text-brand-500" />
-        {!collapsed && <span className="ml-2 text-lg font-bold text-brand-600">CaratFlow</span>}
-      </div>
+      <aside
+        id="app-sidebar"
+        ref={asideRef}
+        data-mobile-open={mobileOpen ? 'true' : 'false'}
+        {...(mobileOpen
+          ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Navigation menu' }
+          : {})}
+        className={cn(
+          'flex h-full w-64 flex-col border-r bg-card transition-[transform,width,visibility] duration-200',
+          // Below lg: off-canvas drawer. At lg+: static column in the flex row.
+          'fixed inset-y-0 left-0 z-50 lg:static lg:z-auto lg:translate-x-0 lg:visible',
+          mobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full invisible',
+          collapsedProp && 'lg:w-16',
+        )}
+      >
+        {/* Logo */}
+        <div className="flex h-14 shrink-0 items-center border-b px-4">
+          <Gem className="h-6 w-6 shrink-0 text-brand-500" />
+          {!collapsed && <span className="ml-2 text-lg font-bold text-brand-700">CaratFlow</span>}
+          <button
+            type="button"
+            onClick={closeMobile}
+            aria-label="Close menu"
+            className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2">
-        {items.map((item) => {
-          const active = isActive(item.href);
-          const expanded = expandedGroups.has(item.label);
-          const hasChildren = item.children && item.children.length > 0;
+        {/* Nav: following any link closes the drawer */}
+        <nav
+          aria-label="Main navigation"
+          className="flex-1 overflow-y-auto py-2"
+          onClick={(e) => {
+            if (mobileOpen && (e.target as HTMLElement).closest('a')) closeMobile();
+          }}
+        >
+          {items.map((item) => {
+            const active = isActive(item.href);
+            const expanded = expandedGroups.has(item.label);
+            const hasChildren = item.children && item.children.length > 0;
 
-          return (
-            <div key={item.label}>
-              <div
-                className={cn(
-                  'mx-2 flex items-center rounded-md px-2 py-1.5 text-sm transition-colors',
-                  active
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                  collapsed && 'justify-center',
-                )}
-              >
-                {hasChildren && !collapsed ? (
-                  <button
-                    onClick={() => toggleGroup(item.label)}
-                    className="flex w-full items-center gap-2"
-                  >
-                    {item.icon}
-                    <span className="flex-1 text-left">{item.label}</span>
-                    <ChevronRight
-                      className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-90')}
-                    />
-                  </button>
-                ) : (
-                  <Link href={item.href} className={cn('flex items-center gap-2', collapsed && 'justify-center')}>
-                    {item.icon}
-                    {!collapsed && <span>{item.label}</span>}
-                  </Link>
+            return (
+              <div key={item.label}>
+                <div
+                  className={cn(
+                    'mx-2 flex min-h-10 items-center rounded-md px-2 text-sm transition-colors',
+                    active
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    collapsed && 'justify-center',
+                  )}
+                >
+                  {hasChildren && !collapsed ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(item.label)}
+                      aria-expanded={expanded}
+                      className="flex min-h-10 w-full items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {item.icon}
+                      <span className="flex-1 text-left">{item.label}</span>
+                      <ChevronRight
+                        className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-90')}
+                      />
+                    </button>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        'flex min-h-10 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        collapsed ? 'w-full justify-center' : 'flex-1',
+                      )}
+                    >
+                      {item.icon}
+                      {collapsed ? (
+                        <span className="sr-only">{item.label}</span>
+                      ) : (
+                        <span>{item.label}</span>
+                      )}
+                    </Link>
+                  )}
+                </div>
+
+                {/* Children */}
+                {hasChildren && expanded && !collapsed && (
+                  <div className="ml-6 mt-0.5 space-y-0.5">
+                    {item.children!.map((child) => (
+                      <div key={child.href}>
+                        <Link
+                          href={child.href}
+                          className={cn(
+                            'mx-2 flex min-h-10 items-center rounded-md px-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            isActive(child.href)
+                              ? 'bg-primary/10 text-primary font-medium'
+                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                          )}
+                        >
+                          {child.label}
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
+            );
+          })}
+        </nav>
 
-              {/* Children */}
-              {hasChildren && expanded && !collapsed && (
-                <div className="ml-6 mt-0.5 space-y-0.5">
-                  {item.children!.map((child) => (
-                    <div key={child.href}>
-                      <Link
-                        href={child.href}
-                        className={cn(
-                          'mx-2 block rounded-md px-2 py-1 text-sm transition-colors',
-                          isActive(child.href)
-                            ? 'bg-primary/10 text-primary font-medium'
-                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                        )}
-                      >
-                        {child.label}
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-
-      {/* Collapse toggle */}
-      <div className="border-t p-2">
-        <button
-          onClick={onToggle}
-          className="flex w-full items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
-      </div>
-    </aside>
+        {/* Collapse toggle (desktop only) */}
+        <div className="hidden shrink-0 border-t p-2 lg:block">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={collapsedProp ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="flex h-10 w-full items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {collapsedProp ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

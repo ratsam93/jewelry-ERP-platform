@@ -199,7 +199,7 @@ export default function CartPage() {
             <div className="mb-5">
               <label className="block text-xs font-medium text-navy/60 mb-1.5">Coupon Code</label>
               <div className="flex gap-2">
-                <input
+                <input aria-label="Coupon code"
                   type="text"
                   value={couponCode}
                   onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponMsg(null); }}

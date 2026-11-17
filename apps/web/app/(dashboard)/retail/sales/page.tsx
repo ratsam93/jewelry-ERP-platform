@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { PageHeader, StatusBadge, getStatusVariant, EmptyState } from '@caratflow/ui';
 import { Receipt, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { useUiStore } from '@/store/ui-store';
+import { toLocationFilter } from '@/features/shell/location-utils';
 import { useRealtime } from '@/lib/realtime';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatPaise, formatDateTime } from '@/components/format';
@@ -13,8 +15,9 @@ export default function SalesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 
+  const locationId = toLocationFilter(useUiStore((s) => s.activeBranchId));
   const query = trpc.retail.listSales.useQuery({
-    filters: { search: search || undefined },
+    filters: { search: search || undefined, locationId },
     pagination: { page, limit: 20, sortOrder: 'desc' },
   });
   const { data, isLoading } = query;
@@ -69,14 +72,14 @@ export default function SalesPage() {
           <div className="divide-y">
             {items.map((s) => {
               const customer = s.customer as { firstName?: string; lastName?: string } | undefined;
-              const name = customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : 'Walk-in';
+              const name = (s.customerName as string | null) || (customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : 'Walk-in');
               return (
                 <Link
                   key={s.id as string}
                   href={`/retail/sales/${s.id}`}
                   className="grid grid-cols-[1.2fr_1.4fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm hover:bg-accent"
                 >
-                  <span className="font-mono font-medium">{(s.invoiceNumber as string) ?? '-'}</span>
+                  <span className="font-mono font-medium">{(s.saleNumber as string) ?? (s.invoiceNumber as string) ?? '-'}</span>
                   <span>{name || 'Walk-in'}</span>
                   <span className="font-semibold">{formatPaise(s.totalPaise)}</span>
                   <StatusBadge label={(s.status as string) ?? '-'} variant={getStatusVariant(s.status as string)} dot={false} />

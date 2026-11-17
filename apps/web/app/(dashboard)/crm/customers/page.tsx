@@ -6,6 +6,7 @@ import { PageHeader, EmptyState } from '@caratflow/ui';
 import { Users, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
+import { fullName, orDash } from '@/lib/crm-form';
 
 export default function CustomersPage() {
   const [page, setPage] = useState(1);
@@ -30,9 +31,9 @@ export default function CustomersPage() {
           { label: 'Customers' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/crm/customers/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" /> Add Customer
-          </button>
+          </Link>
         }
       />
 
@@ -60,11 +61,11 @@ export default function CustomersPage() {
           <div className="divide-y">
             {items.map((c) => (
               <Link key={c.id as string} href={`/crm/customers/${c.id}`} className="grid grid-cols-[1.4fr_1fr_1.2fr_1fr_0.8fr] gap-4 px-4 py-3 text-sm hover:bg-accent">
-                <span className="font-medium">{`${(c.firstName as string) ?? ''} ${(c.lastName as string) ?? ''}`.trim()}</span>
-                <span>{(c.phone as string) ?? '-'}</span>
-                <span className="text-muted-foreground">{(c.email as string) ?? '-'}</span>
-                <span>{(c.city as string) ?? '-'}</span>
-                <span className="text-xs">{(c.customerType as string) ?? '-'}</span>
+                <span className="min-w-0 truncate font-medium">{orDash(fullName(c))}</span>
+                <span className="min-w-0 truncate">{orDash(c.phone)}</span>
+                <span className="min-w-0 truncate text-muted-foreground">{orDash(c.email)}</span>
+                <span className="min-w-0 truncate">{orDash(c.city)}</span>
+                <span className="min-w-0 truncate text-xs">{orDash(c.customerType)}</span>
               </Link>
             ))}
           </div>

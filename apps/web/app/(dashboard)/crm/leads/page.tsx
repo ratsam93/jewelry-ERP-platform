@@ -7,6 +7,7 @@ import { Target, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatDate } from '@/components/format';
+import { leadView, orDash, LEAD_STATUSES } from '@/lib/crm-form';
 
 export default function LeadsPage() {
   const [page, setPage] = useState(1);
@@ -30,20 +31,17 @@ export default function LeadsPage() {
           { label: 'Leads' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/crm/leads/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" /> New Lead
-          </button>
+          </Link>
         }
       />
 
       <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="h-9 rounded-md border px-2 text-sm">
         <option value="">All statuses</option>
-        <option value="NEW">New</option>
-        <option value="CONTACTED">Contacted</option>
-        <option value="QUALIFIED">Qualified</option>
-        <option value="PROPOSAL">Proposal</option>
-        <option value="WON">Won</option>
-        <option value="LOST">Lost</option>
+        {LEAD_STATUSES.map((s) => (
+          <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>
+        ))}
       </select>
 
       <div className="rounded-lg border">
@@ -62,9 +60,9 @@ export default function LeadsPage() {
           <div className="divide-y">
             {items.map((l) => (
               <Link key={l.id as string} href={`/crm/leads/${l.id}`} className="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm hover:bg-accent">
-                <span className="font-medium">{(l.name as string) ?? '-'}</span>
-                <span>{(l.phone as string) ?? '-'}</span>
-                <span>{(l.source as string) ?? '-'}</span>
+                <span className="min-w-0 truncate font-medium">{orDash(leadView(l).name)}</span>
+                <span className="min-w-0 truncate">{orDash(l.phone)}</span>
+                <span className="min-w-0 truncate">{orDash(l.source)}</span>
                 <StatusBadge label={(l.status as string) ?? '-'} variant={getStatusVariant(l.status as string)} dot={false} />
                 <span className="text-muted-foreground">{formatDate(l.createdAt)}</span>
               </Link>

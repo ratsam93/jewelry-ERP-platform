@@ -67,6 +67,37 @@ describe('InventoryEventHandler', () => {
     );
   });
 
+  it('decrements the sale location by the sold quantity, skipping free-text lines', async () => {
+    mockPrisma.stockItem.findMany.mockResolvedValue([{ id: 'stock-loc', productId: 'prod-1', tenantId: TEST_TENANT_ID }]);
+
+    await subscribedHandlers.get('retail.sale.completed')!({
+      type: 'retail.sale.completed',
+      tenantId: TEST_TENANT_ID,
+      userId: TEST_USER_ID,
+      payload: {
+        saleId: 'sale-2',
+        locationId: 'loc-showroom',
+        items: [
+          { productId: 'prod-1', pricePaise: 1000, quantity: 3 },
+          { productId: '', pricePaise: 500, quantity: 1 },
+        ],
+      },
+    });
+
+    expect(mockPrisma.stockItem.findMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.stockItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tenantId: TEST_TENANT_ID, productId: 'prod-1', locationId: 'loc-showroom' },
+      }),
+    );
+    expect(mockInventoryService.recordMovement).toHaveBeenCalledTimes(1);
+    expect(mockInventoryService.recordMovement).toHaveBeenCalledWith(
+      TEST_TENANT_ID,
+      TEST_USER_ID,
+      expect.objectContaining({ stockItemId: 'stock-loc', quantityChange: -3 }),
+    );
+  });
+
   it('handles manufacturing.job.completed by adding finished goods', async () => {
     const stockItem = { id: 'stock-2', productId: 'prod-2', tenantId: TEST_TENANT_ID };
     mockPrisma.stockItem.findMany.mockResolvedValue([stockItem]);

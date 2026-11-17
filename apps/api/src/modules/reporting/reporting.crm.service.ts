@@ -14,6 +14,7 @@ import type {
   CrmReportResponse,
   DateRange,
 } from '@caratflow/shared-types';
+import { inclusiveRangeEnd } from './date-range.util';
 
 @Injectable()
 export class ReportingCrmService extends TenantAwareService {
@@ -32,7 +33,7 @@ export class ReportingCrmService extends TenantAwareService {
       where: {
         tenantId,
         status: 'WON',
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       select: {
         source: true,
@@ -53,7 +54,7 @@ export class ReportingCrmService extends TenantAwareService {
     const newCustomers = await this.prisma.customer.findMany({
       where: {
         tenantId,
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       select: { createdAt: true },
     });
@@ -90,7 +91,7 @@ export class ReportingCrmService extends TenantAwareService {
       where: {
         tenantId,
         status: 'COMPLETED',
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
         customerId: { not: null },
       },
       select: {
@@ -155,7 +156,7 @@ export class ReportingCrmService extends TenantAwareService {
       where: {
         tenantId,
         status: 'COMPLETED',
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
         customerId: { not: null },
       },
       select: {
@@ -267,7 +268,7 @@ export class ReportingCrmService extends TenantAwareService {
       by: ['status'],
       where: {
         tenantId,
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       _count: { id: true },
       _sum: { estimatedValuePaise: true },
@@ -303,7 +304,7 @@ export class ReportingCrmService extends TenantAwareService {
     const campaigns = await this.prisma.campaign.findMany({
       where: {
         tenantId,
-        createdAt: { gte: dateRange.from, lte: dateRange.to },
+        createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
       },
       select: {
         id: true,
@@ -343,14 +344,14 @@ export class ReportingCrmService extends TenantAwareService {
       this.prisma.customer.count({
         where: {
           tenantId,
-          createdAt: { gte: dateRange.from, lte: dateRange.to },
+          createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
         },
       }),
       this.prisma.sale.findMany({
         where: {
           tenantId,
           status: 'COMPLETED',
-          createdAt: { gte: dateRange.from, lte: dateRange.to },
+          createdAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
           customerId: { not: null },
         },
         select: { customerId: true, totalPaise: true },

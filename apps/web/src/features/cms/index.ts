@@ -6,3 +6,5 @@ export { FaqEditor } from './FaqEditor';
 export { HomepageSectionConfigurator } from './HomepageSectionConfigurator';
 export { SeoForm } from './SeoForm';
 export { AnnouncementBar } from './AnnouncementBar';
+export { FaqFormDialog, BannerFormDialog, PageFormDialog, BlogFormDialog, CollectionFormDialog } from './CmsFormDialogs';
+export { useCmsDelete, CmsRowActions } from './useCmsDelete';

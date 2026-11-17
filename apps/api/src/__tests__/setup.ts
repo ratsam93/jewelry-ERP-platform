@@ -128,6 +128,7 @@ export function createMockPrismaService() {
       count: vi.fn(),
     },
     stockMovement: {
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       count: vi.fn(),

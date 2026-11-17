@@ -15,6 +15,24 @@ export default function LoginPage() {
   const showDemoHint = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [expired, setExpired] = React.useState(false);
+  const nextRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setExpired(params.get('expired') === '1');
+    const next = params.get('next');
+    // Same-app relative paths only (no open redirect), never back to an auth page.
+    if (
+      next &&
+      next.startsWith('/') &&
+      !next.startsWith('//') &&
+      !next.includes('\\') &&
+      !/^\/(login|register|forgot-password)/.test(next)
+    ) {
+      nextRef.current = next;
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +49,7 @@ export default function LoginPage() {
         setTokens(result.data.accessToken, result.data.refreshToken);
         // Keep the button in its loading state until navigation completes
         // (first dashboard load can take a while in dev).
-        router.push('/dashboard');
+        router.push(nextRef.current ?? '/dashboard');
         return;
       }
       setLoading(false);
@@ -46,7 +64,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-brand-600">CaratFlow</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-brand-700">CaratFlow</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Sign in to your jewelry management system
           </p>
@@ -71,7 +89,7 @@ export default function LoginPage() {
               type="text"
               value={tenantSlug}
               onChange={(e) => setTenantSlug(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="your-business-slug"
               required
             />
@@ -86,7 +104,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="admin@sharmajewellers.com"
               required
             />
@@ -101,11 +119,17 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="Enter your password"
               required
             />
           </div>
+
+          {expired && !error && (
+            <div role="status" className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+              Your session expired, please sign in again.
+            </div>
+          )}
 
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
@@ -114,16 +138,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+            className="flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
 
           <div className="flex justify-between text-sm">
-            <Link href="/forgot-password" className="text-primary hover:underline">
+            <Link href="/forgot-password" className="inline-flex min-h-10 items-center rounded-sm text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               Forgot password?
             </Link>
-            <Link href="/register" className="text-primary hover:underline">
+            <Link href="/register" className="inline-flex min-h-10 items-center rounded-sm text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               Create account
             </Link>
           </div>

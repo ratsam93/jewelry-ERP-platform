@@ -119,6 +119,25 @@ describe('PlatformSettingsService (Unit)', () => {
       );
     });
 
+    it('persists a false boolean as false and touches only the submitted key (partial update)', async () => {
+      mockPrisma.setting.findUnique.mockResolvedValue({ settingValue: true });
+      mockPrisma.setting.upsert.mockResolvedValue({ settingKey: 'pos.showBarcode', settingValue: false });
+
+      await service.setSettings(TEST_TENANT_ID, [
+        { key: 'pos.showBarcode', value: false, category: 'pos' },
+      ], audit);
+
+      expect(mockPrisma.setting.upsert).toHaveBeenCalledTimes(1);
+      const arg = mockPrisma.setting.upsert.mock.calls[0]![0];
+      expect(arg.where).toEqual({
+        tenantId_settingKey: { tenantId: TEST_TENANT_ID, settingKey: 'pos.showBarcode' },
+      });
+      expect(arg.update.settingValue).toBe(false);
+      expect(arg.create.settingValue).toBe(false);
+      // no bulk overwrite of other keys
+      expect((mockPrisma.setting as any).deleteMany).toBeUndefined();
+    });
+
     it('captures old value in event payload', async () => {
       mockPrisma.setting.findUnique.mockResolvedValue({ settingValue: 'OLD' });
       mockPrisma.setting.upsert.mockResolvedValue({ settingKey: 'tax.gstin' });

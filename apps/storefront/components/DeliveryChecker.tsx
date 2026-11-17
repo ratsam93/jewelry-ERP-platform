@@ -46,7 +46,7 @@ export default function DeliveryChecker() {
         Check Delivery
       </h4>
       <div className="flex gap-2">
-        <input
+        <input aria-label="Delivery pincode"
           type="text"
           value={pincode}
           onChange={(e) => {

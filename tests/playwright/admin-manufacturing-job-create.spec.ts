@@ -31,12 +31,15 @@ test.describe('Admin Manufacturing: Create Job Order', () => {
     expect(await selects.count()).toBeGreaterThanOrEqual(3);
   });
 
-  test('Submit button is disabled when product/location are empty', async ({ page }) => {
+  test('Submitting empty form shows validation errors (button is not disabled)', async ({ page }) => {
     await page.goto('/admin/manufacturing/jobs/new');
     await page.waitForLoadState('networkidle');
     const submit = page.getByRole('button', { name: /Create Job Order|Creating/i }).first();
     await expect(submit).toBeVisible();
-    await expect(submit).toBeDisabled();
+    await expect(submit).toBeEnabled();
+    await submit.click();
+    await expect(page.getByRole('alert').first()).toBeVisible();
+    await expect(page).toHaveURL(/manufacturing\/jobs\/new/);
   });
 
   test('Quantity input accepts numeric value and rejects < 1', async ({ page }) => {

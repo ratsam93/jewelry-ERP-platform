@@ -10,7 +10,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "CaratFlow -- Premium Jewelry Online Store",
+    default: "CaratFlow | Premium Jewelry Online Store",
     template: "%s | CaratFlow Jewelry",
   },
   description:
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     "platinum rings",
   ],
   openGraph: {
-    title: "CaratFlow -- Premium Jewelry Online Store",
+    title: "CaratFlow | Premium Jewelry Online Store",
     description:
       "Shop BIS Hallmarked gold, IGI certified diamonds, and exquisite silver jewelry. Free shipping on all orders.",
     url: "https://caratflow.globusdemos.com",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "CaratFlow -- Premium Jewelry Online Store",
+    title: "CaratFlow | Premium Jewelry Online Store",
     description: "Shop certified jewelry online. Gold, Diamond, Silver & Platinum.",
   },
   robots: {

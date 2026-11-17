@@ -1,28 +1,34 @@
 'use client';
 
-import { useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import type { SalesComparisonResponse } from '@caratflow/shared-types';
 import { formatPaise } from '@/components/format';
+import { DateRangePicker, ReportExportMenu } from '@/features/reporting';
+import { useReportRange } from '@/features/reporting/useReportRange';
+import { computePreset, toLocalDateString } from '@/lib/date-presets';
+import { money, type ExportTable } from '@/lib/report-export';
 
 export default function SalesComparisonPage() {
-  const today = new Date();
-  const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
-
-  const [p1From, setP1From] = useState(thisMonth.toISOString().slice(0, 10));
-  const [p1To, setP1To] = useState(today.toISOString().slice(0, 10));
-  const [p2From, setP2From] = useState(lastMonth.toISOString().slice(0, 10));
-  const [p2To, setP2To] = useState(lastMonthEnd.toISOString().slice(0, 10));
+  const { range: p1, onChange: setP1 } = useReportRange();
+  const { range: p2, onChange: setP2 } = useReportRange(() => computePreset('lastMonth'));
 
   const { data, isLoading, isError } = trpc.reporting.salesComparison.useQuery({
-    period1: { from: new Date(p1From), to: new Date(p1To) },
-    period2: { from: new Date(p2From), to: new Date(p2To) },
+    period1: { from: p1.from, to: p1.to },
+    period2: { from: p2.from, to: p2.to },
   });
   const d = data as Partial<SalesComparisonResponse> | undefined;
   const changePct = d?.changePercent?.revenue;
+
+  const getTable = (): ExportTable => ({
+    headers: ['Metric', 'Period 1', 'Period 2'],
+    rows: [
+      ['Date range', `${toLocalDateString(p1.from)} to ${toLocalDateString(p1.to)}`, `${toLocalDateString(p2.from)} to ${toLocalDateString(p2.to)}`],
+      ['Revenue (INR)', money(d?.period1?.totals?.totalRevenuePaise ?? 0), money(d?.period2?.totals?.totalRevenuePaise ?? 0)],
+      ['Sales', d?.period1?.totals?.totalSales ?? 0, d?.period2?.totals?.totalSales ?? 0],
+      ['Revenue change (%)', typeof changePct === 'number' ? changePct : '', ''],
+    ],
+  });
 
   return (
     <div className="space-y-6">
@@ -32,20 +38,17 @@ export default function SalesComparisonPage() {
         { label: 'Sales', href: '/reports/sales' },
         { label: 'Comparison' },
       ]} />
+      <div className="flex justify-end">
+        <ReportExportMenu fileBase="sales-comparison" from={p1.from} to={p1.to} getTable={getTable} disabled={isLoading || isError || !d} />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border p-4">
           <h3 className="font-semibold mb-2">Period 1</h3>
-          <div className="flex gap-2">
-            <input type="date" value={p1From} onChange={(e) => setP1From(e.target.value)} className="h-9 rounded-md border px-2 text-sm" />
-            <input type="date" value={p1To} onChange={(e) => setP1To(e.target.value)} className="h-9 rounded-md border px-2 text-sm" />
-          </div>
+          <DateRangePicker from={p1.from} to={p1.to} onChange={setP1} presets={false} />
         </div>
         <div className="rounded-lg border p-4">
           <h3 className="font-semibold mb-2">Period 2</h3>
-          <div className="flex gap-2">
-            <input type="date" value={p2From} onChange={(e) => setP2From(e.target.value)} className="h-9 rounded-md border px-2 text-sm" />
-            <input type="date" value={p2To} onChange={(e) => setP2To(e.target.value)} className="h-9 rounded-md border px-2 text-sm" />
-          </div>
+          <DateRangePicker from={p2.from} to={p2.to} onChange={setP2} presets={false} />
         </div>
       </div>
       {isLoading ? (

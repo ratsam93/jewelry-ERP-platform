@@ -189,6 +189,22 @@ export class PayrollProcessingService extends TenantAwareService {
     });
   }
 
+  /**
+   * Permanently remove a DRAFT period that has no payslips (e.g. one created by
+   * mistake). Refuses any other status and any period with payslips.
+   */
+  async deleteDraftPeriod(tenantId: string, periodId: string) {
+    const p = await this.getPeriod(tenantId, periodId);
+    if (p.status !== 'DRAFT') {
+      throw new BadRequestException(`Only DRAFT periods can be deleted (this one is ${p.status})`);
+    }
+    if ((p.payslips?.length ?? 0) > 0) {
+      throw new BadRequestException('This period has payslips and cannot be deleted. Cancel processing first.');
+    }
+    await this.prisma.payrollPeriod.delete({ where: { id: periodId } });
+    return { id: periodId, deleted: true };
+  }
+
   async cancelPeriod(tenantId: string, periodId: string) {
     const p = await this.getPeriod(tenantId, periodId);
     if (p.status === 'PAID' || p.status === 'CLOSED') {

@@ -15,6 +15,7 @@ import type {
   MetalStockSummaryRow,
   InventoryReportResponse,
 } from '@caratflow/shared-types';
+import { inclusiveRangeEnd } from './date-range.util';
 
 @Injectable()
 export class ReportingInventoryService extends TenantAwareService {
@@ -222,7 +223,7 @@ export class ReportingInventoryService extends TenantAwareService {
     const movements = await this.prisma.stockMovement.findMany({
       where: {
         tenantId,
-        movedAt: { gte: dateRange.from, lte: dateRange.to },
+        movedAt: { gte: dateRange.from, lte: inclusiveRangeEnd(dateRange.to) },
         movementType: { in: ['IN', 'OUT'] },
       },
       select: {

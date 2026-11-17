@@ -49,6 +49,7 @@ describe('EcommerceTrpcRouter (function coverage)', () => {
   const catalogService = {
     syncProduct: vi.fn(),
     bulkSync: vi.fn(),
+    bulkSyncAll: vi.fn(),
     getCatalogItem: vi.fn(),
     listCatalogItems: vi.fn(),
     deleteCatalogItem: vi.fn(),
@@ -270,6 +271,7 @@ describe('EcommerceTrpcRouter (function coverage)', () => {
 
   describe('updateChannel', () => {
     it('updates the channel with the supplied fields and audit user', async () => {
+      prisma.salesChannel.findFirst.mockResolvedValue({ id: CHANNEL_ID });
       prisma.salesChannel.update.mockResolvedValue({ ...channelRow, name: 'Renamed' });
       const result = await caller.updateChannel({
         channelId: CHANNEL_ID,
@@ -283,6 +285,18 @@ describe('EcommerceTrpcRouter (function coverage)', () => {
       expect(result.id).toBe(CHANNEL_ID);
     });
 
+    it('refuses to update a channel that belongs to another tenant', async () => {
+      prisma.salesChannel.findFirst.mockResolvedValue(null);
+      await expect(
+        caller.updateChannel({ channelId: CHANNEL_ID, data: { name: 'Hijack' } }),
+      ).rejects.toThrow(/not found/i);
+      expect(prisma.salesChannel.findFirst).toHaveBeenCalledWith({
+        where: { id: CHANNEL_ID, tenantId: 'tenant-1' },
+        select: { id: true },
+      });
+      expect(prisma.salesChannel.update).not.toHaveBeenCalled();
+    });
+
     it('rejects a payload with an invalid channel type', async () => {
       await expect(
         caller.updateChannel({ channelId: CHANNEL_ID, data: { channelType: 'NOPE' as never } }),
@@ -292,6 +306,15 @@ describe('EcommerceTrpcRouter (function coverage)', () => {
   });
 
   // ─── Catalog ────────────────────────────────────────────
+  describe('syncAllProducts', () => {
+    it('delegates to catalogService.bulkSyncAll with tenant and user', async () => {
+      catalogService.bulkSyncAll.mockResolvedValue({ totalItems: 2, synced: 2, failed: 0, skipped: 0, errors: [] });
+      const result = await caller.syncAllProducts({ channelId: CHANNEL_ID });
+      expect(catalogService.bulkSyncAll).toHaveBeenCalledWith('tenant-1', 'user-1', CHANNEL_ID);
+      expect(result.synced).toBe(2);
+    });
+  });
+
   describe('syncProduct', () => {
     it('delegates to catalogService.syncProduct with tenant and user', async () => {
       catalogService.syncProduct.mockResolvedValue({ id: CATALOG_ID });

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { FormField } from '@caratflow/ui';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { LocationSelect } from './location-select';
+import { formatServerError } from '@/lib/manufacturing-forms';
 
 interface StockTakeFormProps {
   onClose: () => void;
@@ -13,6 +15,7 @@ interface StockTakeFormProps {
 export function StockTakeForm({ onClose, onSuccess }: StockTakeFormProps) {
   const [locationId, setLocationId] = useState('');
   const [notes, setNotes] = useState('');
+  const [validation, setValidation] = useState('');
 
   const createMutation = trpc.inventory.stockTakes.create.useMutation({
     onSuccess,
@@ -20,6 +23,8 @@ export function StockTakeForm({ onClose, onSuccess }: StockTakeFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!locationId) return setValidation('Select a location.');
+    setValidation('');
     createMutation.mutate({
       locationId,
       notes: notes || undefined,
@@ -38,14 +43,7 @@ export function StockTakeForm({ onClose, onSuccess }: StockTakeFormProps) {
             required
             description="All stock items at this location will be included in the stock take."
           >
-            <input
-              type="text"
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-              placeholder="Location ID"
-              required
-            />
+            <LocationSelect value={locationId} onChange={setLocationId} />
           </FormField>
           <FormField label="Notes">
             <textarea
@@ -57,8 +55,10 @@ export function StockTakeForm({ onClose, onSuccess }: StockTakeFormProps) {
             />
           </FormField>
 
-          {createMutation.error && (
-            <p className="text-sm text-destructive">{createMutation.error.message}</p>
+          {(validation || createMutation.error) && (
+            <p className="text-sm text-destructive" role="alert">
+              {validation || formatServerError(createMutation.error)}
+            </p>
           )}
 
           <DialogFooter>
@@ -70,7 +70,7 @@ export function StockTakeForm({ onClose, onSuccess }: StockTakeFormProps) {
               disabled={createMutation.isPending}
               className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {createMutation.isPending ? 'Creating...' : 'Start Stock Take'}
+              {createMutation.isPending ? 'Creating...' : 'Create Stock Take'}
             </button>
           </DialogFooter>
         </form>

@@ -8,6 +8,7 @@ import { v4 as uuid } from 'uuid';
 import { TenantAwareService } from '../../common/base.service';
 import { Prisma } from '@caratflow/db';
 import { PrismaService } from '../../common/prisma.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import type { AuditMeta } from '@caratflow/shared-types';
 import { PlatformPdfService } from './platform.pdf.service';
 
@@ -208,12 +209,18 @@ export class PlatformExportService extends TenantAwareService {
     }
 
     switch (entityType) {
+      // Customer / supplier dumps carry PAN, Aadhaar and bank account numbers;
+      // exports ship with masked identifiers (full values stay in the DB only).
       case 'customer':
-        return this.prisma.customer.findMany({ where }) as unknown as Record<string, unknown>[];
+        return maskSensitiveDeep(
+          (await this.prisma.customer.findMany({ where })) as unknown as Record<string, unknown>[],
+        );
       case 'product':
         return this.prisma.product.findMany({ where }) as unknown as Record<string, unknown>[];
       case 'supplier':
-        return this.prisma.supplier.findMany({ where }) as unknown as Record<string, unknown>[];
+        return maskSensitiveDeep(
+          (await this.prisma.supplier.findMany({ where })) as unknown as Record<string, unknown>[],
+        );
       default:
         throw new BadRequestException(`Export not supported for entity: ${entityType}`);
     }

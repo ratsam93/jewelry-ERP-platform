@@ -164,6 +164,11 @@ export class EcommerceTrpcRouter {
         }))
         .mutation(async ({ ctx, input }) => {
           const { settings: _settings, ...rest } = input.data;
+          const existing = await this.prisma.salesChannel.findFirst({
+            where: { id: input.channelId, tenantId: ctx.tenantId },
+            select: { id: true },
+          });
+          if (!existing) throw new NotFoundException('Channel not found');
           const updated = await this.prisma.salesChannel.update({
             where: { id: input.channelId },
             data: {
@@ -200,6 +205,12 @@ export class EcommerceTrpcRouter {
         }))
         .mutation(({ ctx, input }) =>
           this.catalogService.bulkSync(ctx.tenantId, ctx.userId, input.channelId, input.productIds),
+        ),
+
+      syncAllProducts: this.trpc.authedProcedure
+        .input(z.object({ channelId: z.guid() }))
+        .mutation(({ ctx, input }) =>
+          this.catalogService.bulkSyncAll(ctx.tenantId, ctx.userId, input.channelId),
         ),
 
       getCatalogItem: this.trpc.authedProcedure

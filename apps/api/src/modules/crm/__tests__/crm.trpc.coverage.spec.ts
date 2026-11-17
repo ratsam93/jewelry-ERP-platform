@@ -32,6 +32,7 @@ describe('CrmTrpcRouter procedure coverage', () => {
     searchCustomers: vi.fn(),
     listCustomers: vi.fn(),
     importCustomers: vi.fn(),
+    createCustomer: vi.fn(),
     createSegment: vi.fn(),
     listSegments: vi.fn(),
     evaluateSegment: vi.fn(),
@@ -140,6 +141,32 @@ describe('CrmTrpcRouter procedure coverage', () => {
       const result = await caller.dashboard();
       expect(crmService.getDashboard).toHaveBeenCalledWith(TENANT);
       expect(result).toEqual({ totalCustomers: 3 });
+    });
+  });
+
+  describe('customerCreate', () => {
+    it('delegates to crmService.createCustomer with normalised input', async () => {
+      crmService.createCustomer.mockResolvedValue({ id: CUSTOMER_ID });
+      const result = await caller.customerCreate({
+        firstName: ' Asha ',
+        lastName: 'Rao',
+        phone: '+919820000001',
+        country: 'in',
+      } as never);
+      expect(crmService.createCustomer).toHaveBeenCalledWith(
+        TENANT,
+        USER,
+        expect.objectContaining({ firstName: 'Asha', lastName: 'Rao', phone: '+919820000001', country: 'IN', customerType: 'RETAIL' }),
+      );
+      expect(result).toEqual({ id: CUSTOMER_ID });
+    });
+
+    it('rejects a non-E.164 phone and a missing last name with BAD_REQUEST', async () => {
+      await expect(
+        caller.customerCreate({ firstName: 'A', lastName: 'B', phone: '9820000001' } as never),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+      await expect(caller.customerCreate({ firstName: 'A' } as never)).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+      expect(crmService.createCustomer).not.toHaveBeenCalled();
     });
   });
 

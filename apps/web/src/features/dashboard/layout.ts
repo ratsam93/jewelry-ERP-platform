@@ -116,3 +116,77 @@ export function moveWidget(order: WidgetId[], fromId: WidgetId, toId: WidgetId):
   next.splice(to, 0, fromId);
   return next;
 }
+
+// ─── Local persistence (HK-DASH-04) ──────────────────────────────
+// "Done" saves here synchronously, then syncs to the server. A reload before
+// the server call finishes still shows the new layout, and the unsynced
+// ("dirty") entry is pushed to the server on the next load.
+
+export const LOCAL_LAYOUT_KEY = 'caratflow.dashboard.layout.v1';
+
+export interface LocalLayoutEntry {
+  state: WidgetLayoutState;
+  /** true while the server has not confirmed this layout */
+  dirty: boolean;
+}
+
+type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
+
+function defaultStorage(): StorageLike | null {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Drop unknown ids / dupes and append missing widgets so a stale entry can never break the page. */
+export function normalizeLayoutState(raw: unknown): WidgetLayoutState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const { order, hidden } = raw as { order?: unknown; hidden?: unknown };
+  if (!Array.isArray(order) || !Array.isArray(hidden)) return null;
+  const cleanOrder: WidgetId[] = [];
+  for (const id of order) {
+    if (typeof id === 'string' && isWidgetId(id) && !cleanOrder.includes(id)) cleanOrder.push(id);
+  }
+  for (const id of DEFAULT_ORDER) if (!cleanOrder.includes(id)) cleanOrder.push(id);
+  const cleanHidden = hidden.filter(
+    (id): id is WidgetId => typeof id === 'string' && isWidgetId(id),
+  );
+  return { order: cleanOrder, hidden: Array.from(new Set(cleanHidden)) };
+}
+
+export function readLocalLayout(storage: StorageLike | null = defaultStorage()): LocalLayoutEntry | null {
+  if (!storage) return null;
+  try {
+    const text = storage.getItem(LOCAL_LAYOUT_KEY);
+    if (!text) return null;
+    const parsed = JSON.parse(text) as { state?: unknown; dirty?: unknown };
+    const state = normalizeLayoutState(parsed.state);
+    return state ? { state, dirty: parsed.dirty === true } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLocalLayout(
+  state: WidgetLayoutState,
+  dirty: boolean,
+  storage: StorageLike | null = defaultStorage(),
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(LOCAL_LAYOUT_KEY, JSON.stringify({ state, dirty }));
+  } catch {
+    /* storage full or blocked: the server save still happens */
+  }
+}
+
+/** Which layout to show on load: an unsynced local one wins over the server copy. */
+export function resolveInitialLayout(
+  server: readonly DashboardWidgetConfig[] | null | undefined,
+  local: LocalLayoutEntry | null,
+): { state: WidgetLayoutState; needsSync: boolean } {
+  if (local?.dirty) return { state: local.state, needsSync: true };
+  return { state: buildLayoutState(server), needsSync: false };
+}

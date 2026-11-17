@@ -222,9 +222,10 @@ export const PaymentInputSchema = z.object({
   customerId: UuidSchema.optional(),
   supplierId: UuidSchema.optional(),
   invoiceId: UuidSchema.optional(),
+  bankAccountId: UuidSchema.optional(),
   reference: z.string().max(255).optional(),
 });
-export type PaymentInput = z.infer<typeof PaymentInputSchema>;
+export type PaymentInput= z.infer<typeof PaymentInputSchema>;
 
 export const PaymentResponseSchema = z.object({
   id: UuidSchema,

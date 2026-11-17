@@ -13,6 +13,7 @@ function extend(base: ReturnType<typeof createMockPrismaService>) {
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
       findMany: vi.fn(),
     },
     payslip: {
@@ -154,6 +155,27 @@ describe('PayrollProcessingService', () => {
     it('rejects approval of non-PROCESSED period', async () => {
       prisma.payrollPeriod.findFirst.mockResolvedValue({ id: 'p1', status: 'DRAFT', payslips: [] });
       await expect(svc.approvePeriod(TEST_TENANT_ID, 'p1')).rejects.toThrow();
+    });
+  });
+
+  describe('deleteDraftPeriod', () => {
+    it('deletes an empty DRAFT period', async () => {
+      prisma.payrollPeriod.findFirst.mockResolvedValue({ id: 'p1', status: 'DRAFT', payslips: [] });
+      prisma.payrollPeriod.delete.mockResolvedValue({});
+      await expect(svc.deleteDraftPeriod(TEST_TENANT_ID, 'p1')).resolves.toEqual({ id: 'p1', deleted: true });
+      expect(prisma.payrollPeriod.delete).toHaveBeenCalledWith({ where: { id: 'p1' } });
+    });
+
+    it('refuses a non-DRAFT period', async () => {
+      prisma.payrollPeriod.findFirst.mockResolvedValue({ id: 'p1', status: 'PROCESSED', payslips: [] });
+      await expect(svc.deleteDraftPeriod(TEST_TENANT_ID, 'p1')).rejects.toThrow(/Only DRAFT/);
+      expect(prisma.payrollPeriod.delete).not.toHaveBeenCalled();
+    });
+
+    it('refuses a period that has payslips', async () => {
+      prisma.payrollPeriod.findFirst.mockResolvedValue({ id: 'p1', status: 'DRAFT', payslips: [{ id: 's1' }] });
+      await expect(svc.deleteDraftPeriod(TEST_TENANT_ID, 'p1')).rejects.toThrow(/payslips/);
+      expect(prisma.payrollPeriod.delete).not.toHaveBeenCalled();
     });
   });
 

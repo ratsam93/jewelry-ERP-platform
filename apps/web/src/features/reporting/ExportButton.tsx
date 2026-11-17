@@ -7,12 +7,15 @@ interface ExportButtonProps {
   onExport: (format: 'csv' | 'pdf' | 'xlsx') => void;
   formats?: Array<'csv' | 'pdf' | 'xlsx'>;
   disabled?: boolean;
+  /** Override the menu labels, e.g. when Excel is served as a CSV. */
+  labels?: Partial<Record<'csv' | 'pdf' | 'xlsx', string>>;
 }
 
 export function ExportButton({
   onExport,
   formats = ['csv', 'xlsx', 'pdf'],
   disabled = false,
+  labels,
 }: ExportButtonProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -20,11 +23,15 @@ export function ExportButton({
     csv: 'CSV',
     xlsx: 'Excel (XLSX)',
     pdf: 'PDF',
+    ...labels,
   };
 
   return (
-    <div className="relative">
+    <div className="relative" data-no-print>
       <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
         onClick={() => setOpen(!open)}
         disabled={disabled}
         className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
@@ -43,6 +50,7 @@ export function ExportButton({
             {formats.map((format) => (
               <button
                 key={format}
+                type="button"
                 onClick={() => {
                   onExport(format);
                   setOpen(false);

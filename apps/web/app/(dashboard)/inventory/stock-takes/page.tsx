@@ -8,6 +8,8 @@ import type { ColumnDef } from '@caratflow/ui';
 import { StockTakeForm } from '@/features/inventory/stock-take-form';
 import { VarianceDisplay } from '@/features/inventory/variance-display';
 import { StockTakeStatus } from '@caratflow/shared-types';
+import { stockTakeCounts } from '@/lib/inventory-forms';
+import { formatServerError } from '@/lib/manufacturing-forms';
 
 interface StockTakeRow {
   id: string;
@@ -32,7 +34,7 @@ export default function StockTakesPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [selectedTake, setSelectedTake] = useState<StockTakeRow | null>(null);
+  const [selectedTakeId, setSelectedTakeId] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = trpc.inventory.stockTakes.list.useQuery({
     page,
@@ -40,8 +42,16 @@ export default function StockTakesPage() {
     status: statusFilter ? (statusFilter as StockTakeStatus) : undefined,
   });
 
+  // Derive the open stock take from the latest list so Start/Complete/counts refresh the panel.
+  const selectedTake =
+    ((data?.items as StockTakeRow[] | undefined) ?? []).find((t) => t.id === selectedTakeId) ?? null;
+
   const completeMutation = trpc.inventory.stockTakes.complete.useMutation({
-    onSuccess: () => { refetch(); setSelectedTake(null); },
+    onSuccess: () => { refetch(); setSelectedTakeId(null); },
+  });
+
+  const startMutation = trpc.inventory.stockTakes.start.useMutation({
+    onSuccess: () => refetch(),
   });
 
   const addCountsMutation = trpc.inventory.stockTakes.addCounts.useMutation({
@@ -132,7 +142,7 @@ export default function StockTakesPage() {
         data={(data?.items as StockTakeRow[]) ?? []}
         isLoading={isLoading}
         pageSize={20}
-        onRowClick={(row) => setSelectedTake(row)}
+        onRowClick={(row) => setSelectedTakeId(row.id)}
       />
 
       {/* Stock Take Detail Panel */}
@@ -148,7 +158,16 @@ export default function StockTakesPage() {
               />
             </h3>
             <div className="flex gap-2">
-              {(selectedTake.status === 'DRAFT' || selectedTake.status === 'IN_PROGRESS') && (
+              {selectedTake.status === 'DRAFT' && (
+                <button
+                  onClick={() => startMutation.mutate({ id: selectedTake.id })}
+                  disabled={startMutation.isPending}
+                  className="h-8 rounded-md bg-primary px-3 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {startMutation.isPending ? 'Starting...' : 'Start'}
+                </button>
+              )}
+              {selectedTake.status === 'IN_PROGRESS' && (
                 <button
                   onClick={() => completeMutation.mutate({ id: selectedTake.id })}
                   disabled={completeMutation.isPending}
@@ -158,13 +177,39 @@ export default function StockTakesPage() {
                 </button>
               )}
               <button
-                onClick={() => setSelectedTake(null)}
+                onClick={() => setSelectedTakeId(null)}
                 className="h-8 rounded-md border px-3 text-sm"
               >
                 Close
               </button>
             </div>
           </div>
+
+          {(() => {
+            const c = stockTakeCounts(selectedTake.items);
+            return (
+              <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-5" data-testid="stock-take-counts">
+                <div><dt className="text-muted-foreground">Lines</dt><dd className="font-medium">{c.total}</dd></div>
+                <div><dt className="text-muted-foreground">Counted</dt><dd className="font-medium">{c.counted}</dd></div>
+                <div><dt className="text-muted-foreground">Pending count</dt><dd className="font-medium">{c.uncounted}</dd></div>
+                <div><dt className="text-muted-foreground">With variance</dt><dd className="font-medium">{c.varianceLines}</dd></div>
+                <div>
+                  <dt className="text-muted-foreground">Started</dt>
+                  <dd className="font-medium">{selectedTake.startedAt ? new Date(selectedTake.startedAt).toLocaleString() : 'Not started'}</dd>
+                </div>
+              </dl>
+            );
+          })()}
+
+          {(startMutation.error || completeMutation.error || addCountsMutation.error) && (
+            <p role="alert" className="text-sm text-destructive">
+              {formatServerError(startMutation.error ?? completeMutation.error ?? addCountsMutation.error)}
+            </p>
+          )}
+
+          {selectedTake.items && selectedTake.items.length === 0 && (
+            <p className="text-sm text-muted-foreground">No stock items were at this location when the stock take was created.</p>
+          )}
 
           {/* Count Entry Form */}
           {selectedTake.items && selectedTake.items.length > 0 && (
