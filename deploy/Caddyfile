@@ -1,0 +1,68 @@
+# CaratFlow reverse proxy. Caddy obtains and renews Let's Encrypt certificates
+# automatically for every hostname below (DNS A records must point at this server
+# and ports 80/443 must be reachable). DOMAIN and ACME_EMAIL come from .env.
+
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# Admin / ERP app. The browser calls relative /api/v1/* on this host; send those
+# straight to the API (no Next.js rewrite hop). Everything else goes to the web app.
+app.{$DOMAIN} {
+	import common
+	@root path /
+	redir @root /admin 308
+	handle /api/v1/* {
+		request_body {
+			max_size 25MB
+		}
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}
+
+# Customer storefront.
+shop.{$DOMAIN} {
+	import common
+	reverse_proxy storefront:3003
+}
+
+# Marketing website (apex + www).
+{$DOMAIN}, www.{$DOMAIN} {
+	import common
+	reverse_proxy website:8080
+}
+
+# API (REST /api/v1, tRPC, websockets, /health). Uploads go through here.
+api.{$DOMAIN} {
+	import common
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy api:4000 {
+		health_uri /health
+		health_interval 30s
+	}
+}
+
+# S3 API of MinIO, used for browser-facing presigned file URLs. The console is NOT
+# exposed. Requires a DNS A record for files.<DOMAIN>.
+files.{$DOMAIN} {
+	import common
+	request_body {
+		max_size 100MB
+	}
+	reverse_proxy minio:9000
+}

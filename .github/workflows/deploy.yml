@@ -1,0 +1,288 @@
+name: Deploy
+
+# Builds the four container images, pushes them to GHCR and deploys them to the
+# production server over SSH. Everything is skipped (green) unless the repository
+# VARIABLE DEPLOY_ENABLED is set to "true". Setup: docs/DEPLOYMENT-DOCKER.md.
+#
+# Triggers
+#   - workflow_run: after the "CI" workflow finished successfully for a push to main
+#     (so a deploy never starts from a commit whose CI failed)
+#   - workflow_dispatch: manual run; optionally deploy a specific ref, redeploy an
+#     already-built image tag (rollback) and/or run the one-time demo seed
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (branch, tag or SHA) to build and deploy. Empty = the selected branch."
+        required: false
+        default: ""
+      image_tag:
+        description: "Redeploy an already-built image tag (e.g. a previous commit SHA) and skip the build."
+        required: false
+        default: ""
+      run_seed:
+        description: "Run the demo seed once after the schema is applied (first install only)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    # No-op unless explicitly enabled. For workflow_run also require a successful CI
+    # run for a *push* (not a pull request that happens to come from a branch named main).
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    outputs:
+      sha: ${{ steps.vars.outputs.sha }}
+      tag: ${{ steps.vars.outputs.tag }}
+      owner: ${{ steps.vars.outputs.owner }}
+      build: ${{ steps.vars.outputs.build }}
+      domain: ${{ steps.vars.outputs.domain }}
+    steps:
+      - name: Resolve what to deploy
+        id: vars
+        env:
+          EVENT: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_REF: ${{ inputs.ref }}
+          INPUT_TAG: ${{ inputs.image_tag }}
+          DISPATCH_SHA: ${{ github.sha }}
+          OWNER: ${{ github.repository_owner }}
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_run" ]; then
+            ref="$RUN_SHA"
+          else
+            ref="${INPUT_REF:-$DISPATCH_SHA}"
+          fi
+          if [ -z "$DOMAIN" ]; then
+            echo "::error::Repository variable DOMAIN is not set (Settings > Secrets and variables > Actions > Variables)."
+            exit 1
+          fi
+          if [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"; build=false
+          else
+            tag=""; build=true
+          fi
+          {
+            echo "sha=$ref"
+            echo "tag=$tag"
+            echo "build=$build"
+            echo "owner=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')"
+            echo "domain=$DOMAIN"
+          } >> "$GITHUB_OUTPUT"
+
+  build-push:
+    name: Build ${{ matrix.image }}
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [api, web, storefront, website]
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - name: Compute image tag and build args
+        id: meta
+        env:
+          IMAGE: ${{ matrix.image }}
+          DOMAIN: ${{ needs.prepare.outputs.domain }}
+          TENANT_ID: ${{ vars.TENANT_ID }}
+          TENANT_SLUG: ${{ vars.TENANT_SLUG }}
+          IMAGE_HOSTS: ${{ vars.NEXT_PUBLIC_IMAGE_HOSTS }}
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          tenant_id="${TENANT_ID:-69544f8e-fa3c-40b4-8975-643825600ce7}"
+          tenant_slug="${TENANT_SLUG:-sharma-jewellers}"
+          {
+            echo "args<<__ARGS__"
+            echo "GIT_SHA=$sha"
+            case "$IMAGE" in
+              web)
+                echo "NEXT_PUBLIC_API_URL=https://api.$DOMAIN"
+                ;;
+              storefront)
+                echo "NEXT_PUBLIC_API_URL=https://api.$DOMAIN"
+                echo "NEXT_PUBLIC_TENANT_ID=$tenant_id"
+                echo "NEXT_PUBLIC_TENANT_SLUG=$tenant_slug"
+                echo "NEXT_PUBLIC_IMAGE_HOSTS=$IMAGE_HOSTS"
+                ;;
+              website)
+                echo "NEXT_PUBLIC_API_URL=https://api.$DOMAIN"
+                echo "NEXT_PUBLIC_TENANT_ID=$tenant_id"
+                echo "NEXT_PUBLIC_SITE_URL=https://$DOMAIN"
+                ;;
+            esac
+            echo "__ARGS__"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/${{ matrix.image }}.Dockerfile
+          push: true
+          build-args: ${{ steps.meta.outputs.args }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ needs.prepare.outputs.owner }}/caratflow-${{ matrix.image }}:${{ steps.meta.outputs.sha }}
+            ${{ env.REGISTRY }}/${{ needs.prepare.outputs.owner }}/caratflow-${{ matrix.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+          provenance: false
+
+  deploy:
+    name: Deploy to server
+    needs: [prepare, build-push]
+    # Run after a successful build, or when the build was skipped (redeploy of an existing tag).
+    if: >-
+      !cancelled() && needs.prepare.result == 'success' &&
+      (needs.build-push.result == 'success' || needs.build-push.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+      GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+      GHCR_FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DEPLOY_DIR: /opt/caratflow
+    steps:
+      - name: Work out the image tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ needs.prepare.outputs.tag }}
+          BUILT_SHA: ${{ needs.build-push.outputs.sha }}
+          REF: ${{ needs.prepare.outputs.sha }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG:-${BUILT_SHA:-$REF}}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Deploying image tag: $tag"
+
+      # The deploy files (compose, Caddyfile, scripts) come from the commit being deployed.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          sparse-checkout: deploy
+          persist-credentials: false
+
+      - name: Check deploy configuration
+        run: |
+          set -euo pipefail
+          missing=""
+          for v in SSH_HOST SSH_USER SSH_PRIVATE_KEY; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository/environment secrets:$missing (see docs/DEPLOYMENT-DOCKER.md)"
+            exit 1
+          fi
+
+      - name: Configure SSH
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          umask 077
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # Trust-on-first-use: convenient, but it cannot detect a man-in-the-middle on the
+            # very first connection. Prefer setting the SSH_KNOWN_HOSTS secret
+            # (output of: ssh-keyscan -p PORT HOST).
+            echo "::warning::SSH_KNOWN_HOSTS not set; using ssh-keyscan (trust on first use)."
+            ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          cat > ~/.ssh/config <<EOF
+          Host target
+            HostName $SSH_HOST
+            User $SSH_USER
+            Port ${SSH_PORT:-22}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+            ServerAliveCountMax 20
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Copy deploy files
+        run: |
+          set -euo pipefail
+          scp deploy/docker-compose.prod.yml deploy/Caddyfile deploy/backup.sh deploy/restore.sh \
+              deploy/remote-deploy.sh "target:$DEPLOY_DIR/"
+          ssh target "chmod +x $DEPLOY_DIR/backup.sh $DEPLOY_DIR/restore.sh $DEPLOY_DIR/remote-deploy.sh"
+
+      - name: Deploy (pull, migrate, start, health check, rollback on failure)
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+          RUN_SEED: ${{ inputs.run_seed == true && 'true' || 'false' }}
+          GHCR_ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          # A read-only PAT (read:packages) is preferred; otherwise the short-lived workflow
+          # token is used. Either way the token goes over stdin (never argv) and the server
+          # logs out of GHCR when the script exits.
+          token="${GHCR_PULL_TOKEN:-$GHCR_FALLBACK_TOKEN}"
+          printf '%s\n' "$token" | ssh target \
+            "cd $DEPLOY_DIR && GHCR_USER='$GHCR_ACTOR' ./remote-deploy.sh '$IMAGE_TAG' '$RUN_SEED'"
+
+      - name: Summary
+        if: success()
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+          DOMAIN: ${{ needs.prepare.outputs.domain }}
+        run: |
+          {
+            echo "### Deployed"
+            echo "- image tag / commit: \`$IMAGE_TAG\`"
+            echo "- admin: https://app.$DOMAIN  | shop: https://shop.$DOMAIN  | site: https://$DOMAIN"
+            echo "- API health: https://api.$DOMAIN/health"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed SHA: $IMAGE_TAG"
+
+      - name: Clean up SSH material
+        if: always()
+        run: rm -rf ~/.ssh/deploy_key ~/.ssh/config

@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -41,7 +42,14 @@ const csp = [
   "object-src 'none'",
 ].join("; ");
 
+// Container builds (docker/storefront.Dockerfile) set NEXT_OUTPUT=standalone to emit a
+// minimal self-contained server. Off by default so local builds are unchanged.
+const standalone = process.env.NEXT_OUTPUT === "standalone";
+
 const nextConfig: NextConfig = {
+  ...(standalone
+    ? { output: "standalone" as const, outputFileTracingRoot: path.join(process.cwd(), "../..") }
+    : {}),
   images: {
     remotePatterns: imageHostnames.map((hostname) => ({
       protocol: "https" as const,
