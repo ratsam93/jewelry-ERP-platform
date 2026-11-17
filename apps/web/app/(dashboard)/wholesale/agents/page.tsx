@@ -7,6 +7,7 @@ import { Plus, Users } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatPaise } from '@/components/format';
+import { formatCommissionRate } from '@/lib/wholesale-form';
 
 export default function AgentsPage() {
   const [page, setPage] = useState(1);
@@ -34,10 +35,10 @@ export default function AgentsPage() {
           { label: 'Agents' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/wholesale/agents/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" />
             Add Agent
-          </button>
+          </Link>
         }
       />
 
@@ -70,7 +71,7 @@ export default function AgentsPage() {
                 >
                   <span className="font-medium">{a.name as string}</span>
                   <span>{a.commissionType as string}</span>
-                  <span>{String(a.commissionValue ?? '-')}</span>
+                  <span>{formatCommissionRate(a.commissionType, a.commissionRate)}</span>
                   <span className="text-muted-foreground text-xs">{(a.phone as string) ?? '-'}</span>
                   <StatusBadge label={a.isActive ? 'Active' : 'Inactive'} variant={a.isActive ? 'success' : 'default'} />
                 </Link>
@@ -96,8 +97,8 @@ export default function AgentsPage() {
             <div className="divide-y">
               {commissions.map((c) => (
                 <div key={c.id as string} className="grid grid-cols-[1.4fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm">
-                  <span className="font-medium">{((c.agentBroker as { name?: string })?.name) ?? '-'}</span>
-                  <span>{formatPaise(c.commissionAmountPaise)}</span>
+                  <span className="font-medium">{(c.agentName as string | undefined) ?? ((c.agentBroker as { name?: string })?.name) ?? '-'}</span>
+                  <span>{formatPaise(c.amountPaise ?? c.commissionAmountPaise)}</span>
                   <span>{c.status as string}</span>
                   <span className="text-muted-foreground">{(c.referenceType as string) ?? '-'}</span>
                 </div>

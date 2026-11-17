@@ -5,6 +5,7 @@ import { PageHeader } from '@caratflow/ui';
 import { Shield, Plus, Pencil, Trash2 } from 'lucide-react';
 import { PermissionMatrix } from '@/features/platform/PermissionMatrix';
 import { trpc } from '@/lib/trpc';
+import { ConfirmDialog } from '@/features/settings/ConfirmDialog';
 
 interface Role {
   id: string;
@@ -25,7 +26,9 @@ export default function RolesPage() {
   });
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const rolesQuery = trpc.platform.roles.list.useQuery();
+  const utils = trpc.useUtils();
+  const [pendingDelete, setPendingDelete] = useState<Role | null>(null);
+  const rolesQuery = trpc.platform.roles.list.useQuery(undefined, { refetchOnMount: 'always' });
   const permissionsQuery = trpc.platform.roles.permissions.useQuery();
 
   const roles = (rolesQuery.data as Role[] | undefined) ?? [];
@@ -41,28 +44,45 @@ export default function RolesPage() {
     setFormData({ name: '', description: '', permissions: [] });
   };
 
+  // Invalidate the list procedure the page actually reads so Create/Update/Delete
+  // show up immediately (no reload needed).
+  const refreshRoles = () => utils.platform.roles.list.invalidate();
+
   const createMutation = trpc.platform.roles.create.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       setBanner({ type: 'success', message: 'Role created.' });
       resetForm();
-      void rolesQuery.refetch();
+      await refreshRoles();
     },
     onError: (err) => setBanner({ type: 'error', message: err.message }),
   });
 
   const updateMutation = trpc.platform.roles.update.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       setBanner({ type: 'success', message: 'Role updated.' });
       resetForm();
-      void rolesQuery.refetch();
+      await refreshRoles();
     },
     onError: (err) => setBanner({ type: 'error', message: err.message }),
   });
 
   const deleteMutation = trpc.platform.roles.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       setBanner({ type: 'success', message: 'Role deleted.' });
-      void rolesQuery.refetch();
+      setPendingDelete(null);
+      await refreshRoles();
+    },
+    onError: (err) => {
+      setPendingDelete(null);
+      setBanner({ type: 'error', message: err.message });
+    },
+  });
+
+  const seedMutation = trpc.platform.roles.seedPermissions.useMutation({
+    onSuccess: async (r) => {
+      const created = (r as { created?: number } | undefined)?.created ?? 0;
+      setBanner({ type: 'success', message: `Default permissions loaded (${created} added).` });
+      await utils.platform.roles.permissions.invalidate();
     },
     onError: (err) => setBanner({ type: 'error', message: err.message }),
   });
@@ -110,10 +130,7 @@ export default function RolesPage() {
     setShowForm(true);
   };
 
-  const handleDelete = (roleId: string) => {
-    if (!confirm('Are you sure you want to delete this role?')) return;
-    deleteMutation.mutate({ roleId });
-  };
+  const handleDelete = (role: Role) => setPendingDelete(role);
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -173,6 +190,19 @@ export default function RolesPage() {
 
             <div>
               <h4 className="mb-2 text-sm font-medium">Permissions</h4>
+              {!permissionsQuery.isLoading && Object.keys(permissionCatalog).length === 0 && (
+                <div className="mb-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                  <p>No permissions defined yet.</p>
+                  <button
+                    type="button"
+                    onClick={() => seedMutation.mutate()}
+                    disabled={seedMutation.isPending}
+                    className="mt-2 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                  >
+                    {seedMutation.isPending ? 'Loading...' : 'Load default permissions'}
+                  </button>
+                </div>
+              )}
               <PermissionMatrix
                 permissionCatalog={permissionCatalog}
                 selectedPermissions={formData.permissions}
@@ -230,7 +260,7 @@ export default function RolesPage() {
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => handleDelete(role.id)}
+                  onClick={() => handleDelete(role)}
                   disabled={role.isSystem || role._count.users > 0 || deleteMutation.isPending}
                   className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                   title="Delete role"
@@ -242,6 +272,21 @@ export default function RolesPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete role?"
+        description={
+          <>
+            This will permanently delete the role <strong>{pendingDelete?.name}</strong>. This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete role"
+        destructive
+        busy={deleteMutation.isPending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => pendingDelete && deleteMutation.mutate({ roleId: pendingDelete.id })}
+      />
     </div>
   );
 }

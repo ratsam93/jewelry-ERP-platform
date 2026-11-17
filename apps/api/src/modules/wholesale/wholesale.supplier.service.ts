@@ -2,7 +2,8 @@
 // Supplier CRUD + aggregated performance metrics (on-time delivery,
 // quality rejection, avg lead time, total purchase value).
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { supplierPostalCodeError } from '@caratflow/shared-types';
 import type {
   SupplierInput,
   SupplierListFilter,
@@ -13,6 +14,7 @@ import type {
 } from '@caratflow/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -89,7 +91,7 @@ export class WholesaleSupplierService extends TenantAwareService {
 
     const totalPages = Math.ceil(total / pagination.limit);
     return {
-      items: items.map((s) => this.mapToResponse(s)),
+      items: maskSensitiveDeep(items.map((s) => this.mapToResponse(s))),
       total,
       page: pagination.page,
       limit: pagination.limit,
@@ -109,6 +111,16 @@ export class WholesaleSupplierService extends TenantAwareService {
       where: this.tenantWhere(tenantId, { id }) as { tenantId: string; id: string },
     });
     if (!existing) throw new NotFoundException('Supplier not found');
+
+    // The pincode rule depends on the country, which a partial update may not carry:
+    // check the merged values (the per-field formats are validated by the tRPC schema).
+    if (data.postalCode !== undefined || data.country !== undefined) {
+      const postalMessage = supplierPostalCodeError(
+        data.country ?? existing.country,
+        data.postalCode ?? existing.postalCode,
+      );
+      if (postalMessage) throw new BadRequestException(postalMessage);
+    }
 
     await this.prisma.supplier.update({
       where: { id },

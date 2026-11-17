@@ -35,24 +35,30 @@ export default function RatingStars({
 
   return (
     <div className="flex items-center gap-1">
-      <div className="flex items-center">
+      <div
+        className="flex items-center"
+        {...(interactive
+          ? { role: "group", "aria-label": "Rating" }
+          : { role: "img", "aria-label": `Rated ${rating.toFixed(1)} out of ${maxRating} stars` })}
+      >
         {Array.from({ length: maxRating }, (_, i) => {
           const filled = i < Math.floor(rating);
           const partial = !filled && i < rating;
           const percentage = partial ? Math.round((rating - i) * 100) : 0;
 
+          const starClass = cn("relative", interactive && "cursor-pointer hover:scale-110 transition-transform");
+          const Star = interactive ? "button" : "span";
+          const starProps = interactive
+            ? {
+                type: "button" as const,
+                onClick: () => onChange?.(i + 1),
+                "aria-label": `Rate ${i + 1} star${i === 0 ? "" : "s"}`,
+                "aria-pressed": i < Math.round(rating),
+              }
+            : { "aria-hidden": true };
+
           return (
-            <button
-              key={i}
-              type="button"
-              disabled={!interactive}
-              onClick={() => interactive && onChange?.(i + 1)}
-              className={cn(
-                "relative",
-                interactive && "cursor-pointer hover:scale-110 transition-transform",
-                !interactive && "cursor-default"
-              )}
-            >
+            <Star key={i} className={starClass} {...starProps}>
               {/* Empty star */}
               <svg className={cn(sizeClass, "text-gray-300")} viewBox="0 0 20 20" fill="currentColor">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -68,7 +74,7 @@ export default function RatingStars({
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               )}
-            </button>
+            </Star>
           );
         })}
       </div>

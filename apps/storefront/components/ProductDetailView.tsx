@@ -129,6 +129,8 @@ export default function ProductDetailView({ product, reviews, related, jsonLd }:
                       type="button"
                       disabled={!size.isAvailable}
                       onClick={() => setSelectedSize(size.value)}
+                      aria-label={`Select size ${size.label}`}
+                      aria-pressed={selectedSize === size.value}
                       className={cn(
                         "w-10 h-10 rounded-lg border text-sm font-medium transition-all",
                         selectedSize === size.value

@@ -18,10 +18,32 @@ interface CommandPaletteItem {
 interface CommandPaletteProps {
   items: CommandPaletteItem[];
   placeholder?: string;
+  /** Controlled open state. When omitted the palette manages its own state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CommandPalette({ items, placeholder = 'Type a command or search...' }: CommandPaletteProps) {
-  const [open, setOpen] = React.useState(false);
+export type { CommandPaletteItem };
+
+export function CommandPalette({
+  items,
+  placeholder = 'Type a command or search...',
+  open: openProp,
+  onOpenChange,
+}: CommandPaletteProps) {
+  const [innerOpen, setInnerOpen] = React.useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : innerOpen;
+  const openRef = React.useRef(open);
+  openRef.current = open;
+  const setOpen = React.useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) => {
+      const value = typeof next === 'function' ? next(openRef.current) : next;
+      if (!controlled) setInnerOpen(value);
+      onOpenChange?.(value);
+    },
+    [controlled, onOpenChange],
+  );
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -32,7 +54,7 @@ export function CommandPalette({ items, placeholder = 'Type a command or search.
     };
     document.addEventListener('keydown', down);
     return () => document.removeEventListener('keydown', down);
-  }, []);
+  }, [setOpen]);
 
   // Group items
   const groups = React.useMemo(() => {
@@ -54,7 +76,7 @@ export function CommandPalette({ items, placeholder = 'Type a command or search.
           <DialogPrimitive.Description className="sr-only">
             Type a command or search, then use the arrow keys and Enter to run an item.
           </DialogPrimitive.Description>
-          <CommandPrimitive className="flex h-full w-full flex-col overflow-hidden">
+          <CommandPrimitive label="Command palette" className="flex h-full w-full flex-col overflow-hidden">
             <div className="flex items-center border-b px-3">
               <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
               <CommandPrimitive.Input

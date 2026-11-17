@@ -46,7 +46,7 @@ export default function ProductCard({ product, showQuickAdd = true }: ProductCar
           toggleWishlist(product.id);
         }}
         className={cn(
-          "absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all",
+          "absolute top-3 right-3 z-10 w-10 h-10 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all",
           wishlisted
             ? "bg-rose-50 text-rose-500"
             : "bg-white/80 text-navy/40 hover:text-rose-500 hover:bg-rose-50"
@@ -80,7 +80,7 @@ export default function ProductCard({ product, showQuickAdd = true }: ProductCar
 
       {/* Quick Add overlay */}
       {showQuickAdd && (
-        <div className="absolute bottom-[calc(50%+40px)] left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="absolute bottom-[calc(50%+40px)] left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity duration-300">
           <button
             type="button"
             onClick={(e) => {
@@ -89,7 +89,7 @@ export default function ProductCard({ product, showQuickAdd = true }: ProductCar
                 addToCart(product);
               }
             }}
-            className="bg-navy/90 text-white text-xs font-medium px-5 py-2 rounded-full hover:bg-navy transition-colors backdrop-blur-sm"
+            className="bg-navy text-white text-xs font-medium px-5 py-2 rounded-full hover:bg-navy transition-colors backdrop-blur-sm"
           >
             {product.sizes ? "Select Size" : "Quick Add"}
           </button>

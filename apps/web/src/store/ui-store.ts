@@ -7,7 +7,7 @@ interface UiState {
   theme: 'light' | 'dark';
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  setActiveBranch: (branchId: string) => void;
+  setActiveBranch: (branchId: string | null) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
 }

@@ -97,7 +97,7 @@ function toAddressBody(addr: Address) {
     addressLine2: addr.addressLine2 || undefined,
     city: addr.city,
     state: addr.state,
-    country: "IN",
+    country: addr.country || "IN",
     postalCode: addr.pincode,
     isDefault: addr.isDefault,
   };

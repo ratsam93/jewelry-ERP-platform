@@ -187,6 +187,36 @@ describe('WholesaleTrpcRouter (suppliers)', () => {
         caller.updateSupplier({ id: 'bogus', data: {} }),
       ).rejects.toThrow();
     });
+
+    it('rejects a malformed GSTIN / PAN / phone and never reaches the service (HK-WHL-01)', async () => {
+      await expect(
+        caller.updateSupplier({ id: SUPPLIER_ID, data: { gstinNumber: '27ABC' } }),
+      ).rejects.toThrow(/GSTIN/);
+      await expect(
+        caller.updateSupplier({ id: SUPPLIER_ID, data: { panNumber: 'bad' } }),
+      ).rejects.toThrow(/PAN/);
+      await expect(
+        caller.updateSupplier({ id: SUPPLIER_ID, data: { phone: 'abc' } }),
+      ).rejects.toThrow();
+      expect(supplierService.updateSupplier).not.toHaveBeenCalled();
+    });
+
+    it('normalises a valid GSTIN to upper case', async () => {
+      supplierService.updateSupplier.mockResolvedValue({});
+      await caller.updateSupplier({ id: SUPPLIER_ID, data: { gstinNumber: '27abcde1234f1z5' } });
+      expect(supplierService.updateSupplier).toHaveBeenCalledWith(
+        'tenant-1', 'user-1', SUPPLIER_ID,
+        expect.objectContaining({ gstinNumber: '27ABCDE1234F1Z5' }),
+      );
+    });
+  });
+
+  describe('createSupplier validation (HK-WHL-01)', () => {
+    it('rejects a bad GSTIN and a 4-digit Indian pincode', async () => {
+      await expect(caller.createSupplier({ ...validSupplier, gstinNumber: '27ABC' })).rejects.toThrow(/GSTIN/);
+      await expect(caller.createSupplier({ ...validSupplier, country: 'IN', postalCode: '4000' })).rejects.toThrow(/6 digits/);
+      expect(supplierService.createSupplier).not.toHaveBeenCalled();
+    });
   });
 
   describe('deactivateSupplier', () => {

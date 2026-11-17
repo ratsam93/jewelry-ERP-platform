@@ -48,8 +48,8 @@ export default function ClickCollectPage() {
           </div>
         )}
       </div>
-      {d && d.totalPages && d.totalPages > 0 && (
-        <PaginationControls page={d.page ?? 1} totalPages={d.totalPages} hasPrevious={d.hasPrevious ?? false} hasNext={d.hasNext ?? false} onChange={setPage} />
+      {d && (d.totalPages ?? 0) > 0 && (
+        <PaginationControls page={d.page ?? 1} totalPages={d.totalPages ?? 0} hasPrevious={d.hasPrevious ?? false} hasNext={d.hasNext ?? false} onChange={setPage} />
       )}
     </div>
   );

@@ -223,6 +223,32 @@ describe('FinancialService', () => {
   // ─── Record Payment ──────────────────────────────────────────
 
   describe('recordPayment', () => {
+    /** Ledger accounts looked up by chart-of-accounts code (1000 Cash/Bank, 1200 AR). */
+    const mockLedgerAccounts = () => {
+      mockPrisma.account.findFirst.mockImplementation(async (args: any) => {
+        const code = args?.where?.accountCode;
+        const id = code === '1000' ? 'acc-cash' : code === '1200' ? 'acc-ar' : `acc-${code}`;
+        if (args?.where?.id?.notIn?.includes(id)) return null;
+        return { id, tenantId: TEST_TENANT_ID, accountCode: code };
+      });
+    };
+
+    const expectBalancedPaymentJournal = (amount: number) => {
+      const call = mockPrisma.journalEntry.create.mock.calls[0]![0];
+      const lines = call.data.lines.create as Array<{
+        accountId: string;
+        debitPaise: bigint;
+        creditPaise: bigint;
+      }>;
+      const debit = lines.reduce((a, l) => a + l.debitPaise, BigInt(0));
+      const credit = lines.reduce((a, l) => a + l.creditPaise, BigInt(0));
+      expect(debit).toBe(BigInt(amount));
+      expect(credit).toBe(BigInt(amount));
+      // receipt: Dr Cash/Bank, Cr Accounts Receivable
+      expect(lines.find((l) => l.debitPaise > BigInt(0))!.accountId).toBe('acc-cash');
+      expect(lines.find((l) => l.creditPaise > BigInt(0))!.accountId).toBe('acc-ar');
+    };
+
     it('records payment against invoice and marks as PAID when fully paid', async () => {
       mockPrisma.invoice.findFirst.mockResolvedValue({
         id: 'inv-1',
@@ -239,12 +265,7 @@ describe('FinancialService', () => {
 
       // Mock journal entry creation
       mockPrisma.journalEntry.count.mockResolvedValue(0);
-      mockPrisma.account.findFirst.mockResolvedValue({
-        id: 'acc-cash',
-        tenantId: TEST_TENANT_ID,
-        accountType: 'ASSET',
-        accountCode: '1001',
-      });
+      mockLedgerAccounts();
       mockPrisma.journalEntry.create.mockResolvedValue({
         id: 'je-pay',
         tenantId: TEST_TENANT_ID,
@@ -278,9 +299,10 @@ describe('FinancialService', () => {
       // Invoice should be updated to PAID
       expect(mockPrisma.invoice.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ status: 'PAID' }),
+          data: expect.objectContaining({ status: 'PAID', paidPaise: BigInt(6695000) }),
         }),
       );
+      expectBalancedPaymentJournal(6695000);
     });
 
     it('marks invoice as PARTIALLY_PAID for partial payment', async () => {
@@ -298,7 +320,7 @@ describe('FinancialService', () => {
       });
 
       mockPrisma.journalEntry.count.mockResolvedValue(0);
-      mockPrisma.account.findFirst.mockResolvedValue(null); // no accounts found
+      mockLedgerAccounts();
       mockPrisma.journalEntry.create.mockResolvedValue({ id: 'je-2' });
       mockPrisma.payment.count.mockResolvedValue(0);
       mockPrisma.payment.create.mockResolvedValue({
@@ -319,9 +341,10 @@ describe('FinancialService', () => {
 
       expect(mockPrisma.invoice.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ status: 'PARTIALLY_PAID' }),
+          data: expect.objectContaining({ status: 'PARTIALLY_PAID', paidPaise: BigInt(3000000) }),
         }),
       );
+      expectBalancedPaymentJournal(3000000);
     });
 
     it('throws when linked invoice not found', async () => {

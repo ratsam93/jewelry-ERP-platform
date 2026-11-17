@@ -4,6 +4,8 @@ import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { Plus, Pencil, Trash2, Power } from 'lucide-react';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
+import { formatServerError } from '@/features/compliance/form-errors';
+import { paiseToRupees, rupeesToPaise, validateAmlRuleForm, type AmlFormErrors } from '@/features/compliance/aml-rule-form';
 
 type RuleSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 type RuleType =
@@ -40,10 +42,10 @@ interface RuleFormState {
   severity: RuleSeverity;
   isActive: boolean;
   // Parameter fields (optional per rule type)
-  maxAmountPaise?: string;
+  maxAmountRupees?: string;
   period?: string;
   maxCount?: string;
-  velocityThresholdPaise?: string;
+  velocityThresholdRupees?: string;
   structuringThresholdPaise?: string;
   structuringWindowHours?: string;
   restrictedCountries?: string;
@@ -83,19 +85,15 @@ const emptyForm: RuleFormState = {
 
 function parseParameters(form: RuleFormState): RuleParameters {
   const out: RuleParameters = {};
-  if (form.maxAmountPaise && form.maxAmountPaise.trim()) {
-    const n = Number(form.maxAmountPaise);
-    if (Number.isFinite(n)) out.maxAmountPaise = Math.trunc(n);
-  }
+  const maxAmountPaise = rupeesToPaise(form.maxAmountRupees);
+  if (maxAmountPaise !== null) out.maxAmountPaise = maxAmountPaise;
   if (form.period && form.period.trim()) out.period = form.period.trim();
   if (form.maxCount && form.maxCount.trim()) {
     const n = Number(form.maxCount);
     if (Number.isFinite(n)) out.maxCount = Math.trunc(n);
   }
-  if (form.velocityThresholdPaise && form.velocityThresholdPaise.trim()) {
-    const n = Number(form.velocityThresholdPaise);
-    if (Number.isFinite(n)) out.velocityThresholdPaise = Math.trunc(n);
-  }
+  const velocityPaise = rupeesToPaise(form.velocityThresholdRupees);
+  if (velocityPaise !== null) out.velocityThresholdPaise = velocityPaise;
   if (form.structuringThresholdPaise && form.structuringThresholdPaise.trim()) {
     const n = Number(form.structuringThresholdPaise);
     if (Number.isFinite(n)) out.structuringThresholdPaise = Math.trunc(n);
@@ -121,10 +119,10 @@ function paramsToForm(rule: RuleRow): RuleFormState {
     ruleType: rule.ruleType,
     severity: rule.severity,
     isActive: rule.isActive,
-    maxAmountPaise: p.maxAmountPaise?.toString() ?? '',
+    maxAmountRupees: paiseToRupees(p.maxAmountPaise),
     period: p.period ?? '',
     maxCount: p.maxCount?.toString() ?? '',
-    velocityThresholdPaise: p.velocityThresholdPaise?.toString() ?? '',
+    velocityThresholdRupees: paiseToRupees(p.velocityThresholdPaise),
     structuringThresholdPaise: p.structuringThresholdPaise?.toString() ?? '',
     structuringWindowHours: p.structuringWindowHours?.toString() ?? '',
     restrictedCountries: p.restrictedCountries?.join(', ') ?? '',
@@ -164,6 +162,7 @@ function describeRule(rule: RuleRow): string {
 export default function AmlRulesPage() {
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [form, setForm] = useState<RuleFormState | null>(null);
+  const [errors, setErrors] = useState<AmlFormErrors>({});
 
   const listQuery = trpc.aml.ruleList.useQuery();
   const refresh = () => { void listQuery.refetch(); };
@@ -174,7 +173,7 @@ export default function AmlRulesPage() {
       setForm(null);
       refresh();
     },
-    onError: (err) => setBanner({ type: 'error', message: err.message }),
+    onError: (err) => setBanner({ type: 'error', message: formatServerError(err.message) }),
   });
 
   const updateMutation = trpc.aml.ruleUpdate.useMutation({
@@ -183,7 +182,7 @@ export default function AmlRulesPage() {
       setForm(null);
       refresh();
     },
-    onError: (err) => setBanner({ type: 'error', message: err.message }),
+    onError: (err) => setBanner({ type: 'error', message: formatServerError(err.message) }),
   });
 
   const deleteMutation = trpc.aml.ruleDelete.useMutation({
@@ -191,7 +190,7 @@ export default function AmlRulesPage() {
       setBanner({ type: 'success', message: 'Rule deactivated.' });
       refresh();
     },
-    onError: (err) => setBanner({ type: 'error', message: err.message }),
+    onError: (err) => setBanner({ type: 'error', message: formatServerError(err.message) }),
   });
 
   const rules = (listQuery.data ?? []) as unknown as RuleRow[];
@@ -200,6 +199,19 @@ export default function AmlRulesPage() {
     if (!form) return;
     if (!form.ruleName.trim()) {
       setBanner({ type: 'error', message: 'Rule name is required.' });
+      return;
+    }
+    const fieldErrors = validateAmlRuleForm({
+      ruleType: form.ruleType,
+      maxAmountRupees: form.maxAmountRupees,
+      velocityThresholdRupees: form.velocityThresholdRupees,
+      maxCount: form.maxCount,
+      period: form.period,
+      restrictedCountries: form.restrictedCountries,
+    });
+    setErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length > 0) {
+      setBanner({ type: 'error', message: 'Please fix the highlighted fields.' });
       return;
     }
     const parameters = parseParameters(form);
@@ -233,7 +245,7 @@ export default function AmlRulesPage() {
         actions={
           <button
             type="button"
-            onClick={() => setForm({ ...emptyForm })}
+            onClick={() => { setErrors({}); setForm({ ...emptyForm }); }}
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
@@ -276,7 +288,7 @@ export default function AmlRulesPage() {
               <select
                 id="rule-type"
                 value={form.ruleType}
-                onChange={(e) => setForm({ ...form, ruleType: e.target.value as RuleType })}
+                onChange={(e) => { setErrors({}); setForm({ ...form, ruleType: e.target.value as RuleType }); }}
                 className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
               >
                 {RULE_TYPES.map((t) => (
@@ -312,14 +324,17 @@ export default function AmlRulesPage() {
             {/* Parameter fields */}
             {(form.ruleType === 'TRANSACTION_AMOUNT_LIMIT' || form.ruleType === 'HIGH_VALUE_ALERT') && (
               <div className="md:col-span-2">
-                <label htmlFor="rule-max-amount" className="block text-sm font-medium">Max Amount (paise)</label>
+                <label htmlFor="rule-max-amount" className="block text-sm font-medium">Max amount (₹)</label>
                 <input
                   id="rule-max-amount"
                   type="number"
-                  value={form.maxAmountPaise ?? ''}
-                  onChange={(e) => setForm({ ...form, maxAmountPaise: e.target.value })}
+                  min="0.01"
+                  step="0.01"
+                  value={form.maxAmountRupees ?? ''}
+                  onChange={(e) => setForm({ ...form, maxAmountRupees: e.target.value })}
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                 />
+                {errors.maxAmount && <p className="mt-1 text-xs text-destructive">{errors.maxAmount}</p>}
               </div>
             )}
             {form.ruleType === 'FREQUENCY_LIMIT' && (
@@ -329,10 +344,12 @@ export default function AmlRulesPage() {
                   <input
                     id="rule-max-count"
                     type="number"
+                    min="1"
                     value={form.maxCount ?? ''}
                     onChange={(e) => setForm({ ...form, maxCount: e.target.value })}
                     className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                   />
+                  {errors.maxCount && <p className="mt-1 text-xs text-destructive">{errors.maxCount}</p>}
                 </div>
                 <div>
                   <label htmlFor="rule-period" className="block text-sm font-medium">Period (e.g. 24h, 7d)</label>
@@ -343,19 +360,23 @@ export default function AmlRulesPage() {
                     onChange={(e) => setForm({ ...form, period: e.target.value })}
                     className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                   />
+                  {errors.period && <p className="mt-1 text-xs text-destructive">{errors.period}</p>}
                 </div>
               </>
             )}
             {form.ruleType === 'VELOCITY_CHECK' && (
               <div className="md:col-span-2">
-                <label htmlFor="rule-velocity" className="block text-sm font-medium">Velocity Threshold (paise)</label>
+                <label htmlFor="rule-velocity" className="block text-sm font-medium">Velocity threshold (₹)</label>
                 <input
                   id="rule-velocity"
                   type="number"
-                  value={form.velocityThresholdPaise ?? ''}
-                  onChange={(e) => setForm({ ...form, velocityThresholdPaise: e.target.value })}
+                  min="0.01"
+                  step="0.01"
+                  value={form.velocityThresholdRupees ?? ''}
+                  onChange={(e) => setForm({ ...form, velocityThresholdRupees: e.target.value })}
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                 />
+                {errors.velocityThreshold && <p className="mt-1 text-xs text-destructive">{errors.velocityThreshold}</p>}
               </div>
             )}
             {form.ruleType === 'COUNTRY_RESTRICTION' && (
@@ -369,6 +390,7 @@ export default function AmlRulesPage() {
                   placeholder="AF, KP, IR, SY"
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                 />
+                {errors.restrictedCountries && <p className="mt-1 text-xs text-destructive">{errors.restrictedCountries}</p>}
               </div>
             )}
           </div>
@@ -433,7 +455,7 @@ export default function AmlRulesPage() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => setForm(paramsToForm(rule))}
+                      onClick={() => { setErrors({}); setForm(paramsToForm(rule)); }}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
                       title="Edit"
                     >

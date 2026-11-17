@@ -199,6 +199,14 @@ describe('WholesaleSupplierService', () => {
       expect(updateArg.data.updatedBy).toBe(userId);
     });
 
+    it('rejects a non-6-digit pincode for an Indian supplier (merged with stored country)', async () => {
+      (prisma as any).supplier.findFirst.mockResolvedValueOnce({ id: 's-1', tenantId, name: 'Old', country: 'IN' });
+      await expect(
+        service.updateSupplier(tenantId, userId, 's-1', { postalCode: '4000' } as never),
+      ).rejects.toThrow(/6 digits/);
+      expect((prisma as any).supplier.update).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundException when supplier does not exist', async () => {
       (prisma as any).supplier.findFirst.mockResolvedValue(null);
 

@@ -146,8 +146,11 @@ export class FinancialTrpcRouter {
               ctx.tenantId,
               input.invoiceId,
             );
+            // File name = invoice number (e.g. FIN-INV-00001.pdf); falls back to the id.
+            const inv = (await Promise.resolve(this.financialService.getInvoice(ctx.tenantId, input.invoiceId)).catch(() => null)) as { invoiceNumber?: string } | null | undefined;
+            const base = (inv?.invoiceNumber ?? `invoice-${input.invoiceId}`).replace(/[^A-Za-z0-9._-]/g, '_');
             return {
-              filename: `invoice-${input.invoiceId}.pdf`,
+              filename: `${base}.pdf`,
               mimeType: 'application/pdf',
               base64: buf.toString('base64'),
               size: buf.length,

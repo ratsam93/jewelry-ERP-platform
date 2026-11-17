@@ -5,6 +5,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import { PlatformPdfService, PdfTemplateName } from '../platform/platform.pdf.service';
 import { EmailService } from '../crm/email.service';
 
@@ -50,11 +51,12 @@ export class PayrollPayslipService extends TenantAwareService {
     if (query.payrollPeriodId) where.payrollPeriodId = query.payrollPeriodId;
     if (query.employeeId) where.employeeId = query.employeeId;
     if (query.status) where.status = query.status;
-    return this.prisma.payslip.findMany({
+    const rows = await this.prisma.payslip.findMany({
       where,
       include: { employee: true, payrollPeriod: true },
       orderBy: { createdAt: 'desc' },
     });
+    return maskSensitiveDeep(rows);
   }
 
   async getById(tenantId: string, id: string) {
@@ -63,7 +65,7 @@ export class PayrollPayslipService extends TenantAwareService {
       include: { employee: true, payrollPeriod: true },
     });
     if (!p) throw new NotFoundException(`Payslip ${id} not found`);
-    return p;
+    return maskSensitiveDeep(p);
   }
 
   /**

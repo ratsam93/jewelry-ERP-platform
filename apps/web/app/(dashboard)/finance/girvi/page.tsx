@@ -7,6 +7,7 @@ import { Coins, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatPaise, formatDate } from '@/components/format';
+import { girviLoanView } from '@/lib/girvi-form';
 
 export default function GirviPage() {
   const [page, setPage] = useState(1);
@@ -47,15 +48,16 @@ export default function GirviPage() {
         ) : (
           <div className="divide-y">
             {items.map((g) => {
+              const v = girviLoanView(g);
               const c = g.customer as { firstName?: string; lastName?: string } | undefined;
               return (
                 <Link key={g.id as string} href={`/finance/girvi/${g.id}`} className="grid grid-cols-[1.2fr_1.4fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm hover:bg-accent">
                   <span className="font-mono font-medium">{(g.loanNumber as string) ?? '-'}</span>
                   <span>{c ? `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() : '-'}</span>
-                  <span>{formatPaise(g.principalPaise)}</span>
-                  <span className="font-semibold">{formatPaise(g.outstandingPaise)}</span>
+                  <span>{formatPaise(v.principalPaise)}</span>
+                  <span className="font-semibold">{formatPaise(v.outstandingPaise)}</span>
                   <StatusBadge label={(g.status as string) ?? '-'} variant="default" />
-                  <span className="text-muted-foreground">{formatDate(g.issuedDate)}</span>
+                  <span className="text-muted-foreground">{formatDate(v.issuedDate)}</span>
                 </Link>
               );
             })}

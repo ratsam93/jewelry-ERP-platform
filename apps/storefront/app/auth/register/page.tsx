@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { nextFromWindow, withNext } from "@/lib/auth-next";
 import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens, apiFetch } from "@/lib/api";
 import { normalizeIndianPhone } from "@/lib/utils";
@@ -14,6 +15,8 @@ type AuthTokens = { accessToken: string; refreshToken?: string };
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [nextPath, setNextPath] = useState<string | null>(null);
+  useEffect(() => setNextPath(nextFromWindow()), []);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -76,9 +79,12 @@ export default function RegisterPage() {
           // The API has no delivery receipt; honour an explicit delivered:false if present.
           const notDelivered = otpData?.data?.delivered === false;
           router.push(
-            `/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=${PHONE_OTP_PURPOSE}${
-              notDelivered ? "&delivered=0" : ""
-            }`,
+            withNext(
+              `/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=${PHONE_OTP_PURPOSE}${
+                notDelivered ? "&delivered=0" : ""
+              }`,
+              nextFromWindow(),
+            ),
           );
           return;
         } catch (otpErr) {
@@ -91,7 +97,7 @@ export default function RegisterPage() {
           return;
         }
       }
-      router.push("/account");
+      router.push(nextFromWindow() ?? "/account");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error");
     } finally {
@@ -127,7 +133,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">Full Name *</label>
-              <input
+              <input aria-label="Full Name"
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -138,7 +144,7 @@ export default function RegisterPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">Email *</label>
-              <input
+              <input aria-label="Email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -151,7 +157,7 @@ export default function RegisterPage() {
               <label className="block text-xs font-medium text-navy/60 mb-1">Phone Number *</label>
               <div className="flex gap-2">
                 <span className="flex items-center px-3 border border-gray-200 rounded-lg text-sm text-navy/60 bg-warm-gray">+91</span>
-                <input
+                <input aria-label="Phone number"
                   type="tel"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: normalizeIndianPhone(e.target.value) })}
@@ -164,7 +170,7 @@ export default function RegisterPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">Password *</label>
-              <input
+              <input aria-label="Password"
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -177,7 +183,7 @@ export default function RegisterPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-navy/60 mb-1">Confirm Password *</label>
-              <input
+              <input aria-label="Confirm Password"
                 type="password"
                 value={form.confirmPassword}
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
@@ -204,7 +210,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-sm text-navy/50 mt-5">
           Already have an account?{" "}
-          <Link href="/auth/login" className="text-gold font-medium hover:text-gold-dark transition-colors">
+          <Link href={withNext("/auth/login", nextPath)} className="text-gold font-medium hover:text-gold-dark transition-colors">
             Sign In
           </Link>
         </p>

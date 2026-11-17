@@ -9,6 +9,7 @@ describe('PayrollTrpcRouter', () => {
   const employeeService = {
     list: vi.fn(),
     getById: vi.fn(),
+    getForEdit: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     deactivate: vi.fn(),
@@ -83,6 +84,13 @@ describe('PayrollTrpcRouter', () => {
 
     it('get requires uuid', async () => {
       await expect(caller.employees.get({ id: 'bad' })).rejects.toThrow();
+    });
+
+    it('get (masked) and getForEdit (raw) use different service methods', async () => {
+      employeeService.getById.mockResolvedValue({ id: EMP_ID, panNumber: 'ABXXXXXXXF' });
+      employeeService.getForEdit.mockResolvedValue({ id: EMP_ID, panNumber: 'ABCDE1234F' });
+      expect(await caller.employees.get({ id: EMP_ID })).toMatchObject({ panNumber: 'ABXXXXXXXF' });
+      expect(await caller.employees.getForEdit({ id: EMP_ID })).toMatchObject({ panNumber: 'ABCDE1234F' });
     });
 
     it('create forwards input', async () => {

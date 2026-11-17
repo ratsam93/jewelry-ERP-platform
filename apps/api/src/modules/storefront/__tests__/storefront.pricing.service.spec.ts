@@ -368,4 +368,19 @@ describe('StorefrontPricingService', () => {
       expect(result.totalPricePaise).toBeGreaterThan(0);
     });
   });
+
+  describe('seeded necklace C9 (HK-SF-05)', () => {
+    it('yields whole-paise unit price 27164973 and exact multiples for qty 1..3', () => {
+      const r = service.calculateProductPrice(27600, 192400, 200, 9300000);
+      expect(r.metalValuePaise).toBe(25668000);
+      expect(r.subtotalPaise).toBe(26373760);
+      expect(r.gstPaise).toBe(791213);
+      expect(r.totalPricePaise).toBe(27164973);
+      for (const q of [1, 2, 3]) {
+        expect(Number.isInteger(r.totalPricePaise * q)).toBe(true);
+      }
+      expect(r.totalPricePaise * 2).toBe(54329946);
+      expect(r.totalPricePaise * 3).toBe(81494919);
+    });
+  });
 });

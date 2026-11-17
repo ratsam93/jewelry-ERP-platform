@@ -20,7 +20,7 @@ describe("AddressForm", () => {
 
   it("renders state dropdown with Indian states", () => {
     render(<AddressForm onSave={onSave} onCancel={onCancel} />);
-    const select = screen.getByRole("combobox");
+    const select = screen.getByLabelText("State");
     expect(select).toBeInTheDocument();
     // Check some states
     expect(screen.getByText("Maharashtra")).toBeInTheDocument();
@@ -66,5 +66,25 @@ describe("AddressForm", () => {
   it("has default address checkbox", () => {
     render(<AddressForm onSave={onSave} onCancel={onCancel} />);
     expect(screen.getByText("Set as default address")).toBeInTheDocument();
+  });
+});
+
+describe("AddressForm country (HK-SF-01)", () => {
+  it("offers India first and saves the 2-letter ISO code", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    render(<AddressForm onSave={save} onCancel={vi.fn()} />);
+    const country = screen.getByLabelText("Country *") as HTMLSelectElement;
+    expect(country.options[0].textContent).toBe("India");
+    await user.type(screen.getAllByRole("textbox")[1], "Test User");
+    await user.type(screen.getByPlaceholderText("+91 98765 43210"), "9876543210");
+    await user.type(screen.getByPlaceholderText("Flat/House No., Building"), "12 MG Road");
+    const textboxes = screen.getAllByRole("textbox");
+    await user.type(textboxes[5], "Mumbai"); // city
+    await user.selectOptions(screen.getByLabelText("State"), "Maharashtra");
+    await user.type(textboxes[6], "400001"); // pincode
+    await user.selectOptions(country, "AE");
+    await user.click(screen.getByText("Save Address"));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ country: "AE", city: "Mumbai" }));
   });
 });

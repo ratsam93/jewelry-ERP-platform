@@ -5,12 +5,19 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, User, Printer, AlertCircle, CheckCircle2, Search, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { SalePaymentMethod } from '@caratflow/shared-types';
 import { PosProductSearch } from '../../../../src/features/retail/PosProductSearch';
 import { PosCart, type CartItem } from '../../../../src/features/retail/PosCart';
 import { PosPaymentDialog } from '../../../../src/features/retail/PosPaymentDialog';
 import { MetalRateDisplay } from '../../../../src/features/retail/MetalRateDisplay';
 import { computeLineTax } from '../../../../src/features/retail/posTax';
+import {
+  buildSalePayload,
+  computePosTotals,
+  formatPaise,
+  humanizeServerError,
+  toInt,
+  withLineTax,
+} from '@/lib/pos-sale';
 
 // ─── Hooks ────────────────────────────────────────────────────────
 function useDebouncedValue<T>(value: T, delayMs = 300): T {
@@ -88,7 +95,8 @@ function mapStockItemToProduct(item: StockItemRow): PosProduct {
     metalWeightMg: null,
     metalPurity: null,
     makingCharges: null,
-    sellingPricePaise: p?.sellingPricePaise ?? null,
+    // The API serialises BigInt paise as strings; normalise to integers once, here.
+    sellingPricePaise: p?.sellingPricePaise != null ? toInt(p.sellingPricePaise) : null,
   };
 }
 
@@ -248,15 +256,7 @@ export default function PosPage() {
     setCartItems((prev) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
-        const tax = computeLineTax({ ...item, quantity });
-        return {
-          ...item,
-          quantity,
-          cgstPaise: tax.cgstPaise,
-          sgstPaise: tax.sgstPaise,
-          igstPaise: tax.igstPaise,
-          lineTotalPaise: tax.lineTotalPaise,
-        };
+        return withLineTax(item, quantity);
       }),
     );
   };
@@ -266,17 +266,11 @@ export default function PosPage() {
   };
 
   // ─── Totals ─────────────────────────────────────────────────────
-  const subtotalPaise = cartItems.reduce(
-    (sum, i) => sum + i.unitPricePaise * i.quantity - i.discountPaise,
-    0,
-  );
-  const taxPaise = cartItems.reduce(
-    (sum, i) => sum + i.cgstPaise + i.sgstPaise + i.igstPaise,
-    0,
-  );
   const cartDiscountPaise = 0;
-  const beforeRoundOff = subtotalPaise - cartDiscountPaise + taxPaise;
-  const totalPaise = Math.round(beforeRoundOff / 100) * 100;
+  const { subtotalPaise, taxPaise, roundOffPaise, totalPaise } = computePosTotals(
+    cartItems,
+    cartDiscountPaise,
+  );
 
   // ─── Checkout mutation ──────────────────────────────────────────
   const createSale = trpc.retail.createSale.useMutation({
@@ -291,7 +285,7 @@ export default function PosPage() {
       }
     },
     onError: (err) => {
-      setFlash({ kind: 'error', msg: err.message || 'Failed to create sale' });
+      setFlash({ kind: 'error', msg: humanizeServerError(err.message, 'Failed to create sale') });
     },
   });
 
@@ -307,30 +301,15 @@ export default function PosPage() {
       return;
     }
 
-    createSale.mutate({
-      customerId: selectedCustomer?.id,
-      locationId,
-      lineItems: cartItems.map((item) => ({
-        productId: item.productId,
-        description: item.description,
-        quantity: item.quantity,
-        unitPricePaise: item.unitPricePaise,
-        discountPaise: item.discountPaise,
-        metalRatePaise: item.metalRatePaise,
-        metalWeightMg: item.metalWeightMg,
-        makingChargesPaise: item.makingChargesPaise,
-        wastageChargesPaise: item.wastageChargesPaise,
-        hsnCode: item.hsnCode,
-        gstRate: item.gstRate,
-      })),
-      payments: payments.map((p) => ({
-        method: p.method as SalePaymentMethod,
-        amountPaise: p.amountPaise,
-        reference: p.reference,
-      })),
-      discountPaise: cartDiscountPaise,
-      currencyCode: 'INR',
-    });
+    createSale.mutate(
+      buildSalePayload({
+        customerId: selectedCustomer?.id,
+        locationId,
+        lines: cartItems,
+        payments,
+        cartDiscountPaise,
+      }) as Parameters<typeof createSale.mutate>[0],
+    );
   };
 
   return (
@@ -440,9 +419,9 @@ export default function PosPage() {
       )}
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         {/* Left: Product Search + Grid */}
-        <div className="flex-1 space-y-4 overflow-auto p-4">
+        <div className="min-w-0 flex-none space-y-4 p-4 lg:flex-1 lg:overflow-auto">
           {/* Live search input drives both dropdown (PosProductSearch) and grid below */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -473,21 +452,19 @@ export default function PosPage() {
                 : 'No stock available at this location.'}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
               {products.map((product) => (
                 <button
                   key={product.id}
                   type="button"
                   onClick={() => addToCart(product)}
-                  className="rounded-lg border p-3 text-left transition-all hover:border-primary hover:shadow-md"
+                  className="min-h-[44px] min-w-0 overflow-hidden rounded-lg border p-3 text-left transition-all hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <div className="font-mono text-xs text-muted-foreground">{product.sku}</div>
+                  <div className="truncate font-mono text-xs text-muted-foreground">{product.sku}</div>
                   <div className="mt-1 line-clamp-2 text-sm font-medium">{product.name}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{product.productType}</div>
-                  <div className="mt-1 text-sm font-semibold text-primary">
-                    {product.sellingPricePaise
-                      ? `₹${(product.sellingPricePaise / 100).toLocaleString('en-IN')}`
-                      : '—'}
+                  <div className="mt-1 truncate text-xs text-muted-foreground">{product.productType}</div>
+                  <div className="mt-1 truncate text-sm font-semibold text-primary">
+                    {product.sellingPricePaise ? formatPaise(product.sellingPricePaise) : '—'}
                   </div>
                 </button>
               ))}
@@ -496,7 +473,7 @@ export default function PosPage() {
         </div>
 
         {/* Right: Cart */}
-        <div className="flex w-96 flex-col border-l">
+        <div className="flex w-full flex-none flex-col border-t lg:w-96 lg:border-l lg:border-t-0">
           <PosCart
             items={cartItems}
             onUpdateQuantity={updateQuantity}
@@ -504,6 +481,7 @@ export default function PosPage() {
             subtotalPaise={subtotalPaise}
             discountPaise={cartDiscountPaise}
             taxPaise={taxPaise}
+            roundOffPaise={roundOffPaise}
             totalPaise={totalPaise}
           />
 
@@ -518,7 +496,7 @@ export default function PosPage() {
               <ShoppingCart className="mr-2 inline-block h-4 w-4" />
               {createSale.isPending
                 ? 'Processing...'
-                : `Charge ${totalPaise > 0 ? `₹${(totalPaise / 100).toLocaleString('en-IN')}` : ''}`}
+                : `Charge ${totalPaise > 0 ? formatPaise(totalPaise) : ''}`}
             </button>
             <div className="flex gap-2">
               <button
@@ -634,7 +612,7 @@ export default function PosPage() {
         onConfirm={handleCompleteSale}
         isProcessing={createSale.isPending}
         customerId={selectedCustomer?.id ?? null}
-        errorMessage={createSale.isError ? createSale.error.message || 'Failed to create sale' : null}
+        errorMessage={createSale.isError ? humanizeServerError(createSale.error.message, 'Failed to create sale') : null}
       />
     </div>
   );

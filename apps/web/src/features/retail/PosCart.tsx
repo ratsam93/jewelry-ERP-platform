@@ -30,6 +30,8 @@ interface PosCartProps {
   subtotalPaise: number;
   discountPaise: number;
   taxPaise: number;
+  /** Rounding to the nearest rupee (can be negative). Shown only when non-zero. */
+  roundOffPaise?: number;
   totalPaise: number;
   className?: string;
 }
@@ -45,6 +47,7 @@ export function PosCart({
   subtotalPaise,
   discountPaise,
   taxPaise,
+  roundOffPaise = 0,
   totalPaise,
   className,
 }: PosCartProps) {
@@ -135,6 +138,15 @@ export function PosCart({
           <span className="text-muted-foreground">Tax (GST)</span>
           <span>{formatPaise(taxPaise)}</span>
         </div>
+        {roundOffPaise !== 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Round off</span>
+            <span>
+              {roundOffPaise < 0 ? '-' : '+'}
+              {formatPaise(Math.abs(roundOffPaise))}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between border-t pt-1 text-lg font-bold">
           <span>Total</span>
           <span>{formatPaise(totalPaise)}</span>

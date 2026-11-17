@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant, EmptyState } from '@caratflow/ui';
 import { FileText } from 'lucide-react';
@@ -59,7 +60,9 @@ export default function PayrollPeriodDetailPage() {
               const emp = s.employee as Record<string, unknown> | undefined;
               return (
                 <div key={s.id as string} className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm">
-                  <span>{`${(emp?.firstName as string) ?? ''} ${(emp?.lastName as string) ?? ''}`.trim()}</span>
+                  <Link href={`/finance/payroll/payslips/${s.id as string}`} className="font-medium text-primary hover:underline">
+                    {`${(emp?.firstName as string) ?? ''} ${(emp?.lastName as string) ?? ''}`.trim() || 'Payslip'}
+                  </Link>
                   <span className="font-semibold">{formatPaise(s.grossSalary)}</span>
                   <span>{formatPaise(s.totalDeductions)}</span>
                   <span className="font-semibold">{formatPaise(s.netSalary)}</span>

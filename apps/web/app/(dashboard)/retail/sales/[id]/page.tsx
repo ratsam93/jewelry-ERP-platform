@@ -2,7 +2,8 @@
 
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
-import { Ban, Printer } from 'lucide-react';
+import Link from 'next/link';
+import { Ban, Printer, RotateCcw } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDateTime } from '@/components/format';
@@ -18,9 +19,10 @@ export default function SaleDetailPage() {
 
   const s = data as Record<string, unknown>;
   const items = ((s.lineItems ?? s.items) as Array<Record<string, unknown>> | undefined) ?? [];
+  const payments = ((s.payments as Array<Record<string, unknown>> | undefined) ?? []);
   const status = s.status as string;
   const customer = s.customer as { firstName?: string; lastName?: string; phone?: string } | undefined;
-  const customerName = customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : 'Walk-in';
+  const customerName = (s.customerName as string | null) || (customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : 'Walk-in');
 
   return (
     <div className="space-y-6">
@@ -35,9 +37,21 @@ export default function SaleDetailPage() {
         ]}
         actions={
           <div className="flex gap-2">
-            <button className="inline-flex h-9 items-center gap-2 rounded-md border px-4 text-sm hover:bg-accent">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex h-9 items-center gap-2 rounded-md border px-4 text-sm hover:bg-accent"
+            >
               <Printer className="h-4 w-4" /> Print
             </button>
+            {(status === 'COMPLETED' || status === 'PARTIALLY_RETURNED') && (
+              <Link
+                href={`/retail/returns/new?saleId=${saleId}`}
+                className="inline-flex h-9 items-center gap-2 rounded-md border px-4 text-sm hover:bg-accent"
+              >
+                <RotateCcw className="h-4 w-4" /> Return
+              </Link>
+            )}
             {status !== 'VOIDED' && (
               <button
                 onClick={() => {
@@ -56,7 +70,7 @@ export default function SaleDetailPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Customer</p><p className="text-sm font-medium mt-1">{customerName}</p><p className="text-xs text-muted-foreground">{customer?.phone ?? ''}</p></div>
+        <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Customer</p><p className="text-sm font-medium mt-1">{customerName}</p><p className="text-xs text-muted-foreground">{(s.customerPhone as string | null | undefined) ?? customer?.phone ?? ''}</p></div>
         <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Date</p><p className="text-sm font-medium mt-1">{formatDateTime(s.saleDate ?? s.createdAt)}</p></div>
         <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Total</p><p className="text-lg font-bold mt-1">{formatPaise(s.totalPaise)}</p></div>
       </div>
@@ -87,10 +101,27 @@ export default function SaleDetailPage() {
         </div>
       </div>
 
+      {payments.length > 0 && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Payments</h2>
+          <div className="divide-y rounded-lg border text-sm">
+            {payments.map((p, idx) => (
+              <div key={(p.id as string) ?? idx} className="flex justify-between px-4 py-3">
+                <span>{String(p.method ?? '-').replace('_', ' ')}{p.reference ? ` (${String(p.reference)})` : ''}</span>
+                <span className="font-semibold">{formatPaise(p.amountPaise)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-lg border p-4 space-y-2 text-sm max-w-sm ml-auto">
         <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatPaise(s.subtotalPaise)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>{formatPaise(s.taxPaise)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>{formatPaise(s.discountPaise)}</span></div>
+        {Number(s.roundOffPaise ?? 0) !== 0 && (
+          <div className="flex justify-between"><span className="text-muted-foreground">Round off</span><span>{formatPaise(s.roundOffPaise)}</span></div>
+        )}
         <div className="flex justify-between font-semibold text-base border-t pt-2"><span>Total</span><span>{formatPaise(s.totalPaise)}</span></div>
       </div>
     </div>

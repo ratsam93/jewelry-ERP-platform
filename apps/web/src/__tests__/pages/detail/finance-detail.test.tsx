@@ -159,6 +159,43 @@ describe('Finance Detail Pages', () => {
       expect(screen.getByText('Invoice INV-202604-0012')).toBeInTheDocument();
     });
 
+    it('offers Issue invoice and Cancel invoice for a DRAFT invoice', async () => {
+      const { default: Page } = await import(
+        '../../../../app/(dashboard)/finance/invoices/[id]/page'
+      );
+      render(<Page />);
+      expect(screen.getByRole('button', { name: /Issue invoice/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Cancel invoice/ })).toBeInTheDocument();
+    });
+
+    it('hides Issue invoice once the invoice is issued', async () => {
+      mockState.queries = { 'financial.invoices.getById': { ...invoiceFixture, status: 'SENT' } };
+      const { default: Page } = await import(
+        '../../../../app/(dashboard)/finance/invoices/[id]/page'
+      );
+      render(<Page />);
+      expect(screen.queryByRole('button', { name: /Issue invoice/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Cancel invoice/ })).toBeInTheDocument();
+    });
+
+    it('lists line items oldest first', async () => {
+      mockState.queries = {
+        'financial.invoices.getById': {
+          ...invoiceFixture,
+          lineItems: [
+            { ...invoiceFixture.lineItems[0], id: 'a', description: 'Gold second', createdAt: '2026-04-10T10:00:00.002Z' },
+            { ...invoiceFixture.lineItems[1], id: 'b', description: 'Making first', createdAt: '2026-04-10T10:00:00.001Z' },
+          ],
+        },
+      };
+      const { default: Page } = await import(
+        '../../../../app/(dashboard)/finance/invoices/[id]/page'
+      );
+      render(<Page />);
+      const rows = screen.getAllByRole('row').map((r) => r.textContent ?? '');
+      expect(rows.findIndex((t) => t.includes('Making first'))).toBeLessThan(rows.findIndex((t) => t.includes('Gold second')));
+    });
+
     it('renders Line Items section with item descriptions', async () => {
       const { default: Page } = await import(
         '../../../../app/(dashboard)/finance/invoices/[id]/page'
@@ -297,7 +334,7 @@ describe('Finance Detail Pages', () => {
         '../../../../app/(dashboard)/finance/schemes/gold-savings/[id]/page'
       );
       render(<Page />);
-      expect(screen.getByRole('heading', { name: 'Gold savings scheme not found' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Gold Savings scheme not found' })).toBeInTheDocument();
     });
   });
 
@@ -310,6 +347,26 @@ describe('Finance Detail Pages', () => {
       render(<Page />);
       expect(screen.getByTestId('page-header')).toHaveTextContent('Ravi Kumar');
       expect(screen.getByText('Salary Components')).toBeInTheDocument();
+    });
+
+    it('shows masked PAN, Aadhaar and bank account on the detail page', async () => {
+      mockState.queries = {
+        'payroll.employees.get': {
+          ...employeeFixture,
+          panNumber: 'ABCDE1234F',
+          aadhaarNumber: '234567890124',
+          bankAccountNumber: '123456789012',
+        },
+      };
+      const { default: Page } = await import(
+        '../../../../app/(dashboard)/finance/payroll/employees/[id]/page'
+      );
+      render(<Page />);
+      expect(screen.getByText(/PAN: ABXXXXXXXF/)).toBeInTheDocument();
+      expect(screen.getByText(/Aadhaar: XXXX-XXXX-0124/)).toBeInTheDocument();
+      expect(screen.getByText(/Account: XXXXXXXX9012/)).toBeInTheDocument();
+      expect(document.body.textContent).not.toContain('234567890124');
+      expect(document.body.textContent).not.toContain('ABCDE1234F');
     });
 
     it('renders a not-found state when the employee does not exist', async () => {

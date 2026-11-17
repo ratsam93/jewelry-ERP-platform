@@ -14,13 +14,16 @@ import { describe, it, expect } from 'vitest';
  */
 
 describe('New Job Order form', () => {
-  it('renders Create Job Order button disabled when required fields are empty', async () => {
+  it('shows inline validation messages on an empty submit instead of a dead button', async () => {
     const { default: Page } = await import(
       '../../../../app/(dashboard)/manufacturing/jobs/new/page'
     );
     render(<Page />);
     const btn = screen.getByRole('button', { name: /Create Job Order/i }) as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
+    expect(btn.disabled).toBe(false);
+    fireEvent.click(btn);
+    expect(await screen.findByText('Select a product')).toBeInTheDocument();
+    expect(screen.getByText('Select a location')).toBeInTheDocument();
   });
 
   it('renders Priority select with Medium selected by default', async () => {

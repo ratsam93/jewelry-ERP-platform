@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { initTRPC, TRPCError } from '@trpc/server';
 import { evaluateProcedureAccess, hasExactPermission } from './rbac';
+import { recordMutationAudit } from './mutation-audit';
 
 export { evaluateProcedureAccess, hasExactPermission } from './rbac';
 
@@ -172,6 +173,31 @@ export class TrpcService {
     });
   }
 
+  /** Records successful staff mutations in the audit log (fire-and-forget). */
+  private get auditMiddleware() {
+    return this.t.middleware(async ({ ctx, path, type, getRawInput, next }) => {
+      const result = await next();
+      if (type === 'mutation' && result.ok && ctx.principal !== 'customer') {
+        void (async () => {
+          let rawInput: unknown;
+          try {
+            rawInput = await getRawInput();
+          } catch {
+            rawInput = undefined;
+          }
+          recordMutationAudit({
+            path,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            rawInput,
+            output: result.data,
+          });
+        })();
+      }
+      return result;
+    });
+  }
+
   constructor() {
     if (!rbacEnforced()) {
       rbacLogger.warn(
@@ -276,7 +302,7 @@ export class TrpcService {
    * See ./rbac.ts for the rules.
    */
   get authedProcedure() {
-    return this.procedure.use(this.authMiddleware).use(
+    return this.procedure.use(this.authMiddleware).use(this.auditMiddleware).use(
       this.t.middleware(({ ctx, path, type, next }) => {
         if (rbacEnforced()) {
           const decision = evaluateProcedureAccess(path, type, ctx.userPermissions);
@@ -297,7 +323,7 @@ export class TrpcService {
    * Replaces the automatic path-derived check for that procedure.
    */
   permissionProcedure(permission: string) {
-    return this.procedure.use(this.authMiddleware).use(
+    return this.procedure.use(this.authMiddleware).use(this.auditMiddleware).use(
       this.t.middleware(({ ctx, path, next }) => {
         if (rbacEnforced() && !hasExactPermission(ctx.userPermissions, permission)) {
           this.deny(

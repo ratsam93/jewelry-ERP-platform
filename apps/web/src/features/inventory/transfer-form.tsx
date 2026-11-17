@@ -5,6 +5,9 @@ import { FormField } from '@caratflow/ui';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@caratflow/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { LocationSelect } from './location-select';
+import { ProductPicker } from './product-picker';
+import { formatServerError } from '@/lib/manufacturing-forms';
 
 interface TransferFormProps {
   onClose: () => void;
@@ -20,6 +23,7 @@ export function TransferForm({ onClose, onSuccess }: TransferFormProps) {
   const [fromLocationId, setFromLocationId] = useState('');
   const [toLocationId, setToLocationId] = useState('');
   const [notes, setNotes] = useState('');
+  const [validation, setValidation] = useState('');
   const [items, setItems] = useState<TransferItemInput[]>([
     { productId: '', quantityRequested: 1 },
   ]);
@@ -30,8 +34,11 @@ export function TransferForm({ onClose, onSuccess }: TransferFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!fromLocationId || !toLocationId) return setValidation('Select both source and destination locations.');
+    if (fromLocationId === toLocationId) return setValidation('Source and destination must be different.');
     const validItems = items.filter((item) => item.productId && item.quantityRequested > 0);
-    if (validItems.length === 0) return;
+    if (validItems.length === 0) return setValidation('Add at least one product with a quantity.');
+    setValidation('');
 
     createMutation.mutate({
       fromLocationId,
@@ -69,24 +76,10 @@ export function TransferForm({ onClose, onSuccess }: TransferFormProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <FormField label="From Location" required>
-              <input
-                type="text"
-                value={fromLocationId}
-                onChange={(e) => setFromLocationId(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                placeholder="Source location ID"
-                required
-              />
+              <LocationSelect value={fromLocationId} onChange={setFromLocationId} placeholder="Select source" />
             </FormField>
             <FormField label="To Location" required>
-              <input
-                type="text"
-                value={toLocationId}
-                onChange={(e) => setToLocationId(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                placeholder="Destination location ID"
-                required
-              />
+              <LocationSelect value={toLocationId} onChange={setToLocationId} placeholder="Select destination" />
             </FormField>
           </div>
 
@@ -104,14 +97,12 @@ export function TransferForm({ onClose, onSuccess }: TransferFormProps) {
             </div>
             {items.map((item, index) => (
               <div key={index} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={item.productId}
-                  onChange={(e) => updateItem(index, 'productId', e.target.value)}
-                  className="h-9 flex-1 rounded-md border border-input bg-transparent px-3 text-sm"
-                  placeholder="Product ID"
-                  required
-                />
+                <div className="flex-1">
+                  <ProductPicker
+                    value={item.productId}
+                    onChange={(id) => updateItem(index, 'productId', id)}
+                  />
+                </div>
                 <input
                   type="number"
                   value={item.quantityRequested}
@@ -142,8 +133,10 @@ export function TransferForm({ onClose, onSuccess }: TransferFormProps) {
             />
           </FormField>
 
-          {createMutation.error && (
-            <p className="text-sm text-destructive">{createMutation.error.message}</p>
+          {(validation || createMutation.error) && (
+            <p className="text-sm text-destructive" role="alert">
+              {validation || formatServerError(createMutation.error)}
+            </p>
           )}
 
           <DialogFooter>

@@ -108,15 +108,46 @@ export type ReferralLeaderboardEntry = z.infer<typeof ReferralLeaderboardEntrySc
 // ─── AML Rule Input ───────────────────────────────────────────
 
 export const AmlRuleParametersSchema = z.object({
-  maxAmountPaise: z.number().int().optional(),
+  maxAmountPaise: z.number().int().min(1, 'Amount must be at least 1 paise').optional(),
   period: z.string().optional(),
-  maxCount: z.number().int().optional(),
-  velocityThresholdPaise: z.number().int().optional(),
-  structuringThresholdPaise: z.number().int().optional(),
-  structuringWindowHours: z.number().int().optional(),
+  maxCount: z.number().int().min(1, 'Max count must be at least 1').optional(),
+  velocityThresholdPaise: z.number().int().min(1, 'Threshold must be at least 1 paise').optional(),
+  structuringThresholdPaise: z.number().int().min(1, 'Threshold must be at least 1 paise').optional(),
+  structuringWindowHours: z.number().int().min(1, 'Window must be at least 1 hour').optional(),
   restrictedCountries: z.array(z.string()).optional(),
 });
 export type AmlRuleParameters = z.infer<typeof AmlRuleParametersSchema>;
+
+/**
+ * Parameters each rule type needs in order to ever fire. Returns one message per
+ * missing field, keyed by the parameter name.
+ */
+export function missingAmlRuleParameters(
+  ruleType: z.infer<typeof AmlRuleTypeEnum>,
+  p: AmlRuleParameters,
+): Array<{ field: keyof AmlRuleParameters; message: string }> {
+  const out: Array<{ field: keyof AmlRuleParameters; message: string }> = [];
+  switch (ruleType) {
+    case 'TRANSACTION_AMOUNT_LIMIT':
+    case 'HIGH_VALUE_ALERT':
+      if (!p.maxAmountPaise) out.push({ field: 'maxAmountPaise', message: 'Max amount is required' });
+      break;
+    case 'VELOCITY_CHECK':
+      if (!p.velocityThresholdPaise) out.push({ field: 'velocityThresholdPaise', message: 'Velocity threshold is required' });
+      break;
+    case 'FREQUENCY_LIMIT':
+      if (!p.maxCount) out.push({ field: 'maxCount', message: 'Max count is required' });
+      if (!p.period?.trim()) out.push({ field: 'period', message: 'Period is required' });
+      break;
+    case 'COUNTRY_RESTRICTION':
+      if (!p.restrictedCountries || p.restrictedCountries.length === 0)
+        out.push({ field: 'restrictedCountries', message: 'At least one country is required' });
+      break;
+    default:
+      break;
+  }
+  return out;
+}
 
 export const AmlRuleInputSchema = z.object({
   ruleName: z.string().min(1).max(255),
@@ -126,6 +157,13 @@ export const AmlRuleInputSchema = z.object({
   isActive: z.boolean().default(true),
 });
 export type AmlRuleInput = z.infer<typeof AmlRuleInputSchema>;
+
+/** Create-time schema: also requires the threshold the chosen rule type needs. */
+export const AmlRuleCreateInputSchema = AmlRuleInputSchema.superRefine((val, ctx) => {
+  for (const m of missingAmlRuleParameters(val.ruleType, val.parameters)) {
+    ctx.addIssue({ code: 'custom', path: ['parameters', m.field], message: m.message });
+  }
+});
 
 // ─── AML Alert Review Input ───────────────────────────────────
 

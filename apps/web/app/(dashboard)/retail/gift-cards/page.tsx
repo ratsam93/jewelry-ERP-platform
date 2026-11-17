@@ -1,10 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { PageHeader, MoneyInput, StatusBadge, getStatusVariant } from '@caratflow/ui';
+import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { Gift, Search, Plus, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { formatPaise, formatDate } from '@/components/format';
+import { parseRupees } from '@/lib/retail-forms';
 
 interface GiftCardView {
   id: string;
@@ -38,7 +39,9 @@ function useDebounced<T>(value: T, delayMs = 300): T {
 
 export default function GiftCardsPage() {
   // ─── Issue form ─────────────────────────────────────────────────
-  const [amountPaise, setAmountPaise] = React.useState(0);
+  const [amountText, setAmountText] = React.useState('');
+  const parsedAmount = React.useMemo(() => parseRupees(amountText, { label: 'Value' }), [amountText]);
+  const amountPaise = parsedAmount.paise ?? 0;
   const [expiryDate, setExpiryDate] = React.useState('');
   const [customer, setCustomer] = React.useState<{ id: string; name: string } | null>(null);
   const [customerSearch, setCustomerSearch] = React.useState('');
@@ -56,14 +59,19 @@ export default function GiftCardsPage() {
   const issueMutation = trpc.retail.issueGiftCard.useMutation({
     onSuccess: (card) => {
       setIssued(card as unknown as GiftCardView);
-      setAmountPaise(0);
+      setAmountText('');
       setExpiryDate('');
       setCustomer(null);
       setCustomerSearch('');
     },
   });
 
-  const canIssue = amountPaise > 0 && !issueMutation.isPending;
+  const canIssue = parsedAmount.paise !== null && parsedAmount.paise > 0 && !issueMutation.isPending;
+  // After a successful issue the form is reset (empty value): don't nag until the cashier starts a new card.
+  const justIssued = issued !== null && amountText.trim() === '';
+  const issueHint = justIssued
+    ? null
+    : parsedAmount.error ?? (parsedAmount.paise === null ? 'Enter the gift card value to continue.' : null);
   const handleIssue = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canIssue) return;
@@ -110,7 +118,30 @@ export default function GiftCardsPage() {
           <form onSubmit={handleIssue} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Value *</label>
-              <MoneyInput value={amountPaise} onChange={setAmountPaise} />
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
+                <input
+                  id="gc-value"
+                  type="text"
+                  inputMode="decimal"
+                  value={amountText}
+                  onChange={(e) => setAmountText(e.target.value)}
+                  placeholder="0.00"
+                  aria-label="Gift card value"
+                  aria-invalid={parsedAmount.error ? true : undefined}
+                  aria-describedby="gc-value-hint"
+                  className="h-9 w-full rounded-md border bg-transparent pl-7 pr-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+              {issueHint && (
+                <p
+                  id="gc-value-hint"
+                  role={parsedAmount.error ? 'alert' : undefined}
+                  className={parsedAmount.error ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}
+                >
+                  {issueHint}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">

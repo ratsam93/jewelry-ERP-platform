@@ -130,6 +130,77 @@ describe('StorefrontCheckoutService', () => {
       );
     });
 
+    it('creates a pending COD payment record even when no gateway is configured', async () => {
+      const cartItems = [
+        { id: 'ci-1', productId: 'p-1', quantity: 1, metalRatePaiseLocked: null },
+      ];
+      (mockPrisma as any).cart.findFirst.mockResolvedValue({
+        id: CART_ID, tenantId: TEST_TENANT_ID, items: cartItems,
+        currencyCode: 'INR', couponCode: null,
+      });
+      (mockPrisma as any).customerAddress.findFirst.mockResolvedValue({
+        id: 'addr-1', firstName: 'Test', lastName: 'User',
+        phone: '9999999999', addressLine1: '123 St', city: 'Mumbai',
+        state: 'MH', country: 'IN', postalCode: '400001',
+      });
+      (mockPrisma as any).product = {
+        findFirst: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([{
+          id: 'p-1', name: 'Gold Ring', sku: 'GR-001', isActive: true,
+          productType: 'GOLD', metalPurity: 916, metalWeightMg: BigInt(5000),
+          makingCharges: BigInt(200000), wastagePercent: 1, sellingPricePaise: null,
+          grossWeightMg: BigInt(5200), images: [],
+          stockItems: [{ quantityOnHand: 5, quantityReserved: 0 }],
+        }]),
+      };
+      (mockPrisma as any).cartItem.findMany.mockResolvedValue([
+        { id: 'ci-1', productId: 'p-1', quantity: 1, metalRatePaiseLocked: BigInt(6000000) },
+      ]);
+      (mockPrisma as any).salesChannel.findFirst.mockResolvedValue({
+        id: 'ch-1', channelType: 'WEBSITE', isActive: true,
+      });
+      (mockPrisma as any).onlineOrder.count.mockResolvedValue(0);
+
+      // Transaction mock
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(mockPrisma));
+      (mockPrisma as any).paymentGateway.findFirst.mockResolvedValue(null);
+      (mockPrisma as any).paymentGateway.create = vi.fn().mockResolvedValue({ id: 'gw-cod' });
+      (mockPrisma as any).onlinePayment.create.mockClear();
+
+      // getOrderResponse
+      (mockPrisma as any).onlineOrder.findFirst.mockResolvedValue({
+        id: ORDER_ID, orderNumber: 'ON/B2C/2604/00001', status: 'PENDING',
+        subtotalPaise: BigInt(3326900), shippingPaise: BigInt(0),
+        taxPaise: BigInt(0), discountPaise: BigInt(0), totalPaise: BigInt(3326900),
+        currencyCode: 'INR', shippingAddress: {}, placedAt: new Date(),
+        confirmedAt: null, shippedAt: null, deliveredAt: null, cancelReason: null,
+        createdAt: new Date(), updatedAt: new Date(),
+        items: [], shipments: [], payments: [],
+      });
+
+      const result = await service.initiateCheckout(TEST_TENANT_ID, CUSTOMER_ID, {
+        cartId: CART_ID,
+        addressId: 'addr-1',
+        paymentMethod: 'cod',
+      } as any);
+
+      expect((mockPrisma as any).paymentGateway.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ tenantId: TEST_TENANT_ID, isActive: false }) }),
+      );
+      expect((mockPrisma as any).onlinePayment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tenantId: TEST_TENANT_ID, gatewayId: 'gw-cod', method: 'cod', status: 'INITIATED',
+          }),
+        }),
+      );
+      expect(result.status).toBe('PENDING');
+      expect(mockPricingService.lockPriceForCheckout).toHaveBeenCalled();
+      expect(mockEventBus.publish).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'storefront.order.placed' }),
+      );
+    });
+
     it('rejects checkout with empty cart', async () => {
       (mockPrisma as any).cart.findFirst.mockResolvedValue({
         id: CART_ID, tenantId: TEST_TENANT_ID, items: [],

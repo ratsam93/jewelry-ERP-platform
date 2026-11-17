@@ -6,6 +6,7 @@ import { Injectable, BadRequestException, NotFoundException, Logger } from '@nes
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { parsePagination, buildPaginatedResult } from '../../common/pagination.helper';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import type { Prisma } from '@caratflow/db';
 import type {
   KittySchemeInput,
@@ -69,7 +70,7 @@ export class IndiaSchemeService extends TenantAwareService {
       },
     });
     if (!scheme) throw new NotFoundException('Kitty scheme not found');
-    return scheme;
+    return maskSensitiveDeep(scheme);
   }
 
   async listKittySchemes(tenantId: string, input: KittySchemeListInput) {
@@ -162,7 +163,7 @@ export class IndiaSchemeService extends TenantAwareService {
       return newMember;
     });
 
-    return member;
+    return maskSensitiveDeep(member);
   }
 
   async recordKittyInstallment(tenantId: string, userId: string, input: KittyInstallmentInput) {
@@ -258,7 +259,7 @@ export class IndiaSchemeService extends TenantAwareService {
       },
     });
     if (!scheme) throw new NotFoundException('Gold savings scheme not found');
-    return scheme;
+    return maskSensitiveDeep(scheme);
   }
 
   async listGoldSavingsSchemes(tenantId: string, input: GoldSavingsSchemeListInput) {
@@ -354,7 +355,7 @@ export class IndiaSchemeService extends TenantAwareService {
       return newMember;
     });
 
-    return member;
+    return maskSensitiveDeep(member);
   }
 
   async recordGoldSavingsInstallment(tenantId: string, userId: string, input: GoldSavingsInstallmentInput) {
@@ -420,7 +421,7 @@ export class IndiaSchemeService extends TenantAwareService {
     });
     if (!member) throw new NotFoundException('Matured gold savings member not found');
 
-    return this.prisma.goldSavingsMember.update({
+    const redeemed = await this.prisma.goldSavingsMember.update({
       where: { id: memberId },
       data: {
         status: 'REDEEMED',
@@ -429,6 +430,7 @@ export class IndiaSchemeService extends TenantAwareService {
       },
       include: { customer: true, goldSavingsScheme: true },
     });
+    return maskSensitiveDeep(redeemed);
   }
 
   // ─── Overdue Tracking (BullMQ cron) ──────────────────────────

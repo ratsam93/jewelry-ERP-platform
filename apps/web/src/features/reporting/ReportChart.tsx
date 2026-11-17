@@ -29,9 +29,13 @@ interface ReportChartProps {
   data: ChartData;
   height?: number;
   formatValue?: (value: number) => string;
+  /** Compact formatter for y-axis ticks (defaults to formatValue). */
+  formatAxisValue?: (value: number) => string;
+  /** Formatter for x-axis labels and the tooltip heading. */
+  formatLabel?: (label: string) => string;
 }
 
-export function ReportChart({ data, height = 350, formatValue }: ReportChartProps) {
+export function ReportChart({ data, height = 350, formatValue, formatAxisValue, formatLabel }: ReportChartProps) {
   const chartData = data.labels.map((label, index) => {
     const point: Record<string, unknown> = { name: label };
     for (const dataset of data.datasets) {
@@ -41,6 +45,8 @@ export function ReportChart({ data, height = 350, formatValue }: ReportChartProp
   });
 
   const formatter = formatValue ?? ((v: number) => v.toLocaleString('en-IN'));
+  const axisFormatter = formatAxisValue ?? formatter;
+  const xTick = formatLabel ? (v: unknown) => formatLabel(String(v)) : undefined;
 
   switch (data.chartType) {
     case 'bar':
@@ -48,11 +54,12 @@ export function ReportChart({ data, height = 350, formatValue }: ReportChartProp
         <ResponsiveContainer width="100%" height={height}>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="name" className="text-xs" />
-            <YAxis className="text-xs" tickFormatter={formatter} />
+            <XAxis dataKey="name" className="text-xs" tickFormatter={xTick} minTickGap={16} />
+            <YAxis className="text-xs" tickFormatter={axisFormatter} width={64} />
             <Tooltip
               formatter={(value: number) => formatter(value)}
               contentStyle={{ borderRadius: '8px' }}
+              labelFormatter={xTick}
             />
             <Legend />
             {data.datasets.map((ds, i) => (
@@ -72,11 +79,12 @@ export function ReportChart({ data, height = 350, formatValue }: ReportChartProp
         <ResponsiveContainer width="100%" height={height}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="name" className="text-xs" />
-            <YAxis className="text-xs" tickFormatter={formatter} />
+            <XAxis dataKey="name" className="text-xs" tickFormatter={xTick} minTickGap={16} />
+            <YAxis className="text-xs" tickFormatter={axisFormatter} width={64} />
             <Tooltip
               formatter={(value: number) => formatter(value)}
               contentStyle={{ borderRadius: '8px' }}
+              labelFormatter={xTick}
             />
             <Legend />
             {data.datasets.map((ds, i) => (
@@ -126,11 +134,12 @@ export function ReportChart({ data, height = 350, formatValue }: ReportChartProp
         <ResponsiveContainer width="100%" height={height}>
           <AreaChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="name" className="text-xs" />
-            <YAxis className="text-xs" tickFormatter={formatter} />
+            <XAxis dataKey="name" className="text-xs" tickFormatter={xTick} minTickGap={16} />
+            <YAxis className="text-xs" tickFormatter={axisFormatter} width={64} />
             <Tooltip
               formatter={(value: number) => formatter(value)}
               contentStyle={{ borderRadius: '8px' }}
+              labelFormatter={xTick}
             />
             <Legend />
             {data.datasets.map((ds, i) => (

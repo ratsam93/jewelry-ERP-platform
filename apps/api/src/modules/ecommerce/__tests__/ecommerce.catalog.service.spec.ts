@@ -104,6 +104,36 @@ describe('EcommerceCatalogService (Unit)', () => {
     });
   });
 
+  describe('bulkSyncAll', () => {
+    it('publishes every active product of the tenant to the channel', async () => {
+      mockPrisma.salesChannel.findFirst.mockResolvedValue({ id: 'ch-1', isActive: true });
+      mockPrisma.product.findMany
+        .mockResolvedValueOnce([{ id: 'p-1' }, { id: 'p-2' }]) // id list
+        .mockResolvedValueOnce([
+          { id: 'p-1', name: 'Ring', sellingPricePaise: 500000n, currencyCode: 'INR' },
+          { id: 'p-2', name: 'Chain', sellingPricePaise: 900000n, currencyCode: 'INR' },
+        ]); // bulkSync lookup
+      mockPrisma.product.findFirst.mockResolvedValue({ id: 'p-1' });
+      mockPrisma.catalogItem.findFirst.mockResolvedValue(null);
+      mockPrisma.catalogItem.create.mockResolvedValue(catalogItem);
+      mockPrisma.salesChannel.update.mockResolvedValue({});
+
+      const result = await service.bulkSyncAll(TEST_TENANT_ID, TEST_USER_ID, 'ch-1');
+
+      expect(mockPrisma.product.findMany.mock.calls[0][0]).toMatchObject({
+        where: { tenantId: TEST_TENANT_ID, isActive: true },
+        take: 500,
+      });
+      expect(result.totalItems).toBe(2);
+    });
+
+    it('rejects an unknown or inactive channel', async () => {
+      mockPrisma.product.findMany.mockResolvedValue([{ id: 'p-1' }]);
+      mockPrisma.salesChannel.findFirst.mockResolvedValue(null);
+      await expect(service.bulkSyncAll(TEST_TENANT_ID, TEST_USER_ID, 'ch-x')).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('markSynced', () => {
     it('updates sync status and external ID', async () => {
       mockPrisma.catalogItem.findFirst

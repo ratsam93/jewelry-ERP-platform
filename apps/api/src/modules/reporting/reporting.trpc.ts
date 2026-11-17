@@ -3,6 +3,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { TrpcService } from '../../trpc/trpc.service';
 import { ReportingSalesService } from './reporting.sales.service';
 import { ReportingInventoryService } from './reporting.inventory.service';
@@ -387,6 +388,17 @@ export class ReportingTrpcRouter {
       deleteSavedReport: this.trpc.authedProcedure
         .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
+          // scheduled_reports.saved_report_id has no ON DELETE CASCADE: deleting a report
+          // that still has schedules would fail with a raw FK error, so say so up front.
+          const scheduleCount = await this.prisma.scheduledReport.count({
+            where: { savedReportId: input.id, tenantId: ctx.tenantId },
+          });
+          if (scheduleCount > 0) {
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: `This report is used by ${scheduleCount} scheduled report${scheduleCount === 1 ? '' : 's'}. Delete the schedule${scheduleCount === 1 ? '' : 's'} first.`,
+            });
+          }
           await this.prisma.savedReport.deleteMany({
             where: { id: input.id, tenantId: ctx.tenantId },
           });
@@ -432,6 +444,19 @@ export class ReportingTrpcRouter {
             where: { id: input.id, tenantId: ctx.tenantId },
             data: { isActive: input.isActive, updatedBy: ctx.userId },
           });
+        }),
+
+      deleteScheduledReport: this.trpc.authedProcedure
+        .input(z.object({ id: z.guid() }))
+        .mutation(async ({ ctx, input }) => {
+          // Execution history references the schedule (no cascade): remove it first.
+          await this.prisma.reportExecution.deleteMany({
+            where: { scheduledReportId: input.id, tenantId: ctx.tenantId },
+          });
+          await this.prisma.scheduledReport.deleteMany({
+            where: { id: input.id, tenantId: ctx.tenantId },
+          });
+          return { success: true };
         }),
 
       listExecutions: this.trpc.authedProcedure

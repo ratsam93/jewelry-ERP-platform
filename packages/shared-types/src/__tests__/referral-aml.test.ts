@@ -3,6 +3,7 @@ import {
   ReferralProgramInputSchema,
   ApplyReferralInputSchema,
   AmlRuleInputSchema,
+  AmlRuleCreateInputSchema,
   AmlAlertReviewInputSchema,
   AmlSarReportInputSchema,
 } from '../referral-aml';
@@ -162,5 +163,20 @@ describe('AmlSarReportInputSchema', () => {
       reportData: { description: 'Suspicious transaction pattern detected' },
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('AmlRuleCreateInputSchema', () => {
+  const base = { ruleName: 'R', severity: 'HIGH', parameters: {} };
+  it('requires a threshold for amount-type rules', () => {
+    expect(AmlRuleCreateInputSchema.safeParse({ ...base, ruleType: 'HIGH_VALUE_ALERT' }).success).toBe(false);
+    expect(AmlRuleCreateInputSchema.safeParse({ ...base, ruleType: 'TRANSACTION_AMOUNT_LIMIT', parameters: { maxAmountPaise: 5000000 } }).success).toBe(true);
+  });
+  it('rejects negative and zero thresholds', () => {
+    expect(AmlRuleCreateInputSchema.safeParse({ ...base, ruleType: 'HIGH_VALUE_ALERT', parameters: { maxAmountPaise: -100 } }).success).toBe(false);
+    expect(AmlRuleCreateInputSchema.safeParse({ ...base, ruleType: 'HIGH_VALUE_ALERT', parameters: { maxAmountPaise: 0 } }).success).toBe(false);
+  });
+  it('PEP check needs no parameters', () => {
+    expect(AmlRuleCreateInputSchema.safeParse({ ...base, ruleType: 'PEP_CHECK' }).success).toBe(true);
   });
 });

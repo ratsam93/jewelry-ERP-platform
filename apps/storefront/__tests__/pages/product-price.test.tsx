@@ -56,7 +56,7 @@ describe("product detail price (API shape, Rs 2,26,239.50)", () => {
   it("renders the total and a breakdown that adds up, not the old 6,62,467", async () => {
     const ui = await ProductDetailPage({ params: Promise.resolve({ id: PRODUCT_A_ID }) });
     const { container } = renderWithStore(ui);
-    expect(screen.getAllByText("₹2,26,240").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("₹2,26,239.50").length).toBeGreaterThan(0);
     expect(container.textContent).not.toContain("6,62,467");
     expect(container.textContent).not.toContain("4,29,272");
 
@@ -65,7 +65,7 @@ describe("product detail price (API shape, Rs 2,26,239.50)", () => {
     expect(w.getByText("₹2,13,900")).toBeInTheDocument(); // metal
     expect(w.getByText("₹5,750")).toBeInTheDocument(); // making + wastage
     expect(w.getByText("₹2,19,650")).toBeInTheDocument(); // subtotal
-    expect(w.getByText("₹6,590")).toBeInTheDocument(); // GST (658,950 paise rounded)
+    expect(w.getByText("₹6,589.50")).toBeInTheDocument(); // GST (658,950 paise)
     // JSON-LD carries the exact paise-derived price
     expect(container.innerHTML).toContain('"price":"226239.50"');
   });

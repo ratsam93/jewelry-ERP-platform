@@ -143,6 +143,7 @@ export class RetailRepairService extends TenantAwareService {
   async getRepairOrder(tenantId: string, repairId: string): Promise<RepairOrderResponse> {
     const repair = await this.prisma.repairOrder.findFirst({
       where: this.tenantWhere(tenantId, { id: repairId }) as { tenantId: string; id: string },
+      include: { customer: { select: { firstName: true, lastName: true, phone: true } } },
     });
 
     if (!repair) throw new NotFoundException('Repair order not found');
@@ -162,6 +163,7 @@ export class RetailRepairService extends TenantAwareService {
     const [items, total] = await Promise.all([
       this.prisma.repairOrder.findMany({
         where,
+        include: { customer: { select: { firstName: true, lastName: true, phone: true } } },
         orderBy: { createdAt: 'desc' },
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
@@ -192,6 +194,7 @@ export class RetailRepairService extends TenantAwareService {
         locationId,
         status: { notIn: ['DELIVERED', 'CANCELLED'] },
       },
+      include: { customer: { select: { firstName: true, lastName: true, phone: true } } },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -258,11 +261,14 @@ export class RetailRepairService extends TenantAwareService {
   }
 
   private mapRepairToResponse(repair: Record<string, unknown>): RepairOrderResponse {
+    const customer = (repair.customer as { firstName?: string; lastName?: string; phone?: string | null } | null | undefined) ?? null;
     return {
       id: repair.id as string,
       tenantId: repair.tenantId as string,
       repairNumber: repair.repairNumber as string,
       customerId: repair.customerId as string,
+      customerName: customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || null : null,
+      customerPhone: customer?.phone ?? null,
       locationId: repair.locationId as string,
       status: repair.status as RepairOrderStatus,
       itemDescription: repair.itemDescription as string,

@@ -48,13 +48,13 @@ export default function RepairDetailPage() {
           <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span>{customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : '-'}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span>{customer?.phone ?? '-'}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Item</span><span>{(r.itemDescription as string) ?? '-'}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Issue</span><span>{(r.issueDescription as string) ?? '-'}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Issue</span><span>{(r.diagnosticNotes as string) ?? (r.issueDescription as string) ?? '-'}</span></div>
         </div>
         <div className="rounded-lg border p-4 space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Estimated Cost</span><span>{formatPaise(r.estimatedCostPaise)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Estimated Cost</span><span>{formatPaise(r.estimatePaise ?? r.estimatedCostPaise)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Actual Cost</span><span>{formatPaise(r.actualCostPaise)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Received</span><span>{formatDate(r.receivedDate)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Promised By</span><span>{formatDate(r.promisedDeliveryDate)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Received</span><span>{formatDate(r.createdAt ?? r.receivedDate)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Promised By</span><span>{formatDate(r.promisedDate ?? r.promisedDeliveryDate)}</span></div>
         </div>
       </div>
     </div>

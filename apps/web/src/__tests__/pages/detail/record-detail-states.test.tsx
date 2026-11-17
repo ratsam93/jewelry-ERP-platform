@@ -15,7 +15,7 @@ type QueryState = { data?: unknown; isLoading?: boolean; error?: unknown };
 
 const mockState = vi.hoisted(() => ({
   queries: {} as Record<string, QueryState>,
-  params: { id: 'rec-1' } as { id: string },
+  params: { id: '3f1c9a52-7b1e-4c55-9d0a-2f6a8e1b4c77' } as { id: string },
 }));
 
 vi.mock('next/navigation', () => ({
@@ -90,6 +90,16 @@ const FIXTURES: Record<string, unknown> = {
   'reporting.getSavedReport': {
     id: 'rec-1',
     name: 'Monthly Sales Summary',
+    columns: ['invoiceNumber', 'totalPaise'],
+    filters: { entityType: 'sale', filters: [] },
+  },
+  'reporting.executeCustomReport': {
+    headers: [
+      { key: 'invoiceNumber', label: 'Invoice Number', type: 'string' },
+      { key: 'totalPaise', label: 'Total (Paise)', type: 'number' },
+    ],
+    rows: [{ invoiceNumber: 'INV-000001', totalPaise: 125000 }],
+    rowCount: 1,
   },
   'retail.getRepairOrder': {
     id: 'rec-1',
@@ -279,7 +289,7 @@ const CASES: DetailCase[] = [
 ];
 
 function resetQueries() {
-  mockState.params = { id: 'rec-1' };
+  mockState.params = { id: '3f1c9a52-7b1e-4c55-9d0a-2f6a8e1b4c77' };
   mockState.queries = {};
   for (const [key, data] of Object.entries(FIXTURES)) {
     mockState.queries[key] = { data, isLoading: false, error: null };
@@ -341,5 +351,22 @@ describe.each(CASES)('$group detail: $name [id]', (detail) => {
     const Page = await loadPage(detail.route);
     render(<Page />);
     expect(screen.getByRole('status')).toHaveTextContent('Loading...');
+  });
+});
+
+describe('reports detail: Custom report [id] route guard', () => {
+  it('shows not-found for a non-UUID id without hitting the server', async () => {
+    resetQueries();
+    mockState.params = { id: 'foo' };
+    const Page = await loadPage('reports/custom');
+    render(<Page />);
+    expect(screen.getByRole('heading', { name: 'Custom report not found' })).toBeInTheDocument();
+  });
+
+  it('runs the saved report and renders its result rows', async () => {
+    resetQueries();
+    const Page = await loadPage('reports/custom');
+    render(<Page />);
+    expect(screen.getByText('INV-000001')).toBeInTheDocument();
   });
 });

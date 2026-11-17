@@ -6,7 +6,7 @@ import {
   mockTenantContext,
   resetMocks,
 } from '../../../__tests__/mocks';
-import { InventoryService } from '../inventory.service';
+import { InventoryService, withIdTiebreaker } from '../inventory.service';
 
 const TENANT = mockTenantContext.tenantId;
 const USER = mockTenantContext.userId;
@@ -180,7 +180,7 @@ describe('InventoryService (coverage)', () => {
       expect(prisma.stockItem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tenantId: TENANT },
-          orderBy: { updatedAt: 'desc' },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
           skip: 0,
           take: 10,
         }),
@@ -222,7 +222,7 @@ describe('InventoryService (coverage)', () => {
               OR: [{ name: { contains: 'ring' } }, { sku: { contains: 'ring' } }],
             },
           },
-          orderBy: { quantityOnHand: 'asc' },
+          orderBy: [{ quantityOnHand: 'asc' }, { id: 'asc' }],
           skip: 5,
           take: 5,
         }),
@@ -230,26 +230,45 @@ describe('InventoryService (coverage)', () => {
       expect(result).toMatchObject({ totalPages: 0, hasNext: false, hasPrevious: true });
     });
 
-    it('filters low stock items in the application layer when lowStockOnly is set', async () => {
+    it('pre-selects low stock ids in SQL so paging and total are computed in the database', async () => {
       const low = stockItemFixture({ id: 'low', quantityOnHand: 2, reorderLevel: 5 });
-      const ok = stockItemFixture({ id: 'ok', quantityOnHand: 50, reorderLevel: 5 });
-      const zero = stockItemFixture({ id: 'zero', quantityOnHand: 0, reorderLevel: 0 });
-      prisma.stockItem.findMany.mockResolvedValue([low, ok, zero]);
-      prisma.stockItem.count.mockResolvedValue(3);
+      prisma.$queryRaw.mockResolvedValue([{ id: 'low' }, { id: 'zero-stock' }]);
+      prisma.stockItem.findMany.mockResolvedValue([low]);
+      prisma.stockItem.count.mockResolvedValue(2);
 
       const result = await service.findAllStockItems(TENANT, {
         page: 1,
-        limit: 10,
+        limit: 1,
         lowStockOnly: true,
       } as never);
 
-      expect(prisma.stockItem.findMany.mock.calls[0][0].where).toMatchObject({
-        tenantId: TENANT,
-        reorderLevel: undefined,
-        quantityOnHand: undefined,
-      });
-      expect(result.items.map((i: { id: string }) => i.id)).toEqual(['low']);
-      expect(result.total).toBe(1);
+      const where = { tenantId: TENANT, id: { in: ['low', 'zero-stock'] } };
+      expect(prisma.stockItem.findMany.mock.calls[0][0]).toMatchObject({ where, skip: 0, take: 1 });
+      expect(prisma.stockItem.count).toHaveBeenCalledWith({ where });
+      expect(result.total).toBe(2);
+      expect(result.totalPages).toBe(2);
+      expect(result.hasNext).toBe(true);
+    });
+
+    it('returns no rows when nothing is low on stock', async () => {
+      prisma.$queryRaw.mockResolvedValue([]);
+      prisma.stockItem.findMany.mockResolvedValue([]);
+      prisma.stockItem.count.mockResolvedValue(0);
+
+      const result = await service.findAllStockItems(TENANT, { page: 1, limit: 20, lowStockOnly: true } as never);
+
+      expect(prisma.stockItem.findMany.mock.calls[0][0].where.id).toEqual({ in: [] });
+      expect(result.total).toBe(0);
+    });
+
+    it('always appends an id tiebreaker so pages do not repeat rows sharing a timestamp', async () => {
+      prisma.stockItem.findMany.mockResolvedValue([]);
+      prisma.stockItem.count.mockResolvedValue(0);
+
+      await service.findAllStockItems(TENANT, { page: 3, limit: 20 } as never);
+
+      const orderBy = prisma.stockItem.findMany.mock.calls[0][0].orderBy;
+      expect(orderBy[orderBy.length - 1]).toEqual({ id: 'asc' });
     });
   });
 
@@ -394,7 +413,7 @@ describe('InventoryService (coverage)', () => {
       const result = await service.findAllMovements(TENANT, { page: 1, limit: 20 } as never);
 
       expect(prisma.stockMovement.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { tenantId: TENANT }, orderBy: { movedAt: 'desc' }, skip: 0, take: 20 }),
+        expect.objectContaining({ where: { tenantId: TENANT }, orderBy: [{ movedAt: 'desc' }, { id: 'asc' }], skip: 0, take: 20 }),
       );
       expect(result).toMatchObject({ total: 1, totalPages: 1, hasNext: false, hasPrevious: false });
     });
@@ -426,7 +445,7 @@ describe('InventoryService (coverage)', () => {
             movedAt: { gte: from, lte: to },
             stockItem: { productId: 'prod-1', locationId: 'loc-1' },
           },
-          orderBy: { quantityChange: 'desc' },
+          orderBy: [{ quantityChange: 'desc' }, { id: 'asc' }],
           skip: 20,
           take: 10,
         }),
@@ -725,7 +744,7 @@ describe('InventoryService (coverage)', () => {
       expect(prisma.stockTransfer.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tenantId: TENANT, status: 'DRAFT', fromLocationId: 'loc-a', toLocationId: 'loc-b' },
-          orderBy: { status: 'asc' },
+          orderBy: [{ status: 'asc' }, { id: 'asc' }],
           skip: 5,
           take: 5,
         }),
@@ -741,7 +760,7 @@ describe('InventoryService (coverage)', () => {
 
       expect(prisma.stockTransfer.findMany.mock.calls[0][0]).toMatchObject({
         where: { tenantId: TENANT },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       });
     });
   });
@@ -936,7 +955,7 @@ describe('InventoryService (coverage)', () => {
       expect(prisma.stockTake.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tenantId: TENANT, locationId: 'loc-1', status: 'COMPLETED' },
-          orderBy: { status: 'desc' },
+          orderBy: [{ status: 'desc' }, { id: 'asc' }],
           skip: 0,
           take: 1,
         }),
@@ -952,7 +971,7 @@ describe('InventoryService (coverage)', () => {
 
       expect(prisma.stockTake.findMany.mock.calls[0][0]).toMatchObject({
         where: { tenantId: TENANT },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       });
     });
   });
@@ -1281,7 +1300,7 @@ describe('InventoryService (coverage)', () => {
       expect(prisma.batchLot.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tenantId: TENANT, productId: 'prod-1' },
-          orderBy: { batchNumber: 'asc' },
+          orderBy: [{ batchNumber: 'asc' }, { id: 'asc' }],
           skip: 4,
           take: 4,
         }),
@@ -1297,7 +1316,7 @@ describe('InventoryService (coverage)', () => {
 
       expect(prisma.batchLot.findMany.mock.calls[0][0]).toMatchObject({
         where: { tenantId: TENANT },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       });
     });
 
@@ -1472,7 +1491,7 @@ describe('InventoryService (coverage)', () => {
               { barcodeData: { contains: 'ABC' } },
             ],
           },
-          orderBy: { serialNumber: 'asc' },
+          orderBy: [{ serialNumber: 'asc' }, { id: 'asc' }],
           skip: 0,
           take: 2,
         }),
@@ -1488,7 +1507,7 @@ describe('InventoryService (coverage)', () => {
 
       expect(prisma.serialNumber.findMany.mock.calls[0][0]).toMatchObject({
         where: { tenantId: TENANT },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       });
     });
   });
@@ -1498,8 +1517,8 @@ describe('InventoryService (coverage)', () => {
   describe('getDashboard', () => {
     it('aggregates stock value, low stock alerts, metal and stone breakdowns', async () => {
       const stockItems = [
-        stockItemFixture({ id: 'a', quantityOnHand: 3, product: { id: 'p1', sku: 'S1', name: 'A', costPricePaise: BigInt(100) } }),
-        stockItemFixture({ id: 'b', quantityOnHand: 2, product: { id: 'p2', sku: 'S2', name: 'B', costPricePaise: null } }),
+        stockItemFixture({ id: 'a', productId: 'p1', quantityOnHand: 3, product: { id: 'p1', sku: 'S1', name: 'A', costPricePaise: BigInt(100) } }),
+        stockItemFixture({ id: 'b', productId: 'p2', quantityOnHand: 2, product: { id: 'p2', sku: 'S2', name: 'B', costPricePaise: null } }),
       ];
       const lowStock = [
         stockItemFixture({ id: 'low', productId: 'p3', quantityOnHand: 1, reorderLevel: 4 }),
@@ -1522,7 +1541,7 @@ describe('InventoryService (coverage)', () => {
       const result = await service.getDashboard(TENANT);
 
       expect(result.totalStockValuePaise).toBe(BigInt(300));
-      expect(result.totalSKUs).toBe(2);
+      expect(result.totalSKUs).toBe(2); // distinct products
       expect(result.pendingTransfers).toBe(2);
       expect(result.lowStockAlerts).toEqual([
         {
@@ -1650,6 +1669,45 @@ describe('InventoryService (coverage)', () => {
         sellingPricePaise: 0,
         images: [],
       });
+    });
+  });
+
+  // ─── Deterministic ordering / distinct SKUs / start ──────────
+
+  describe('stable pagination tiebreaker', () => {
+    it('withIdTiebreaker appends id once', () => {
+      expect(withIdTiebreaker({ createdAt: 'desc' })).toEqual([{ createdAt: 'desc' }, { id: 'asc' }]);
+      expect(withIdTiebreaker({ id: 'desc' })).toEqual([{ id: 'desc' }]);
+    });
+
+    it.each([
+      ['movements', () => service.findAllMovements(TENANT, { page: 1, limit: 5 } as never), () => prisma.stockMovement],
+      ['transfers', () => service.findAllTransfers(TENANT, { page: 1, limit: 5 } as never), () => prisma.stockTransfer],
+      ['stock takes', () => service.findAllStockTakes(TENANT, { page: 1, limit: 5 } as never), () => prisma.stockTake],
+    ])('%s list orders by a unique key', async (_n, run, delegate) => {
+      delegate().findMany.mockResolvedValue([]);
+      delegate().count.mockResolvedValue(0);
+      await run();
+      const orderBy = delegate().findMany.mock.calls[0][0].orderBy;
+      expect(orderBy[orderBy.length - 1]).toEqual({ id: 'asc' });
+    });
+  });
+
+  describe('startStockTake', () => {
+    it('moves a DRAFT stock take to IN_PROGRESS with startedAt', async () => {
+      prisma.stockTake.findFirst.mockResolvedValue(stockTakeFixture({ status: 'DRAFT' }));
+      prisma.stockTake.update.mockResolvedValue(stockTakeFixture());
+      await service.startStockTake(TENANT, USER, 'st-1');
+      const data = prisma.stockTake.update.mock.calls[0][0].data;
+      expect(data.status).toBe('IN_PROGRESS');
+      expect(data.startedAt).toBeInstanceOf(Date);
+    });
+
+    it('rejects stock takes that are not DRAFT and unknown ones', async () => {
+      prisma.stockTake.findFirst.mockResolvedValueOnce(stockTakeFixture({ status: 'COMPLETED' }));
+      await expect(service.startStockTake(TENANT, USER, 'st-1')).rejects.toThrow(BadRequestException);
+      prisma.stockTake.findFirst.mockResolvedValueOnce(null);
+      await expect(service.startStockTake(TENANT, USER, 'x')).rejects.toThrow(NotFoundException);
     });
   });
 });

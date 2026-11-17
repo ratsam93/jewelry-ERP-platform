@@ -2,69 +2,26 @@
 
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
-import type { ForecastResult, SeasonalPattern } from '@caratflow/shared-types';
+import type { ChartData, ForecastResult, SeasonalPattern } from '@caratflow/shared-types';
 import { trpc } from '@/lib/trpc';
 import { ForecastChart } from '@/features/reporting/ForecastChart';
+import { ReportChart } from '@/features/reporting/ReportChart';
+import { ReportExportMenu } from '@/features/reporting/ReportExportMenu';
+import type { ExportTable } from '@/lib/report-export';
 
 type Tab = 'forecast' | 'seasonality' | 'reorder';
 
-function Sparkline({
-  values,
-  labels,
-  height = 180,
-}: {
-  values: number[];
-  labels?: string[];
-  height?: number;
-}) {
-  if (!values.length) return <p className="text-sm text-muted-foreground">No data.</p>;
-  const width = 640;
-  const pad = 24;
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const range = Math.max(max - min, 1);
-  const stepX = (width - pad * 2) / Math.max(values.length - 1, 1);
-  const points = values
-    .map((v, i) => {
-      const x = pad + i * stepX;
-      const y = pad + (height - pad * 2) * (1 - (v - min) / range);
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  return (
-    <svg width={width} height={height} className="max-w-full">
-      <rect x={0} y={0} width={width} height={height} fill="transparent" />
-      <polyline
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        points={points}
-        className="text-primary"
-      />
-      {values.map((v, i) => {
-        const x = pad + i * stepX;
-        const y = pad + (height - pad * 2) * (1 - (v - min) / range);
-        return (
-          <g key={i}>
-            <circle cx={x} cy={y} r={3} className="fill-primary" />
-            {labels?.[i] && (
-              <text
-                x={x}
-                y={height - 4}
-                textAnchor="middle"
-                className="fill-muted-foreground"
-                fontSize={10}
-              >
-                {labels[i]}
-              </text>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
+interface ReorderResult {
+  reorderPoint?: number;
+  safetyStock?: number;
+  avgDailyDemand?: number;
+  demandStdDev?: number;
 }
+
+const num = (v: unknown, digits = 0): string =>
+  typeof v === 'number' && Number.isFinite(v)
+    ? v.toLocaleString('en-IN', { maximumFractionDigits: digits })
+    : '-';
 
 export default function ForecastReportsPage() {
   const [tab, setTab] = useState<Tab>('forecast');
@@ -107,16 +64,46 @@ export default function ForecastReportsPage() {
     ? ({ ...rawForecast, predictions: Array.isArray(rawForecast.predictions) ? rawForecast.predictions : [] } as ForecastResult)
     : undefined;
 
-  const seasonalityPoints = useMemo(() => {
-    // The API returns SeasonalPattern[] (a bare array), not { months }.
-    const series = Array.isArray(seasonalityQuery.data)
-      ? (seasonalityQuery.data as Array<Partial<SeasonalPattern>>)
-      : [];
+  const seasonalityRows = useMemo(
+    () => (Array.isArray(seasonalityQuery.data) ? (seasonalityQuery.data as Array<Partial<SeasonalPattern>>) : []),
+    [seasonalityQuery.data],
+  );
+  const seasonalityChart = useMemo<ChartData>(
+    () => ({
+      title: 'Seasonal index by month',
+      chartType: 'bar' as ChartData['chartType'],
+      labels: seasonalityRows.map((p) => String(p.monthName ?? p.month ?? '').slice(0, 3)),
+      datasets: [{ label: 'Seasonal index', data: seasonalityRows.map((p) => p.seasonalIndex ?? 0) }],
+    }),
+    [seasonalityRows],
+  );
+
+  const reorder = reorderQuery.data as ReorderResult | undefined;
+  const selectedProduct = products.find((p) => p.id === productId);
+  const productLabel = selectedProduct?.name ?? selectedProduct?.sku ?? productId;
+
+  const getTable = (): ExportTable | null => {
+    if (tab === 'forecast') {
+      if (!forecastResult) return null;
+      return {
+        headers: ['Period', 'Actual', 'Predicted', 'Lower bound', 'Upper bound', 'Confidence'],
+        rows: forecastResult.predictions.map((p) => [p.period, p.actual, p.predicted, p.lowerBound, p.upperBound, p.confidence]),
+      };
+    }
+    if (tab === 'seasonality') {
+      if (seasonalityRows.length === 0) return null;
+      return {
+        headers: ['Month', 'Month name', 'Average demand', 'Seasonal index'],
+        rows: seasonalityRows.map((p) => [p.month, p.monthName, p.avgDemand, p.seasonalIndex]),
+      };
+    }
+    if (!reorder) return null;
     return {
-      values: series.map((p) => p.seasonalIndex ?? 0),
-      labels: series.map((p) => String(p.monthName ?? p.month ?? '')),
+      headers: ['Product', 'Reorder point (units)', 'Safety stock (units)', 'Avg daily demand (units/day)', 'Demand std dev (units/day)', 'Lead time (days)'],
+      rows: [[productLabel, reorder.reorderPoint, reorder.safetyStock, reorder.avgDailyDemand, reorder.demandStdDev, leadTimeDays]],
     };
-  }, [seasonalityQuery.data]);
+  };
+  const exportBase = tab === 'forecast' ? 'demand-forecast' : tab === 'seasonality' ? 'seasonality-report' : 'reorder-point-report';
 
   return (
     <div className="space-y-6">
@@ -245,6 +232,10 @@ export default function ForecastReportsPage() {
         )}
       </div>
 
+      <div className="flex justify-end">
+        <ReportExportMenu fileBase={exportBase} getTable={getTable} />
+      </div>
+
       {/* Content */}
       <div className="rounded-lg border bg-card p-6 space-y-4">
         {tab === 'forecast' && (
@@ -279,7 +270,16 @@ export default function ForecastReportsPage() {
             )}
             {seasonalityQuery.data != null && (
               <>
-                <Sparkline values={seasonalityPoints.values} labels={seasonalityPoints.labels} />
+                {seasonalityRows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No seasonality data for this selection.</p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Seasonal index: 1.00 is an average month; above 1.00 is a busier-than-average month.
+                    </p>
+                    <ReportChart data={seasonalityChart} height={260} formatValue={(v) => v.toFixed(2)} />
+                  </>
+                )}
                 <details className="text-xs">
                   <summary className="cursor-pointer text-muted-foreground">Raw data</summary>
                   <pre className="mt-2 rounded-md bg-muted p-3 overflow-auto max-h-60">
@@ -303,10 +303,31 @@ export default function ForecastReportsPage() {
             {reorderQuery.isError && (
               <p className="text-sm text-destructive">{reorderQuery.error.message}</p>
             )}
-            {reorderQuery.data != null && (
-              <pre className="rounded-md bg-muted p-4 overflow-auto max-h-[60vh] text-xs">
-                {JSON.stringify(reorderQuery.data, null, 2)}
-              </pre>
+            {reorder != null && (
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
+                      <th className="px-3 py-2 font-medium">Product</th>
+                      <th className="px-3 py-2 text-right font-medium">Reorder point (units)</th>
+                      <th className="px-3 py-2 text-right font-medium">Safety stock (units)</th>
+                      <th className="px-3 py-2 text-right font-medium">Avg daily demand (units/day)</th>
+                      <th className="px-3 py-2 text-right font-medium">Demand std dev (units/day)</th>
+                      <th className="px-3 py-2 text-right font-medium">Lead time (days)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="px-3 py-2 font-medium">{productLabel}</td>
+                      <td className="px-3 py-2 text-right font-semibold">{num(reorder.reorderPoint)}</td>
+                      <td className="px-3 py-2 text-right">{num(reorder.safetyStock)}</td>
+                      <td className="px-3 py-2 text-right">{num(reorder.avgDailyDemand, 2)}</td>
+                      <td className="px-3 py-2 text-right">{num(reorder.demandStdDev, 2)}</td>
+                      <td className="px-3 py-2 text-right">{num(leadTimeDays)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}

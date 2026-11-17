@@ -6,6 +6,14 @@ const mockState = vi.hoisted(() => ({
   queries: {} as Record<string, { data?: unknown; isLoading?: boolean; error?: unknown }>,
 }));
 
+const routeState = vi.hoisted(() => ({ id: '6ecfac52-f967-41a6-a76c-1abd8712078e' }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
+  useParams: () => ({ id: routeState.id }),
+}));
+
 vi.mock('@/lib/trpc', () => {
   function createProxy(path: string[]): unknown {
     return new Proxy(
@@ -37,21 +45,33 @@ vi.mock('@/lib/trpc', () => {
   return { trpc: createProxy([]) };
 });
 
+// Real crm.customer360 shape ({ profile, loyalty, purchaseHistory, ... }).
 const customerFixture = {
-  customer: {
+  profile: {
+    id: '6ecfac52-f967-41a6-a76c-1abd8712078e',
     firstName: 'Asha',
     lastName: 'Rao',
     phone: '+919800000001',
     email: 'asha@example.com',
     city: 'Mumbai',
     customerType: 'RETAIL',
+    panNumber: 'ABXXXXXXXF',
+    aadhaarNumber: 'XXXX-XXXX-0124',
   },
-  stats: { totalSpentPaise: 5000000, totalOrders: 3, loyaltyPoints: 120, averageTicketPaise: 1666667 },
+  loyalty: { currentPoints: 120, tier: null, lifetimeEarned: 120, lifetimeRedeemed: 0, recentTransactions: [] },
+  purchaseHistory: [
+    { id: 'i1', totalPaise: 4000000, date: '2026-01-01T00:00:00.000Z', itemCount: 2 },
+    { id: 'i2', totalPaise: 1000000, date: '2026-02-01T00:00:00.000Z', itemCount: 1 },
+  ],
+  occasions: [], recentInteractions: [], feedback: [], schemes: [],
 };
 
+// Real crm.leadGet shape: firstName/lastName, BigInt paise as a string.
 const leadFixture = {
   id: 'lead-1',
-  name: 'Vikram Shah',
+  firstName: 'Vikram',
+  lastName: 'Shah',
+  estimatedValuePaise: '2614800',
   status: 'NEW',
   source: 'WALK_IN',
   phone: '+919800000002',
@@ -65,7 +85,10 @@ const campaignFixture = {
   status: 'DRAFT',
   channel: 'EMAIL',
   subject: 'Festive offer',
-  audienceCount: 120,
+  totalRecipients: 120,
+  sentCount: 100,
+  deliveredCount: 90,
+  failedCount: 2,
   scheduledAt: null,
 };
 
@@ -95,6 +118,24 @@ describe('CRM Detail Pages', () => {
       );
       render(<Page />);
       expect(screen.getAllByText('Asha Rao').length).toBeGreaterThan(0);
+      expect(screen.getByText('asha@example.com')).toBeInTheDocument();
+      expect(screen.getAllByText('+919800000001').length).toBeGreaterThan(0);
+      expect(screen.getByText('Mumbai')).toBeInTheDocument();
+      expect(screen.getByText('ABXXXXXXXF')).toBeInTheDocument();
+      expect(screen.getByText('₹50,000.00')).toBeInTheDocument(); // total spent from purchaseHistory
+      expect(screen.getByText('120')).toBeInTheDocument(); // loyalty points
+    });
+
+    it('renders not-found (not a load error) for a non-UUID id such as "new"', async () => {
+      routeState.id = 'new';
+      mockState.queries['crm.customer360'] = { error: { message: 'Invalid input', data: { code: 'BAD_REQUEST' } } };
+      const { default: Page } = await import(
+        '../../../../app/(dashboard)/crm/customers/[id]/page'
+      );
+      render(<Page />);
+      expect(screen.getByRole('heading', { name: 'Customer not found' })).toBeInTheDocument();
+      expect(screen.queryByText(/could not load/i)).toBeNull();
+      routeState.id = '6ecfac52-f967-41a6-a76c-1abd8712078e';
     });
 
     it('renders a not-found state when the customer is null', async () => {
@@ -115,6 +156,7 @@ describe('CRM Detail Pages', () => {
       );
       render(<Page />);
       expect(screen.getAllByText('Vikram Shah').length).toBeGreaterThan(0);
+      expect(screen.getByText('₹26,148.00')).toBeInTheDocument(); // estimated value
     });
 
     it('renders a not-found state when the lead is null', async () => {
@@ -135,6 +177,8 @@ describe('CRM Detail Pages', () => {
       );
       render(<Page />);
       expect(screen.getAllByText('Diwali Gold Offer').length).toBeGreaterThan(0);
+      expect(screen.getByText('120')).toBeInTheDocument(); // totalRecipients
+      expect(screen.getByText('100 / 90 / 2')).toBeInTheDocument();
     });
 
     it('renders a not-found state when the campaign is null', async () => {

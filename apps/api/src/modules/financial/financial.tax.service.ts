@@ -4,6 +4,7 @@
 import { Injectable } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
+import { splitInvoiceGst } from './financial.gst-split';
 import type {
   GstComputationInput,
   GstComputationResult,
@@ -129,18 +130,22 @@ export class FinancialTaxService extends TenantAwareService {
 
   async generateGstr1Data(tenantId: string, input: TaxReportInput): Promise<Gstr1Data> {
     const { month, year } = input.period;
+    // Half-open [first of month, first of next month): includes the whole
+    // last day (no lte-with-midnight bug).
     const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    const endDate = new Date(year, month, 1);
 
     const invoices = await this.prisma.invoice.findMany({
       where: {
         tenantId,
         invoiceType: 'SALES',
         status: { not: 'VOIDED' },
-        createdAt: { gte: startDate, lte: endDate },
+        createdAt: { gte: startDate, lt: endDate },
       },
       include: {
-        customer: true,
+        // narrow select: GSTR-1 needs buyer GSTIN + state only (no PAN / Aadhaar)
+        customer: { select: { id: true, firstName: true, lastName: true, gstinNumber: true, state: true } },
+        location: true,
         lineItems: true,
         taxTransactions: true,
       },
@@ -185,16 +190,19 @@ export class FinancialTaxService extends TenantAwareService {
     let totalIgst = 0;
 
     for (const invoice of invoices) {
-      const taxableAmount = Number(invoice.subtotalPaise) - Number(invoice.discountPaise);
-      const cgst = invoice.taxTransactions
-        .filter((t) => t.taxType === 'CGST')
-        .reduce((sum, t) => sum + Number(t.taxAmountPaise), 0);
-      const sgst = invoice.taxTransactions
-        .filter((t) => t.taxType === 'SGST')
-        .reduce((sum, t) => sum + Number(t.taxAmountPaise), 0);
-      const igst = invoice.taxTransactions
-        .filter((t) => t.taxType === 'IGST')
-        .reduce((sum, t) => sum + Number(t.taxAmountPaise), 0);
+      const split = splitInvoiceGst({
+        subtotalPaise: invoice.subtotalPaise,
+        discountPaise: invoice.discountPaise,
+        taxPaise: invoice.taxPaise,
+        taxTransactions: invoice.taxTransactions,
+        lineItems: invoice.lineItems,
+        partyState: invoice.customer?.state,
+        locationState: invoice.location?.state,
+      });
+      const taxableAmount = split.taxableAmountPaise;
+      const cgst = split.cgstPaise;
+      const sgst = split.sgstPaise;
+      const igst = split.igstPaise;
 
       totalTaxableAmount += taxableAmount;
       totalCgst += cgst;
@@ -219,7 +227,28 @@ export class FinancialTaxService extends TenantAwareService {
         b2c.push(invoiceData);
       }
 
-      // HSN summary
+      // HSN summary. Invoices without stored lines are reported at invoice
+      // level under the default jewellery HSN so the summary reconciles.
+      if (invoice.lineItems.length === 0 && taxableAmount > 0) {
+        const hsn = '7113';
+        const existing = hsnMap.get(hsn);
+        if (existing) {
+          existing.taxableAmountPaise += taxableAmount;
+          existing.cgstPaise += cgst;
+          existing.sgstPaise += sgst;
+          existing.igstPaise += igst;
+        } else {
+          hsnMap.set(hsn, {
+            description: 'Jewellery (invoice level)',
+            quantity: 0,
+            taxableAmountPaise: taxableAmount,
+            cgstPaise: cgst,
+            sgstPaise: sgst,
+            igstPaise: igst,
+            cessPaise: 0,
+          });
+        }
+      }
       for (const line of invoice.lineItems) {
         const hsn = line.hsnCode;
         const existing = hsnMap.get(hsn);
@@ -271,53 +300,63 @@ export class FinancialTaxService extends TenantAwareService {
   async generateGstr3bData(tenantId: string, input: TaxReportInput): Promise<Gstr3bData> {
     const { month, year } = input.period;
     const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    const endDate = new Date(year, month, 1); // exclusive: whole last day included
 
-    // Outward supplies (sales)
-    const salesTax = await this.prisma.taxTransaction.groupBy({
-      by: ['taxType'],
-      _sum: { taxableAmountPaise: true, taxAmountPaise: true },
+    const invoices = await this.prisma.invoice.findMany({
       where: {
         tenantId,
-        invoice: { invoiceType: 'SALES', status: { not: 'VOIDED' }, createdAt: { gte: startDate, lte: endDate } },
+        invoiceType: { in: ['SALES', 'PURCHASE'] },
+        status: { not: 'VOIDED' },
+        createdAt: { gte: startDate, lt: endDate },
+      },
+      include: {
+        // narrow select: GST summary only needs the party state
+        customer: { select: { state: true } },
+        supplier: { select: { state: true } },
+        location: true,
+        lineItems: true,
+        taxTransactions: true,
       },
     });
 
-    // Inward supplies (purchases)
-    const purchaseTax = await this.prisma.taxTransaction.groupBy({
-      by: ['taxType'],
-      _sum: { taxableAmountPaise: true, taxAmountPaise: true },
-      where: {
-        tenantId,
-        invoice: { invoiceType: 'PURCHASE', status: { not: 'VOIDED' }, createdAt: { gte: startDate, lte: endDate } },
-      },
-    });
+    const zero = () => ({ taxableAmountPaise: 0, igstPaise: 0, cgstPaise: 0, sgstPaise: 0 });
+    const out = zero();
+    const inn = zero();
+    for (const inv of invoices) {
+      const split = splitInvoiceGst({
+        subtotalPaise: inv.subtotalPaise,
+        discountPaise: inv.discountPaise,
+        taxPaise: inv.taxPaise,
+        taxTransactions: inv.taxTransactions,
+        lineItems: inv.lineItems,
+        partyState: inv.invoiceType === 'SALES' ? inv.customer?.state : inv.supplier?.state,
+        locationState: inv.location?.state,
+      });
+      const bucket = inv.invoiceType === 'SALES' ? out : inn;
+      bucket.taxableAmountPaise += split.taxableAmountPaise;
+      bucket.igstPaise += split.igstPaise;
+      bucket.cgstPaise += split.cgstPaise;
+      bucket.sgstPaise += split.sgstPaise;
+    }
 
-    const getTaxAmount = (data: typeof salesTax, type: string): number =>
-      Number(data.find((d) => d.taxType === type)?._sum.taxAmountPaise ?? 0);
-
-    const getTaxableAmount = (data: typeof salesTax): number =>
-      Number(data.reduce((sum, d) => sum + Number(d._sum.taxableAmountPaise ?? 0), 0));
-
-    const outIgst = getTaxAmount(salesTax, 'IGST');
-    const outCgst = getTaxAmount(salesTax, 'CGST');
-    const outSgst = getTaxAmount(salesTax, 'SGST');
-
-    const inIgst = getTaxAmount(purchaseTax, 'IGST');
-    const inCgst = getTaxAmount(purchaseTax, 'CGST');
-    const inSgst = getTaxAmount(purchaseTax, 'SGST');
+    const outIgst = out.igstPaise;
+    const outCgst = out.cgstPaise;
+    const outSgst = out.sgstPaise;
+    const inIgst = inn.igstPaise;
+    const inCgst = inn.cgstPaise;
+    const inSgst = inn.sgstPaise;
 
     return {
       period: `${month.toString().padStart(2, '0')}-${year}`,
       outwardSupplies: {
-        taxableAmountPaise: getTaxableAmount(salesTax),
+        taxableAmountPaise: out.taxableAmountPaise,
         igstPaise: outIgst,
         cgstPaise: outCgst,
         sgstPaise: outSgst,
         cessPaise: 0,
       },
       inwardSupplies: {
-        taxableAmountPaise: getTaxableAmount(purchaseTax),
+        taxableAmountPaise: inn.taxableAmountPaise,
         igstPaise: inIgst,
         cgstPaise: inCgst,
         sgstPaise: inSgst,

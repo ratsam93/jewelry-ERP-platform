@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import { partialUpdate } from '../zod-helpers';
 import {
   PurchaseOrderInputSchema,
+  SupplierInputSchema,
+  supplierPostalCodeError,
   PurchaseOrderItemInputSchema,
   ConsignmentOutInputSchema,
   ConsignmentInInputSchema,
@@ -168,5 +171,69 @@ describe('GoodsReceiptInputSchema', () => {
       items: [],
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('SupplierInputSchema (HK-WHL-01)', () => {
+  const base = { name: 'Rajesh Gold Traders' };
+  const fieldError = (data: Record<string, unknown>, field: string) => {
+    const r = SupplierInputSchema.safeParse({ ...base, ...data });
+    return r.success ? null : r.error.issues.find((i) => i.path[0] === field)?.message ?? null;
+  };
+
+  it('rejects the corrupting GSTIN from the QA run', () => {
+    expect(fieldError({ gstinNumber: '27ABC' }, 'gstinNumber')).toMatch(/GSTIN/);
+  });
+  it('accepts a valid GSTIN and upper-cases / trims it', () => {
+    const r = SupplierInputSchema.parse({ ...base, gstinNumber: ' 27abcde1234f1z5 ' });
+    expect(r.gstinNumber).toBe('27ABCDE1234F1Z5');
+  });
+  it('treats blank optional fields as not provided', () => {
+    const r = SupplierInputSchema.parse({ ...base, gstinNumber: '  ', panNumber: '', email: '', phone: '', postalCode: '' });
+    expect(r.gstinNumber).toBeUndefined();
+    expect(r.panNumber).toBeUndefined();
+    expect(r.email).toBeUndefined();
+    expect(r.phone).toBeUndefined();
+  });
+  it('validates PAN', () => {
+    expect(fieldError({ panNumber: 'ABCDE123' }, 'panNumber')).toMatch(/PAN/);
+    expect(SupplierInputSchema.parse({ ...base, panNumber: 'abcde1234f' }).panNumber).toBe('ABCDE1234F');
+  });
+  it('requires a 6 digit pincode for India (and when no country is given)', () => {
+    expect(fieldError({ postalCode: '4000', country: 'IN' }, 'postalCode')).toMatch(/6 digits/);
+    expect(fieldError({ postalCode: '4000' }, 'postalCode')).toMatch(/6 digits/);
+    expect(fieldError({ postalCode: '40000A', country: 'IN' }, 'postalCode')).toMatch(/6 digits/);
+    expect(fieldError({ postalCode: '400001', country: 'IN' }, 'postalCode')).toBeNull();
+    expect(fieldError({ postalCode: 'SW1A 1AA', country: 'GB' }, 'postalCode')).toBeNull();
+  });
+  it('validates phone and email formats', () => {
+    expect(fieldError({ phone: 'abc' }, 'phone')).toBeTruthy();
+    expect(fieldError({ phone: '12345' }, 'phone')).toBeTruthy();
+    expect(fieldError({ phone: '+91 98765 43210' }, 'phone')).toBeNull();
+    expect(fieldError({ email: 'not-an-email' }, 'email')).toBeTruthy();
+    expect(fieldError({ email: 'buyer@shop.in' }, 'email')).toBeNull();
+  });
+  it('requires a name', () => {
+    expect(SupplierInputSchema.safeParse({ name: '   ' }).success).toBe(false);
+    expect(SupplierInputSchema.safeParse({}).success).toBe(false);
+  });
+  it('supplierPostalCodeError is null when nothing is provided', () => {
+    expect(supplierPostalCodeError('IN', '')).toBeNull();
+    expect(supplierPostalCodeError(undefined, undefined)).toBeNull();
+  });
+
+  describe('partialUpdate keeps the field checks', () => {
+    const update = partialUpdate(SupplierInputSchema);
+    it('rejects a bad GSTIN / PAN / phone on update', () => {
+      expect(update.safeParse({ gstinNumber: '27ABC' }).success).toBe(false);
+      expect(update.safeParse({ panNumber: 'XYZ' }).success).toBe(false);
+      expect(update.safeParse({ phone: 'zzz' }).success).toBe(false);
+      expect(update.safeParse({ email: 'nope' }).success).toBe(false);
+    });
+    it('accepts valid partial updates and leaves omitted fields untouched', () => {
+      const r = update.parse({ gstinNumber: '27abcde1234f1z5' });
+      expect(r.gstinNumber).toBe('27ABCDE1234F1Z5');
+      expect('isActive' in r && r.isActive !== undefined).toBe(false);
+    });
   });
 });

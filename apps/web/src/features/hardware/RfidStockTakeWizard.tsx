@@ -3,6 +3,9 @@
 import { useState, useCallback } from 'react';
 import { trpc } from '@/lib/trpc';
 import type { RfidStockTakeResult, RfidTagData } from '@caratflow/shared-types';
+import { LocationSelect } from '@/features/inventory/location-select';
+import { isRfidSimulatorEnabled } from './hardware-utils';
+import { formatServerError } from '@/lib/manufacturing-forms';
 
 interface RfidStockTakeWizardProps {
   onComplete?: (result: RfidStockTakeResult) => void;
@@ -105,14 +108,14 @@ export function RfidStockTakeWizard({
         <div className="rounded-lg border p-6">
           <h3 className="mb-4 text-lg font-semibold">Select Location for Stock Take</h3>
           <div className="max-w-md">
-            <label className="block text-sm font-medium" htmlFor="st-location">Location ID</label>
-            <input
+            <label className="block text-sm font-medium" htmlFor="st-location">
+              Location <span className="text-red-600" aria-hidden="true">*</span>
+            </label>
+            <LocationSelect
               id="st-location"
-              type="text"
               value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
+              onChange={setLocationId}
               className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-              placeholder="UUID of the location"
             />
           </div>
           <div className="mt-6 flex gap-3">
@@ -131,6 +134,11 @@ export function RfidStockTakeWizard({
             >
               Start Scanning
             </button>
+            {!locationId && (
+              <span className="self-center text-xs text-muted-foreground">
+                Select a location to enable Start Scanning.
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -170,12 +178,14 @@ export function RfidStockTakeWizard({
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={handleSimulateTag}
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
-            >
-              Simulate Tag (Test)
-            </button>
+            {isRfidSimulatorEnabled() && (
+              <button
+                onClick={handleSimulateTag}
+                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+              >
+                Simulate Tag (Test)
+              </button>
+            )}
             <button
               onClick={handleFinishScan}
               disabled={scannedTags.length === 0 || stockTakeMutation.isPending}
@@ -183,6 +193,16 @@ export function RfidStockTakeWizard({
             >
               {stockTakeMutation.isPending ? 'Processing...' : 'Complete Scan'}
             </button>
+            {scannedTags.length === 0 && (
+              <span className="self-center text-xs text-muted-foreground">
+                Scan at least one tag to enable Complete Scan.
+              </span>
+            )}
+            {stockTakeMutation.isError && (
+              <span role="alert" className="self-center text-xs text-red-600">
+                {formatServerError(stockTakeMutation.error)}
+              </span>
+            )}
           </div>
         </div>
       )}

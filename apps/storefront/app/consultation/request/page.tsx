@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { mockProducts } from "@/lib/mock-data";
 import { API_BASE_URL } from "@/lib/constants";
+import { getAccessToken } from "@/lib/api";
+import {
+  clearConsultationDraft,
+  consultationLoginHref,
+  consultationRegisterHref,
+  loadConsultationDraft,
+  saveConsultationDraft,
+} from "@/lib/consultation-draft";
 
 const LANGS = [
   { code: "en", label: "English" },
@@ -17,16 +25,37 @@ const LANGS = [
 function RequestConsultationForm() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const productId = params.get("productId");
-    if (productId) setSelectedProducts([productId]);
-  }, []);
   const [lang, setLang] = useState("en");
   const [phone, setPhone] = useState("");
   const [preferredSlot, setPreferredSlot] = useState("");
   const [notes, setNotes] = useState("");
+  const [signedIn, setSignedIn] = useState(true); // optimistic until checked on mount
+  const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [restored, setRestored] = useState(false);
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const draft = loadConsultationDraft();
+    if (draft) {
+      setSelectedProducts(draft.selectedProducts);
+      setLang(draft.lang);
+      setPhone(draft.phone);
+      setPreferredSlot(draft.preferredSlot);
+      setNotes(draft.notes);
+    }
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get("productId");
+    if (productId) setSelectedProducts((prev) => (prev.includes(productId) ? prev : [...prev, productId]));
+    setSignedIn(Boolean(getAccessToken()));
+    setRestored(true);
+  }, []);
+
+  // Keep the typed values across a sign-in detour.
+  useEffect(() => {
+    if (!restored || submittedRef.current) return;
+    saveConsultationDraft({ selectedProducts, lang, phone, preferredSlot, notes });
+  }, [restored, selectedProducts, lang, phone, preferredSlot, notes]);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -39,6 +68,13 @@ function RequestConsultationForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const token = getAccessToken();
+    if (!token) {
+      saveConsultationDraft({ selectedProducts, lang, phone, preferredSlot, notes });
+      setSignedIn(false);
+      setNeedsSignIn(true);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -51,7 +87,6 @@ function RequestConsultationForm() {
           notes || null,
         ].filter(Boolean).join("\n") || undefined,
       };
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
       const res = await fetch(`${API_BASE_URL}/api/v1/crm/video-consultation/request`, {
         method: "POST",
         headers: {
@@ -61,13 +96,17 @@ function RequestConsultationForm() {
         body: JSON.stringify(payload),
       });
       if (res.status === 401) {
-        if (typeof window !== "undefined") window.location.href = "/auth/login";
+        saveConsultationDraft({ selectedProducts, lang, phone, preferredSlot, notes });
+        setSignedIn(false);
+        setNeedsSignIn(true);
         return;
       }
       const data = await res.json().catch(() => null);
       if (!res.ok || (data && data.success === false)) {
         throw new Error(data?.error?.message || data?.message || `Request failed: ${res.status}`);
       }
+      submittedRef.current = true;
+      clearConsultationDraft();
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit. Please try again.");
@@ -113,6 +152,29 @@ function RequestConsultationForm() {
         </p>
       </div>
 
+      {!signedIn && (
+        <div
+          role={needsSignIn ? "alert" : "region"}
+          aria-label="Sign in to book a consultation"
+          className="mb-6 rounded-xl border border-gold/40 bg-gold/5 p-4"
+        >
+          <h2 className="text-base font-semibold text-navy">Sign in to book a consultation</h2>
+          <p className="text-sm text-navy/70 mt-1">
+            {needsSignIn
+              ? "You are not signed in, or your session has expired. Your answers are saved: sign in and you will return right here."
+              : "You need a CaratFlow account to book a live consultation. Your answers are saved while you sign in."}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link href={consultationLoginHref} className="h-10 px-5 inline-flex items-center rounded-lg bg-gold text-white text-sm font-medium hover:bg-gold-dark transition-colors">
+              Sign in
+            </Link>
+            <Link href={consultationRegisterHref} className="h-10 px-5 inline-flex items-center rounded-lg border border-gray-200 text-navy text-sm font-medium hover:bg-gray-50">
+              Register
+            </Link>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl border border-gray-100 p-6">
         {/* Products of interest */}
         <div>
@@ -142,8 +204,9 @@ function RequestConsultationForm() {
 
         {/* Language */}
         <div>
-          <label className="text-sm font-medium text-navy">Preferred Language</label>
+          <label htmlFor="consult-lang" className="text-sm font-medium text-navy">Preferred Language</label>
           <select
+            id="consult-lang"
             value={lang}
             onChange={(e) => setLang(e.target.value)}
             className="mt-1 w-full h-10 rounded-lg border border-gray-200 px-3 text-sm"
@@ -156,8 +219,9 @@ function RequestConsultationForm() {
 
         {/* Phone */}
         <div>
-          <label className="text-sm font-medium text-navy">Phone Number</label>
+          <label htmlFor="consult-phone" className="text-sm font-medium text-navy">Phone Number</label>
           <input
+            id="consult-phone"
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -169,8 +233,9 @@ function RequestConsultationForm() {
 
         {/* Preferred slot */}
         <div>
-          <label className="text-sm font-medium text-navy">Preferred Slot (optional)</label>
+          <label htmlFor="consult-slot" className="text-sm font-medium text-navy">Preferred Slot (optional)</label>
           <input
+            id="consult-slot"
             type="text"
             value={preferredSlot}
             onChange={(e) => setPreferredSlot(e.target.value)}
@@ -182,8 +247,9 @@ function RequestConsultationForm() {
 
         {/* Notes */}
         <div>
-          <label className="text-sm font-medium text-navy">Anything else? (optional)</label>
+          <label htmlFor="consult-notes" className="text-sm font-medium text-navy">Anything else? (optional)</label>
           <textarea
+            id="consult-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}

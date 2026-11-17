@@ -28,9 +28,9 @@ export default function RepairsPage() {
           { label: 'Repairs' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/retail/repairs/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" /> New Repair
-          </button>
+          </Link>
         }
       />
 
@@ -59,15 +59,17 @@ export default function RepairsPage() {
           <div className="divide-y">
             {items.map((r) => {
               const customer = r.customer as { firstName?: string; lastName?: string } | undefined;
-              const name = customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : '-';
+              const name =
+                (r.customerName as string | null | undefined) ||
+                (customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : '-');
               return (
                 <Link key={r.id as string} href={`/retail/repairs/${r.id}`} className="grid grid-cols-[1.2fr_1.4fr_1.4fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm hover:bg-accent">
                   <span className="font-mono font-medium">{(r.repairNumber as string) ?? '-'}</span>
                   <span>{name || '-'}</span>
                   <span>{(r.itemDescription as string) ?? '-'}</span>
-                  <span>{formatPaise(r.estimatedCostPaise)}</span>
+                  <span>{formatPaise(r.estimatePaise ?? r.estimatedCostPaise)}</span>
                   <StatusBadge label={(r.status as string) ?? '-'} variant={getStatusVariant(r.status as string)} dot={false} />
-                  <span className="text-muted-foreground">{formatDate(r.promisedDeliveryDate)}</span>
+                  <span className="text-muted-foreground">{formatDate(r.promisedDate ?? r.promisedDeliveryDate)}</span>
                 </Link>
               );
             })}

@@ -8,6 +8,15 @@ import { EventBusService } from '../../event-bus/event-bus.service';
 import type { AttendanceInput, BulkAttendanceInput, AttendanceSummary } from '@caratflow/shared-types';
 import { PayrollAttendanceStatus, PayrollAttendanceSource } from '@caratflow/shared-types';
 
+/**
+ * Calendar day (as sent by the client: UTC midnight or local noon) as UTC midnight.
+ * attendance.date is @db.Date, written from the UTC date, so building it from local
+ * getters (server TZ) moved the day back by one on servers east of UTC (HK-PAY-02).
+ */
+export function toUtcDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
 @Injectable()
 export class PayrollAttendanceService extends TenantAwareService implements OnModuleInit {
   private readonly logger = new Logger(PayrollAttendanceService.name);
@@ -44,7 +53,8 @@ export class PayrollAttendanceService extends TenantAwareService implements OnMo
     });
     if (!emp) return;
     const when = new Date(event.timestamp);
-    const day = new Date(when.getFullYear(), when.getMonth(), when.getDate());
+    // Attendance.date is a @db.Date column (written from the UTC date): store the calendar day as UTC midnight.
+    const day = new Date(Date.UTC(when.getFullYear(), when.getMonth(), when.getDate()));
     const existing = await this.prisma.employeeAttendance.findFirst({
       where: { tenantId: event.tenantId, employeeId: emp.id, date: day },
     });
@@ -87,11 +97,7 @@ export class PayrollAttendanceService extends TenantAwareService implements OnMo
   }
 
   async markDay(tenantId: string, input: AttendanceInput) {
-    const day = new Date(
-      input.date.getFullYear(),
-      input.date.getMonth(),
-      input.date.getDate(),
-    );
+    const day = toUtcDay(input.date);
     const existing = await this.prisma.employeeAttendance.findFirst({
       where: { tenantId, employeeId: input.employeeId, date: day },
     });
@@ -138,8 +144,8 @@ export class PayrollAttendanceService extends TenantAwareService implements OnMo
     yearMonth: string, // 'YYYY-MM'
   ): Promise<AttendanceSummary> {
     const [y, m] = yearMonth.split('-').map((v) => parseInt(v, 10));
-    const start = new Date(y!, m! - 1, 1);
-    const end = new Date(y!, m!, 1);
+    const start = new Date(Date.UTC(y!, m! - 1, 1));
+    const end = new Date(Date.UTC(y!, m!, 1));
     const rows = await this.prisma.employeeAttendance.findMany({
       where: { tenantId, employeeId, date: { gte: start, lt: end } },
     });

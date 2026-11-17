@@ -5,12 +5,15 @@ import { PageHeader, FormField } from '@caratflow/ui';
 import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { StoneStockCard } from '@/features/inventory/stone-stock-card';
+import { LocationSelect } from '@/features/inventory/location-select';
+import { formatServerError } from '@/lib/manufacturing-forms';
 import { caratsToMg } from '@caratflow/shared-types';
 import type { StoneOrigin } from '@caratflow/shared-types';
 
 export default function StonesPage() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [originFilter, setOriginFilter] = useState<'' | 'NATURAL' | 'LAB_GROWN'>('');
   const [formData, setFormData] = useState({
     stoneType: '',
@@ -42,7 +45,10 @@ export default function StonesPage() {
   });
 
   const handleCreate = () => {
-    if (!selectedLocationId || !formData.stoneType) return;
+    if (!selectedLocationId) return setCreateError('Select a location first.');
+    if (!formData.stoneType) return setCreateError('Enter the stone type.');
+    if (!/^\d*$/.test(formData.valuePaise.trim())) return setCreateError('Value must be a whole number of paise.');
+    setCreateError('');
     createMutation.mutate({
       locationId: selectedLocationId,
       stoneType: formData.stoneType,
@@ -58,11 +64,11 @@ export default function StonesPage() {
       growthMethod: (formData.origin === 'LAB_GROWN' ? formData.growthMethod : 'NONE') as never,
       treatment: formData.treatment as never,
       reportLab: formData.reportLab || undefined,
-      totalWeightMg: caratsToMg(parseFloat(formData.weightCarats) || 0),
+      totalWeightMg: caratsToMg(parseFloat(formData.weightCarats) || 0).toString(),
       totalPieces: formData.totalPieces,
-      valuePaise: BigInt(formData.valuePaise || '0'),
+      valuePaise: BigInt(formData.valuePaise || '0').toString(),
       certificationNumber: formData.certificationNumber || undefined,
-    });
+    } as never);
   };
 
   return (
@@ -91,13 +97,12 @@ export default function StonesPage() {
       {/* Location Selector */}
       <div className="flex items-center gap-3">
         <FormField label="Location" htmlFor="stone-location">
-          <input
+          <LocationSelect
             id="stone-location"
-            type="text"
-            placeholder="Enter location ID..."
             value={selectedLocationId}
-            onChange={(e) => setSelectedLocationId(e.target.value)}
-            className="h-9 w-96 rounded-md border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            onChange={setSelectedLocationId}
+            placeholder="Select a location to view stone stock"
+            className="h-9 w-96 rounded-md border border-input bg-transparent px-3 text-sm"
           />
         </FormField>
       </div>
@@ -116,6 +121,12 @@ export default function StonesPage() {
           </select>
         </FormField>
       </div>
+
+      {!selectedLocationId && (
+        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+          Select a location above to see its loose stone stock.
+        </div>
+      )}
 
       {/* Stone Stock Cards */}
       {selectedLocationId && (
@@ -328,6 +339,11 @@ export default function StonesPage() {
               />
             </FormField>
           </div>
+          {(createError || createMutation.error) && (
+            <p role="alert" className="text-sm text-destructive">
+              {createError || formatServerError(createMutation.error)}
+            </p>
+          )}
           <div className="flex gap-2">
             <button
               onClick={handleCreate}

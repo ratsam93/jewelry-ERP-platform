@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { FormField } from '@caratflow/ui';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { LocationSelect } from './location-select';
+import { ProductPicker } from './product-picker';
+import { formatServerError } from '@/lib/manufacturing-forms';
 
 interface StockItemFormProps {
   onClose: () => void;
@@ -24,8 +27,13 @@ export function StockItemForm({ onClose, onSuccess }: StockItemFormProps) {
     onSuccess,
   });
 
+  const [validation, setValidation] = useState('');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.productId) return setValidation('Select a product.');
+    if (!formData.locationId) return setValidation('Select a location.');
+    setValidation('');
     createMutation.mutate({
       productId: formData.productId,
       locationId: formData.locationId,
@@ -43,24 +51,16 @@ export function StockItemForm({ onClose, onSuccess }: StockItemFormProps) {
           <DialogTitle>Add Stock Item</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <FormField label="Product ID" required>
-            <input
-              type="text"
+          <FormField label="Product" required>
+            <ProductPicker
               value={formData.productId}
-              onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-              placeholder="UUID of the product"
-              required
+              onChange={(id) => setFormData({ ...formData, productId: id })}
             />
           </FormField>
-          <FormField label="Location ID" required>
-            <input
-              type="text"
+          <FormField label="Location" required>
+            <LocationSelect
               value={formData.locationId}
-              onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-              placeholder="UUID of the location"
-              required
+              onChange={(id) => setFormData({ ...formData, locationId: id })}
             />
           </FormField>
           <div className="grid grid-cols-3 gap-3">
@@ -102,8 +102,10 @@ export function StockItemForm({ onClose, onSuccess }: StockItemFormProps) {
             />
           </FormField>
 
-          {createMutation.error && (
-            <p className="text-sm text-destructive">{createMutation.error.message}</p>
+          {(validation || createMutation.error) && (
+            <p className="text-sm text-destructive" role="alert">
+              {validation || formatServerError(createMutation.error)}
+            </p>
           )}
 
           <DialogFooter>

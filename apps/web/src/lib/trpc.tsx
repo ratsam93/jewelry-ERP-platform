@@ -6,6 +6,7 @@ import { httpBatchLink } from '@trpc/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppRouter } from '../../../api/src/trpc/trpc.router';
 import { shouldRetryQuery } from './query-retry';
+import { authFetch } from './auth-session';
 
 /**
  * Real tRPC v11 React client wired against the NestJS backend at /trpc.
@@ -46,6 +47,8 @@ export function createTrpcClient() {
           input: { serialize: (obj: unknown) => obj, deserialize: (obj: unknown) => obj },
           output: { serialize: (obj: unknown) => obj, deserialize: (obj: unknown) => obj },
         },
+        // On HTTP 401: one silent token refresh + retry, else redirect to login.
+        fetch: authFetch,
         headers() {
           const token = getAuthToken();
           return token ? { Authorization: `Bearer ${token}` } : {};

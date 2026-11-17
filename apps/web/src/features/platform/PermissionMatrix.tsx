@@ -92,7 +92,7 @@ export function PermissionMatrix({
   if (modules.length === 0) {
     return (
       <div className="rounded-lg border bg-muted/50 p-8 text-center text-sm text-muted-foreground">
-        No permissions available. Run permission seed first.
+        No permissions defined.
       </div>
     );
   }

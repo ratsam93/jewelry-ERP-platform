@@ -34,6 +34,8 @@ export default function ProductGallery({ images, productName }: ProductGalleryPr
             key={img.id}
             type="button"
             onClick={() => setSelectedIndex(idx)}
+            aria-label={`View image ${idx + 1} of ${images.length}`}
+            aria-current={idx === selectedIndex ? "true" : undefined}
             className={cn(
               "w-16 h-16 lg:w-20 lg:h-20 rounded-lg overflow-hidden border-2 transition-all",
               idx === selectedIndex ? "border-gold ring-2 ring-gold/20" : "border-gray-100 hover:border-gold/40"

@@ -95,6 +95,19 @@ describe('PlatformAuditService (Unit)', () => {
       expect(result.total).toBe(1);
     });
 
+    it('matches several raw entity types when given a comma-separated list', async () => {
+      mockPrisma.auditLog.findMany.mockResolvedValue([]);
+      mockPrisma.auditLog.count.mockResolvedValue(0);
+
+      await service.queryAuditLogs(TEST_TENANT_ID, { page: 1, limit: 10, entityType: 'platform.branches,platform.branch' });
+
+      expect(mockPrisma.auditLog.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ tenantId: TEST_TENANT_ID, entityType: { in: ['platform.branches', 'platform.branch'] } }),
+        }),
+      );
+    });
+
     it('filters by entityType and userId', async () => {
       mockPrisma.auditLog.findMany.mockResolvedValue([]);
       mockPrisma.auditLog.count.mockResolvedValue(0);

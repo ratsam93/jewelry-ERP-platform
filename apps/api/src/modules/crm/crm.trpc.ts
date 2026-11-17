@@ -15,6 +15,7 @@ import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
 import { WhatsAppService } from './whatsapp.service';
 import { z } from 'zod';
+import { CustomerCreateInputSchema } from './crm.customer.schema';
 import { TRPCError } from '@trpc/server';
 import {
   EmailTestInputSchema,
@@ -84,6 +85,12 @@ export class CrmTrpcRouter {
         .input(CustomerListFilterSchema)
         .query(async ({ ctx, input }) => {
           return this.crmService.listCustomers(ctx.tenantId, input);
+        }),
+
+      customerCreate: authed
+        .input(CustomerCreateInputSchema)
+        .mutation(async ({ ctx, input }) => {
+          return this.crmService.createCustomer(ctx.tenantId, ctx.userId, input);
         }),
 
       customerImport: authed

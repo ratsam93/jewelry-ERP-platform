@@ -58,7 +58,14 @@ export interface ManufacturingMaterialRequisitionedEvent extends DomainEventBase
 
 export interface RetailSaleCompletedEvent extends DomainEventBase {
   type: 'retail.sale.completed';
-  payload: { saleId: string; customerId: string; totalPaise: number; items: Array<{ productId: string; pricePaise: number }> };
+  payload: {
+    saleId: string;
+    customerId: string;
+    /** Sale location: stock is decremented here (optional for older publishers). */
+    locationId?: string;
+    totalPaise: number;
+    items: Array<{ productId: string; pricePaise: number; quantity?: number }>;
+  };
 }
 
 export interface RetailReturnProcessedEvent extends DomainEventBase {

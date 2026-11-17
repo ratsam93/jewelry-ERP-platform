@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import HomePage from "@/app/page";
 import { renderWithStore } from "../../components/__tests__/test-utils";
-import { installCatalogFetch, serverErrorRes, apiProductA, apiProductB, apiProductC } from "../fixtures/api-catalog";
+import { installCatalogFetch, serverErrorRes, apiProductA, apiProductB } from "../fixtures/api-catalog";
 
 async function renderHome() {
   return renderWithStore(await HomePage());
@@ -53,7 +53,7 @@ describe("HomePage", () => {
     const link = screen.getAllByRole("link").find((a) => a.getAttribute("href") === `/product/${apiProductA.id}`);
     expect(link).toBeTruthy();
     // price comes from the API: 5,337,357 paise
-    expect(screen.getByText("₹53,374")).toBeInTheDocument();
+    expect(screen.getByText("₹53,373.57")).toBeInTheDocument();
   });
 
   it("does not render time-dependent text during render (hydration safety)", async () => {

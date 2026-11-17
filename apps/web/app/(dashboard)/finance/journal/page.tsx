@@ -5,6 +5,7 @@ import { PageHeader, StatusBadge, getStatusVariant, DataTable, type ColumnDef } 
 import { Plus, BookOpen, Check, Ban } from 'lucide-react';
 import { JournalEntryForm } from '@/features/finance/journal-entry-form';
 import { trpc } from '@/lib/trpc';
+import { formatDateOnly } from '@/lib/date-only';
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -171,7 +172,7 @@ export default function JournalEntriesPage() {
     {
       accessorKey: 'date',
       header: 'Date',
-      cell: ({ row }) => new Date(row.original.date).toLocaleDateString('en-IN'),
+      cell: ({ row }) => formatDateOnly(row.original.date),
     },
     { accessorKey: 'description', header: 'Description' },
     {

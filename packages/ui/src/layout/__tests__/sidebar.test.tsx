@@ -49,8 +49,8 @@ describe('Sidebar', () => {
 
   it('hides labels when collapsed', () => {
     render(<Sidebar collapsed={true} onToggle={vi.fn()} />);
-    // When collapsed, text labels should not be rendered
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+    // When collapsed, labels are visually hidden (sr-only, so links keep an accessible name)
+    expect(screen.getByText('Dashboard').className).toContain('sr-only');
     expect(screen.queryByText('CaratFlow')).not.toBeInTheDocument();
   });
 });

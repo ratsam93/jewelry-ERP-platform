@@ -232,6 +232,7 @@ export default function HomeView({ data }: HomeViewProps) {
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/60 to-navy/20" />
+        <div className="absolute inset-0 bg-navy/30 md:hidden" aria-hidden="true" />
         <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-4 sm:px-6">
           <div className="max-w-2xl">
             <p className="mb-4 text-xs font-semibold uppercase tracking-[0.25em] text-gold">
@@ -588,7 +589,7 @@ export default function HomeView({ data }: HomeViewProps) {
               className="mx-auto flex max-w-md flex-col gap-3"
             >
               <div className="flex flex-col gap-3 sm:flex-row">
-                <input
+                <input aria-label="Email address for newsletter"
                   type="email"
                   required
                   value={email}

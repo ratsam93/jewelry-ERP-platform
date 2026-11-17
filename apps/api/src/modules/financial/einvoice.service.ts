@@ -81,7 +81,20 @@ export class EInvoiceService extends TenantAwareService {
       where: this.tenantWhere(tenantId, { id: invoiceId }) as Prisma.InvoiceWhereInput,
       include: {
         lineItems: true,
-        customer: true,
+        // narrow select: only the buyer fields NIC needs (no PAN / Aadhaar)
+        customer: {
+          select: {
+            firstName: true,
+            lastName: true,
+            gstinNumber: true,
+            address: true,
+            city: true,
+            state: true,
+            postalCode: true,
+            phone: true,
+            email: true,
+          },
+        },
         location: true,
       },
     });

@@ -409,3 +409,63 @@ describe("Account Flow - Schemes", () => {
     expect(screen.getByRole("button", { name: /pay now/i })).toBeInTheDocument();
   });
 });
+
+// ─── QA fixes: HK-SF-01 / 02 / 04 / 10 ───────────────────────
+
+describe("Account Flow - QA fixes", () => {
+  it("order detail shows address line 1, country and the payment method/status", async () => {
+    RESPONSES["/api/v1/store/account/orders/ord-qa"] = {
+      ...mockOrderDetail,
+      id: "ord-qa",
+      orderNumber: "ON/B2C/2611/00002",
+      status: "CONFIRMED",
+      // Real API shape: JSON saved by checkout uses line1/line2/postalCode.
+      shippingAddress: { firstName: "Priya", lastName: "Sharma", phone: "9876543210", line1: "QA-HK 12 MG Road", line2: null, city: "Mumbai", state: "Maharashtra", country: "IN", postalCode: "400002" },
+      payments: [{ id: "pay-1", method: "COD", amountPaise: 12500000, status: "PENDING" }],
+    };
+    mockParams.id = "ord-qa";
+    render(<OrderDetailPage />);
+    const addr = await screen.findByTestId("order-shipping-address");
+    expect(addr).toHaveTextContent("QA-HK 12 MG Road");
+    expect(addr).toHaveTextContent("Mumbai, Maharashtra - 400002");
+    expect(addr).toHaveTextContent("India");
+    expect(addr).toHaveTextContent("9876543210");
+    const pay = screen.getByTestId("order-payment");
+    expect(pay).toHaveTextContent("Cash on Delivery");
+    expect(pay).toHaveTextContent("Pending");
+    delete RESPONSES["/api/v1/store/account/orders/ord-qa"];
+  });
+
+  it("profile: clearing first name shows an inline error and does not save", async () => {
+    const user = userEvent.setup();
+    render(<ProfilePage />);
+    const first = await screen.findByDisplayValue("Priya");
+    await user.clear(first);
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    expect(await screen.findByText("First name is required.")).toBeInTheDocument();
+    expect(screen.queryByText("Profile updated successfully.")).not.toBeInTheDocument();
+    expect(apiFetchMock).not.toHaveBeenCalledWith("/api/v1/store/account/profile", expect.objectContaining({ method: "PUT" }));
+  });
+
+  it("profile: rejects a malformed phone number", async () => {
+    const user = userEvent.setup();
+    render(<ProfilePage />);
+    const phone = await screen.findByDisplayValue("9876543210");
+    await user.clear(phone);
+    await user.type(phone, "12ab");
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    expect(await screen.findByText(/valid phone number/i)).toBeInTheDocument();
+  });
+
+  it("addresses: Country is a select with India first and posts the ISO code", async () => {
+    const user = userEvent.setup();
+    render(<AddressesPage />);
+    await user.click(await screen.findByRole("button", { name: /add address/i }));
+    const country = screen.getByLabelText(/country/i) as HTMLSelectElement;
+    expect(country.tagName).toBe("SELECT");
+    expect(country.options[0].textContent).toBe("India");
+    expect(country.value).toBe("IN");
+    await user.selectOptions(country, "AE");
+    expect(country.value).toBe("AE");
+  });
+});

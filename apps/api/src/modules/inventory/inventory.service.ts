@@ -33,6 +33,19 @@ import type { PaginatedResult } from '@caratflow/shared-types';
 import { MovementType, MG_PER_CARAT } from '@caratflow/shared-types';
 import { v4 as uuid } from 'uuid';
 
+/**
+ * Paginated lists must sort on a unique key: rows inserted together share one
+ * createdAt/updatedAt, so a bare timestamp ORDER BY lets MySQL return rows in
+ * an arbitrary order per page (repeated and missing rows across pages).
+ * Always append `id` as the final tiebreaker.
+ */
+export function withIdTiebreaker(
+  primary: Record<string, 'asc' | 'desc'>,
+): Array<Record<string, 'asc' | 'desc'>> {
+  if ('id' in primary) return [primary];
+  return [primary, { id: 'asc' }];
+}
+
 @Injectable()
 export class InventoryService extends TenantAwareService {
   constructor(
@@ -109,18 +122,24 @@ export class InventoryService extends TenantAwareService {
       where.product = productWhere;
     }
     if (lowStockOnly) {
-      // Raw comparison: quantityOnHand <= reorderLevel AND reorderLevel > 0
-      where.reorderLevel = { gt: 0 };
-      where.quantityOnHand = { lte: this.prisma.$queryRaw`stock_items.reorder_level` };
+      // Prisma cannot compare two columns, so pre-select the matching ids with
+      // raw SQL (same definition as the dashboard alerts: reorderLevel > 0 and
+      // quantityOnHand <= reorderLevel) and let the normal query page/count them.
+      const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM stock_items
+        WHERE tenant_id = ${tenantId}
+          AND reorder_level > 0
+          AND quantity_on_hand <= reorder_level`;
+      where.id = { in: rows.map((r) => r.id) };
     }
 
-    const orderBy = sortBy ? { [sortBy]: sortOrder } : { updatedAt: 'desc' as const };
+    const orderBy = withIdTiebreaker(
+      sortBy ? { [sortBy]: sortOrder } : { updatedAt: 'desc' as const },
+    );
 
     const [items, total] = await Promise.all([
       this.prisma.stockItem.findMany({
-        where: lowStockOnly
-          ? { ...where, quantityOnHand: undefined, reorderLevel: undefined }
-          : where,
+        where,
         include: {
           product: { select: { id: true, sku: true, name: true, productType: true, costPricePaise: true, sellingPricePaise: true, categoryId: true } },
           location: { select: { id: true, name: true, locationType: true } },
@@ -129,20 +148,15 @@ export class InventoryService extends TenantAwareService {
         skip,
         take: limit,
       }),
-      this.prisma.stockItem.count({ where: lowStockOnly ? { ...where, quantityOnHand: undefined, reorderLevel: undefined } : where }),
+      this.prisma.stockItem.count({ where }),
     ]);
 
-    // Filter low stock in application layer for simplicity
-    const filtered = lowStockOnly
-      ? items.filter((item) => item.reorderLevel > 0 && item.quantityOnHand <= item.reorderLevel)
-      : items;
-
-    const mappedItems = filtered.map((item) => this.mapStockItemResponse(item));
+    const mappedItems = items.map((item) => this.mapStockItemResponse(item));
     const totalPages = Math.ceil(total / limit);
 
     return {
       items: mappedItems,
-      total: lowStockOnly ? filtered.length : total,
+      total,
       page,
       limit,
       totalPages,
@@ -280,7 +294,7 @@ export class InventoryService extends TenantAwareService {
       where.stockItem = stockItemWhere;
     }
 
-    const orderBy = sortBy ? { [sortBy]: sortOrder } : { movedAt: 'desc' as const };
+    const orderBy = withIdTiebreaker(sortBy ? { [sortBy]: sortOrder } : { movedAt: 'desc' as const });
 
     const [items, total] = await Promise.all([
       this.prisma.stockMovement.findMany({
@@ -544,7 +558,7 @@ export class InventoryService extends TenantAwareService {
     if (fromLocationId) where.fromLocationId = fromLocationId;
     if (toLocationId) where.toLocationId = toLocationId;
 
-    const orderBy = sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const };
+    const orderBy = withIdTiebreaker(sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const });
 
     const [items, total] = await Promise.all([
       this.prisma.stockTransfer.findMany({
@@ -620,6 +634,27 @@ export class InventoryService extends TenantAwareService {
     });
 
     return stockTake;
+  }
+
+  /** Move a DRAFT stock take to IN_PROGRESS and stamp startedAt. */
+  async startStockTake(tenantId: string, userId: string, stockTakeId: string) {
+    const stockTake = await this.prisma.stockTake.findFirst({
+      where: this.tenantWhere(tenantId, { id: stockTakeId }),
+    });
+    if (!stockTake) throw new NotFoundException('Stock take not found');
+    if (stockTake.status !== 'DRAFT') {
+      throw new BadRequestException(`Cannot start stock take in status: ${stockTake.status}`);
+    }
+    return this.prisma.stockTake.update({
+      where: { id: stockTakeId },
+      data: { status: 'IN_PROGRESS', startedAt: new Date(), updatedBy: userId },
+      include: {
+        location: { select: { id: true, name: true } },
+        items: {
+          include: { product: { select: { id: true, sku: true, name: true } } },
+        },
+      },
+    });
   }
 
   async addStockTakeCounts(tenantId: string, userId: string, stockTakeId: string, counts: StockTakeItemInput[]) {
@@ -733,7 +768,7 @@ export class InventoryService extends TenantAwareService {
     if (locationId) where.locationId = locationId;
     if (status) where.status = status;
 
-    const orderBy = sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const };
+    const orderBy = withIdTiebreaker(sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const });
 
     const [items, total] = await Promise.all([
       this.prisma.stockTake.findMany({
@@ -930,7 +965,7 @@ export class InventoryService extends TenantAwareService {
     if (status) where.status = status;
     if (sourceType) where.sourceType = sourceType;
     if (locationId) where.locationId = locationId;
-    const orderBy = sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const };
+    const orderBy = withIdTiebreaker(sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const });
 
     const [items, total] = await Promise.all([
       this.prisma.metalRecovery.findMany({ where, orderBy, skip, take: limit }),
@@ -1015,7 +1050,7 @@ export class InventoryService extends TenantAwareService {
     const where: Record<string, unknown> = { tenantId };
     if (productId) where.productId = productId;
 
-    const orderBy = sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const };
+    const orderBy = withIdTiebreaker(sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const });
 
     const [items, total] = await Promise.all([
       this.prisma.batchLot.findMany({
@@ -1151,7 +1186,7 @@ export class InventoryService extends TenantAwareService {
       ];
     }
 
-    const orderBy = sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const };
+    const orderBy = withIdTiebreaker(sortBy ? { [sortBy]: sortOrder } : { createdAt: 'desc' as const });
 
     const [items, total] = await Promise.all([
       this.prisma.serialNumber.findMany({
@@ -1264,7 +1299,8 @@ export class InventoryService extends TenantAwareService {
 
     return {
       totalStockValuePaise,
-      totalSKUs: stockItems.length,
+      // Distinct products, not stock rows (one row exists per product per location).
+      totalSKUs: new Set(stockItems.map((i) => i.productId)).size,
       lowStockAlerts,
       pendingTransfers,
       metalBreakdown,

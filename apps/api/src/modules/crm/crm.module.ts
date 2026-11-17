@@ -17,13 +17,14 @@ import { SmsService } from './sms.service';
 import { WhatsAppService } from './whatsapp.service';
 import { WhatsAppWebhookController } from './whatsapp.webhook.controller';
 import { CrmController } from './crm.controller';
+import { CrmContactController } from './crm.contact.controller';
 import { CrmScheduler } from './crm.scheduler';
 
 // AuthModule imports CrmModule (email/SMS services), so this side must be forwardRef
 // to avoid a circular-dependency undefined at decoration time.
 @Module({
   imports: [forwardRef(() => AuthModule)],
-  controllers: [WhatsAppWebhookController, CrmController],
+  controllers: [WhatsAppWebhookController, CrmController, CrmContactController],
   providers: [
     CrmScheduler,
     CrmService,

@@ -9,11 +9,11 @@ describe('Inventory Feature Components', () => {
       expect(screen.getByText('Add Stock Item')).toBeInTheDocument();
     });
 
-    it('renders Product ID and Location ID fields', async () => {
+    it('renders Product and Location pickers (no raw UUID boxes)', async () => {
       const { StockItemForm } = await import('../stock-item-form');
       render(<StockItemForm onClose={vi.fn()} onSuccess={vi.fn()} />);
-      expect(screen.getByText('Product ID')).toBeInTheDocument();
-      expect(screen.getByText('Location ID')).toBeInTheDocument();
+      expect(screen.getByText('Product')).toBeInTheDocument();
+      expect(screen.getByText('Location')).toBeInTheDocument();
     });
 
     it('renders Quantity, Reorder Level, and Reorder Qty fields', async () => {

@@ -3,15 +3,21 @@
 import { CURRENCY_LOCALE, CURRENCY_SYMBOL, GST_RATE_JEWELRY } from "./constants";
 import type { Product } from "./types";
 
-/** Format paise to INR display string */
+/**
+ * Money display rule (single rule for PDP, cart, checkout, orders):
+ * all amounts are integer paise. A unit price is a whole number of paise and a
+ * line total is exactly unit x quantity, so we never round to the rupee:
+ * whole-rupee amounts show no decimals, any amount with paise shows 2 decimals.
+ */
 export function formatPrice(paise: number): string {
-  const rupees = paise / 100;
+  const whole = Math.round(paise);
+  const hasPaise = whole % 100 !== 0;
   return new Intl.NumberFormat(CURRENCY_LOCALE, {
     style: "currency",
     currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(rupees);
+    minimumFractionDigits: hasPaise ? 2 : 0,
+    maximumFractionDigits: hasPaise ? 2 : 0,
+  }).format(whole / 100);
 }
 
 /** Format number with Indian grouping (1,23,456) */
@@ -51,9 +57,14 @@ export function calculateProductPrice(product: Product): {
   return { metalValue, makingCharges, stoneCharges, subtotal, gst, total };
 }
 
-/** Format price from rupees (not paise) for display */
+/** Format price from rupees (not paise) for display; same rule as formatPrice. */
 export function formatRupees(amount: number): string {
-  return `${CURRENCY_SYMBOL}${new Intl.NumberFormat(CURRENCY_LOCALE).format(Math.round(amount))}`;
+  const paise = Math.round(amount * 100);
+  const hasPaise = paise % 100 !== 0;
+  return `${CURRENCY_SYMBOL}${new Intl.NumberFormat(CURRENCY_LOCALE, {
+    minimumFractionDigits: hasPaise ? 2 : 0,
+    maximumFractionDigits: hasPaise ? 2 : 0,
+  }).format(paise / 100)}`;
 }
 
 /** Truncate text with ellipsis */

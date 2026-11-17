@@ -15,6 +15,7 @@ import { OnlineOrderStatus, SalesChannelType } from '@caratflow/shared-types';
 import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
+import { inclusiveRangeEnd } from '../reporting/date-range.util';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -148,7 +149,11 @@ export class EcommerceService extends TenantAwareService {
   async getOrder(tenantId: string, orderId: string): Promise<OnlineOrderResponse> {
     const order = await this.prisma.onlineOrder.findFirst({
       where: this.tenantWhere(tenantId, { id: orderId }) as { tenantId: string; id: string },
-      include: { items: true },
+      include: {
+        items: true,
+        payments: { orderBy: { createdAt: 'asc' } },
+        customer: { select: { firstName: true, lastName: true, email: true, phone: true } },
+      },
     });
 
     if (!order) {
@@ -175,7 +180,7 @@ export class EcommerceService extends TenantAwareService {
     if (filters.dateFrom || filters.dateTo) {
       where.placedAt = {};
       if (filters.dateFrom) (where.placedAt as Record<string, unknown>).gte = filters.dateFrom;
-      if (filters.dateTo) (where.placedAt as Record<string, unknown>).lte = filters.dateTo;
+      if (filters.dateTo) (where.placedAt as Record<string, unknown>).lte = inclusiveRangeEnd(filters.dateTo);
     }
 
     if (filters.search) {
@@ -184,13 +189,21 @@ export class EcommerceService extends TenantAwareService {
         { externalOrderId: { contains: filters.search } },
         { customerName: { contains: filters.search } },
         { customerEmail: { contains: filters.search } },
+        { customerPhone: { contains: filters.search } },
+        // The related customer record (tenant-scoped by the order's own tenantId).
+        { customer: { is: { tenantId, OR: [
+          { firstName: { contains: filters.search } },
+          { lastName: { contains: filters.search } },
+          { email: { contains: filters.search } },
+          { phone: { contains: filters.search } },
+        ] } } },
       ];
     }
 
     const [items, total] = await Promise.all([
       this.prisma.onlineOrder.findMany({
         where,
-        include: { items: true },
+        include: { items: true, customer: { select: { firstName: true, lastName: true, email: true, phone: true } } },
         orderBy: { [pagination.sortBy ?? 'createdAt']: pagination.sortOrder ?? 'desc' },
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
@@ -311,6 +324,8 @@ export class EcommerceService extends TenantAwareService {
       pendingOrders,
       channels,
       recentOrders,
+      mtdOrders,
+      activeChannels,
     ] = await Promise.all([
       this.prisma.onlineOrder.count({
         where: { tenantId, placedAt: { gte: today, lt: tomorrow } },
@@ -323,10 +338,12 @@ export class EcommerceService extends TenantAwareService {
         },
         _sum: { totalPaise: true },
       }),
+      // Orders ready to ship that have no shipment yet (matches the Shipments list).
       this.prisma.onlineOrder.count({
         where: {
           tenantId,
           status: { in: ['CONFIRMED', 'PROCESSING'] },
+          shipments: { none: {} },
         },
       }),
       this.prisma.onlineOrder.count({
@@ -350,6 +367,14 @@ export class EcommerceService extends TenantAwareService {
         orderBy: { createdAt: 'desc' },
         take: 10,
       }),
+      this.prisma.onlineOrder.count({
+        where: {
+          tenantId,
+          status: { notIn: ['CANCELLED', 'REFUNDED'] },
+          placedAt: { gte: monthStart, lt: tomorrow },
+        },
+      }),
+      this.prisma.salesChannel.count({ where: { tenantId, isActive: true } }),
     ]);
 
     const channelBreakdown = channels.map((ch) => ({
@@ -366,6 +391,9 @@ export class EcommerceService extends TenantAwareService {
     return {
       totalOnlineOrders: todayOrders,
       onlineRevenuePaise: Number(monthRevenue._sum.totalPaise ?? 0n),
+      mtdOrders,
+      mtdRevenuePaise: Number(monthRevenue._sum.totalPaise ?? 0n),
+      activeChannels,
       pendingShipments,
       pendingOrders,
       channelBreakdown,
@@ -387,6 +415,9 @@ export class EcommerceService extends TenantAwareService {
   private mapOrderToResponse(order: Record<string, unknown>): OnlineOrderResponse {
     const o = order as Record<string, unknown>;
     const items = (o.items as Array<Record<string, unknown>>) ?? [];
+    // Storefront (B2C) orders only carry customerId; fall back to the customer record.
+    const cust = (o.customer as { firstName?: string; lastName?: string; email?: string | null; phone?: string | null } | null | undefined) ?? null;
+    const custName = cust ? [cust.firstName, cust.lastName].filter(Boolean).join(' ').trim() : '';
 
     return {
       id: o.id as string,
@@ -395,9 +426,9 @@ export class EcommerceService extends TenantAwareService {
       channelId: o.channelId as string,
       externalOrderId: (o.externalOrderId as string) ?? null,
       customerId: (o.customerId as string) ?? null,
-      customerEmail: (o.customerEmail as string) ?? null,
-      customerPhone: (o.customerPhone as string) ?? null,
-      customerName: (o.customerName as string) ?? null,
+      customerEmail: (o.customerEmail as string) ?? cust?.email ?? null,
+      customerPhone: (o.customerPhone as string) ?? cust?.phone ?? null,
+      customerName: (o.customerName as string) || custName || null,
       status: o.status as OnlineOrderStatus,
       subtotalPaise: Number(o.subtotalPaise),
       shippingPaise: Number(o.shippingPaise),
@@ -424,6 +455,15 @@ export class EcommerceService extends TenantAwareService {
         totalPaise: Number(item.totalPaise),
         sku: (item.sku as string) ?? null,
         weightMg: item.weightMg ? Number(item.weightMg) : null,
+      })),
+      payments: ((o.payments as Array<Record<string, unknown>> | undefined) ?? []).map((p) => ({
+        id: p.id as string,
+        method: (p.method as string) ?? null,
+        status: p.status as string,
+        amountPaise: Number(p.amountPaise),
+        currencyCode: (p.currencyCode as string) ?? undefined,
+        initiatedAt: p.initiatedAt ? new Date(p.initiatedAt as string) : null,
+        completedAt: p.completedAt ? new Date(p.completedAt as string) : null,
       })),
       createdAt: new Date(o.createdAt as string),
       updatedAt: new Date(o.updatedAt as string),

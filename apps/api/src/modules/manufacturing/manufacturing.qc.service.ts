@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import {
   type QualityCheckpointInput,
   MfgJobOrderStatus,
@@ -93,7 +94,7 @@ export class ManufacturingQcService extends TenantAwareService {
   }
 
   async getPendingQcJobs(tenantId: string) {
-    return this.prisma.jobOrder.findMany({
+    const jobs = await this.prisma.jobOrder.findMany({
       where: {
         tenantId,
         status: MfgJobOrderStatus.QC_PENDING,
@@ -106,6 +107,7 @@ export class ManufacturingQcService extends TenantAwareService {
       },
       orderBy: { updatedAt: 'asc' },
     });
+    return maskSensitiveDeep(jobs);
   }
 
   async getRecentQcResults(tenantId: string, limit: number = 20) {

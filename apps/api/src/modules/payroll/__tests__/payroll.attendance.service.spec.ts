@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PayrollAttendanceService } from '../payroll.attendance.service';
+import { PayrollAttendanceService, toUtcDay } from '../payroll.attendance.service';
 import { createMockPrismaService, createMockEventBus, TEST_TENANT_ID } from '../../../__tests__/setup';
 import { PayrollAttendanceStatus, PayrollAttendanceSource } from '@caratflow/shared-types';
 
@@ -40,6 +40,26 @@ describe('PayrollAttendanceService', () => {
     const arg = prisma.employeeAttendance.create.mock.calls[0]![0];
     expect(arg.data.tenantId).toBe(TEST_TENANT_ID);
     expect(arg.data.status).toBe('PRESENT');
+  });
+
+  it('markDay stores the calendar day as UTC midnight whatever the client sent (HK-PAY-02)', async () => {
+    prisma.employeeAttendance.findFirst.mockResolvedValue(null);
+    prisma.employeeAttendance.create.mockResolvedValue({ id: 'a1' });
+    // UTC midnight, IST noon (06:30Z), Los Angeles noon (20:00Z) of 17 Nov all mean 17 Nov
+    for (const sent of ['2026-11-17T00:00:00.000Z', '2026-11-17T06:30:00.000Z', '2026-11-17T20:00:00.000Z']) {
+      prisma.employeeAttendance.create.mockClear();
+      await svc.markDay(TEST_TENANT_ID, {
+        employeeId: 'e1',
+        date: new Date(sent),
+        status: PayrollAttendanceStatus.PRESENT,
+        hoursWorked: 8,
+        overtimeHours: 0,
+        source: PayrollAttendanceSource.MANUAL,
+      });
+      const stored = prisma.employeeAttendance.create.mock.calls[0]![0].data.date as Date;
+      expect(stored.toISOString()).toBe('2026-11-17T00:00:00.000Z');
+    }
+    expect(toUtcDay(new Date('2026-11-17T00:00:00.000Z')).toISOString()).toBe('2026-11-17T00:00:00.000Z');
   });
 
   it('markDay: updates existing row', async () => {

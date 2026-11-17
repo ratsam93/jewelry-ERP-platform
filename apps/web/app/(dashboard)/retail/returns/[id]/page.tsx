@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { CheckCircle, XCircle } from 'lucide-react';
@@ -34,7 +35,7 @@ export default function ReturnDetailPage() {
         ]}
         actions={
           <div className="flex gap-2">
-            {status === 'PENDING' && (
+            {(status === 'DRAFT' || status === 'PENDING') && (
               <>
                 <button onClick={() => approve.mutate({ returnId })} disabled={approve.isPending} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">
                   <CheckCircle className="h-4 w-4" /> Approve
@@ -55,7 +56,7 @@ export default function ReturnDetailPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Original Sale</p><p className="text-sm font-medium mt-1 font-mono">{(((r.originalSale as { invoiceNumber?: string })?.invoiceNumber) as string) ?? '-'}</p></div>
+        <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Original Sale</p><p className="text-sm font-medium mt-1 font-mono">{r.originalSaleId ? <Link href={`/retail/sales/${r.originalSaleId as string}`} className="underline">{`Sale ${String(r.originalSaleId).slice(0, 8)}`}</Link> : '-'}</p></div>
         <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Refund Amount</p><p className="text-lg font-bold mt-1">{formatPaise(r.refundAmountPaise)}</p></div>
         <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Date</p><p className="text-sm font-medium mt-1">{formatDate(r.createdAt)}</p></div>
       </div>
@@ -75,10 +76,10 @@ export default function ReturnDetailPage() {
             <div className="divide-y">
               {items.map((i, idx) => (
                 <div key={(i.id as string) ?? idx} className="grid grid-cols-[2fr_0.6fr_1fr_1fr] gap-4 px-4 py-3 text-sm">
-                  <span>{((i.product as { name?: string })?.name) ?? '-'}</span>
+                  <span>{(i.description as string | null | undefined) || ((i.product as { name?: string } | undefined)?.name) || (i.productId ? `Product ${String(i.productId).slice(0, 8)}` : 'Item')}</span>
                   <span>{String(i.quantity ?? 0)}</span>
                   <span className="text-muted-foreground text-xs">{(i.reason as string) ?? '-'}</span>
-                  <span className="font-semibold">{formatPaise(i.refundAmountPaise)}</span>
+                  <span className="font-semibold">{formatPaise(i.refundAmountPaise ?? Number(i.returnPricePaise ?? 0) * Number(i.quantity ?? 0))}</span>
                 </div>
               ))}
             </div>

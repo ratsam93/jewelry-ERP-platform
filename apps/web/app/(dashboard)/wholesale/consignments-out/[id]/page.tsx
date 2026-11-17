@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { consignmentPartyName } from '@/lib/wholesale-form';
 import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate, formatMg } from '@/components/format';
 
@@ -46,7 +47,7 @@ export default function ConsignmentOutDetailPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Customer</p><p className="text-sm font-medium">{(((c.customer as Record<string, unknown>)?.firstName as string) ?? '-')}</p></div>
+        <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Customer</p><p className="text-sm font-medium">{consignmentPartyName(c, 'customer')}</p></div>
         <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Issued</p><p className="text-sm font-medium">{formatDate(c.issuedDate)}</p></div>
         <div className="rounded-lg border p-4"><p className="text-xs text-muted-foreground">Due</p><p className="text-sm font-medium">{formatDate(c.dueDate)}</p></div>
       </div>

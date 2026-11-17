@@ -397,7 +397,9 @@ describe('FinancialService (Unit)', () => {
   describe('recordPayment', () => {
     const setupPaymentMocks = () => {
       mockPrisma.journalEntry.count.mockResolvedValue(0);
-      mockPrisma.account.findFirst.mockResolvedValue(null);
+      mockPrisma.account.findFirst.mockImplementation(async ({ where }: any) => ({
+        id: `acc-${where.accountCode ?? where.name}`,
+      }));
       mockPrisma.journalEntry.create.mockResolvedValue({ id: 'je-pay-1' });
       mockPrisma.payment.count.mockResolvedValue(0);
     };

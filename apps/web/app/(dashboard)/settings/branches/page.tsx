@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
-import { Building2, Plus, MapPin, Phone, Mail } from 'lucide-react';
+import { Building2, Plus, MapPin, Phone, Mail, Pencil, Power } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { ConfirmDialog } from '@/features/settings/ConfirmDialog';
+import { branchDisplayHint } from '@/features/settings/branch-utils';
 
 interface Branch {
   id: string;
@@ -36,7 +37,8 @@ const locationTypeColors: Record<string, string> = {
 type LocationType = 'SHOWROOM' | 'WAREHOUSE' | 'WORKSHOP' | 'OFFICE';
 
 export default function BranchesPage() {
-  const router = useRouter();
+  const utils = trpc.useUtils();
+  const [pendingDeactivate, setPendingDeactivate] = useState<Branch | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -51,11 +53,19 @@ export default function BranchesPage() {
   });
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const branchesQuery = trpc.platform.branches.list.useQuery({ includeInactive: true });
+  const branchesQuery = trpc.platform.branches.list.useQuery(
+    { includeInactive: true },
+    { refetchOnMount: 'always' },
+  );
   const branches = (branchesQuery.data as Branch[] | undefined) ?? [];
 
+  const refreshBranches = () => utils.platform.branches.list.invalidate();
+
+  // Close/reset the form on success and refresh the list the page reads.
+  // (Previously onSuccess also navigated to the detail page, so the form looked
+  // stuck on "Creating..." until the slow route finished compiling.)
   const createMutation = trpc.platform.branches.create.useMutation({
-    onSuccess: (created) => {
+    onSuccess: async () => {
       setBanner({ type: 'success', message: 'Branch created successfully.' });
       setShowCreateForm(false);
       setFormData({
@@ -69,11 +79,27 @@ export default function BranchesPage() {
         phone: '',
         email: '',
       });
-      void branchesQuery.refetch();
-      const id = (created as { id?: string } | undefined)?.id;
-      if (id) {
-        router.push(`/settings/branches/${id}`);
-      }
+      await refreshBranches();
+    },
+    onError: (err) => setBanner({ type: 'error', message: err.message }),
+  });
+
+  const deactivateMutation = trpc.platform.branches.deactivate.useMutation({
+    onSuccess: async () => {
+      setBanner({ type: 'success', message: 'Branch deactivated.' });
+      setPendingDeactivate(null);
+      await refreshBranches();
+    },
+    onError: (err) => {
+      setPendingDeactivate(null);
+      setBanner({ type: 'error', message: err.message });
+    },
+  });
+
+  const reactivateMutation = trpc.platform.branches.update.useMutation({
+    onSuccess: async () => {
+      setBanner({ type: 'success', message: 'Branch reactivated.' });
+      await refreshBranches();
     },
     onError: (err) => setBanner({ type: 'error', message: err.message }),
   });
@@ -246,14 +272,18 @@ export default function BranchesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {branches.map((branch) => (
-            <Link
+            <div
               key={branch.id}
-              href={`/settings/branches/${branch.id}`}
               className="rounded-lg border bg-card p-5 shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
             >
-              <div className="flex items-start justify-between">
-                <h3 className="font-semibold">{branch.name}</h3>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${locationTypeColors[branch.locationType] ?? 'bg-gray-100 text-gray-800'}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <Link href={`/settings/branches/${branch.id}`} className="font-semibold hover:underline">
+                    {branch.name}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">{branchDisplayHint(branch)}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${locationTypeColors[branch.locationType] ?? 'bg-gray-100 text-gray-800'}`}>
                   {locationTypeLabels[branch.locationType] ?? branch.locationType}
                 </span>
               </div>
@@ -275,15 +305,65 @@ export default function BranchesPage() {
                   <span>{branch.email}</span>
                 </div>
               )}
-              {!branch.isActive && (
-                <span className="mt-2 inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-                  Inactive
-                </span>
-              )}
-            </Link>
+              <div className="mt-3 flex items-center justify-between">
+                {!branch.isActive ? (
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                    Inactive
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <div className="flex items-center gap-1">
+                  <Link
+                    href={`/settings/branches/${branch.id}`}
+                    aria-label={`Edit ${branch.name}`}
+                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted"
+                  >
+                    <Pencil className="h-3 w-3" /> Edit
+                  </Link>
+                  {branch.isActive ? (
+                    <button
+                      type="button"
+                      aria-label={`Deactivate ${branch.name}`}
+                      onClick={() => setPendingDeactivate(branch)}
+                      className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                    >
+                      <Power className="h-3 w-3" /> Deactivate
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`Reactivate ${branch.name}`}
+                      onClick={() => reactivateMutation.mutate({ branchId: branch.id, isActive: true })}
+                      disabled={reactivateMutation.isPending}
+                      className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                    >
+                      <Power className="h-3 w-3" /> Reactivate
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDeactivate !== null}
+        title="Deactivate branch?"
+        description={
+          <>
+            <strong>{pendingDeactivate?.name}</strong>
+            {pendingDeactivate ? ` (${branchDisplayHint(pendingDeactivate)})` : ''} will be hidden from location
+            pickers. Existing stock and sales history are kept, and you can reactivate it later.
+          </>
+        }
+        confirmLabel="Deactivate"
+        destructive
+        busy={deactivateMutation.isPending}
+        onCancel={() => setPendingDeactivate(null)}
+        onConfirm={() => pendingDeactivate && deactivateMutation.mutate({ branchId: pendingDeactivate.id })}
+      />
     </div>
   );
 }

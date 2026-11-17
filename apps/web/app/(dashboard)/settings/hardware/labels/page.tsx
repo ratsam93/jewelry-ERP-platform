@@ -6,6 +6,8 @@ import { trpc } from '@/lib/trpc';
 import type { LabelTemplateResponse, CreateLabelTemplate } from '@caratflow/shared-types';
 import { LabelTemplateEditor } from '@/features/hardware/LabelTemplateEditor';
 import { LabelPreview } from '@/features/hardware/LabelPreview';
+import { resolveLabelValue } from '@/features/hardware/hardware-utils';
+import { formatServerError } from '@/lib/manufacturing-forms';
 import { Plus, Edit2, Trash2, Eye } from 'lucide-react';
 
 export default function LabelTemplatesPage() {
@@ -60,19 +62,6 @@ export default function LabelTemplatesPage() {
     setEditingTemplate(null);
   };
 
-  // Sample product data for preview
-  const sampleData: Record<string, string> = {
-    sku: 'GR-22K-001',
-    productName: 'Gold Ring 22K',
-    grossWeight: '8.450g',
-    netWeight: '8.200g',
-    purity: '22K (916)',
-    huid: 'ABCD1234EF',
-    price: '45,000',
-    barcode: 'GR22K001',
-    qrCode: '{"sku":"GR-22K-001","huid":"ABCD1234EF"}',
-  };
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -85,6 +74,12 @@ export default function LabelTemplatesPage() {
           { label: 'Label Templates' },
         ]}
       />
+
+      {(createMutation.isError || updateMutation.isError) && (
+        <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {formatServerError(createMutation.error ?? updateMutation.error)}
+        </div>
+      )}
 
       {/* Editor */}
       {showEditor ? (
@@ -138,7 +133,7 @@ export default function LabelTemplatesPage() {
                           height: template.height,
                           renderedFields: template.fields.map((f) => ({
                             ...f,
-                            resolvedValue: sampleData[f.value.replace(/\{\{|\}\}/g, '')] ?? f.value,
+                            resolvedValue: resolveLabelValue(f.value),
                           })),
                         }}
                         scale={2}
@@ -194,7 +189,7 @@ export default function LabelTemplatesPage() {
                   height: previewTemplate.height,
                   renderedFields: previewTemplate.fields.map((f) => ({
                     ...f,
-                    resolvedValue: sampleData[f.value.replace(/\{\{|\}\}/g, '')] ?? f.value,
+                    resolvedValue: resolveLabelValue(f.value),
                   })),
                 }}
                 scale={4}

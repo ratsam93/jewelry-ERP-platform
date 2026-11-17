@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { PageHeader, StatusBadge, getStatusVariant, EmptyState } from '@caratflow/ui';
-import { RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatPaise, formatDate } from '@/components/format';
@@ -27,11 +27,16 @@ export default function ReturnsPage() {
           { label: 'Retail', href: '/retail' },
           { label: 'Returns' },
         ]}
+        actions={
+          <Link href="/retail/returns/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <Plus className="h-4 w-4" /> New Return
+          </Link>
+        }
       />
 
       <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="h-9 rounded-md border px-2 text-sm">
         <option value="">All</option>
-        <option value="PENDING">Pending</option>
+        <option value="DRAFT">Pending</option>
         <option value="APPROVED">Approved</option>
         <option value="COMPLETED">Completed</option>
         <option value="REJECTED">Rejected</option>
@@ -54,7 +59,7 @@ export default function ReturnsPage() {
             {items.map((r) => (
               <Link key={r.id as string} href={`/retail/returns/${r.id}`} className="grid grid-cols-[1.2fr_1.2fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-sm hover:bg-accent">
                 <span className="font-mono font-medium">{(r.returnNumber as string) ?? '-'}</span>
-                <span className="font-mono text-xs text-muted-foreground">{(((r.originalSale as { invoiceNumber?: string })?.invoiceNumber) as string) ?? '-'}</span>
+                <span className="font-mono text-xs text-muted-foreground">{(((r.originalSale as { saleNumber?: string; invoiceNumber?: string } | undefined)?.saleNumber) as string) ?? (r.originalSaleId ? `Sale ${String(r.originalSaleId).slice(0, 8)}` : '-')}</span>
                 <span className="font-semibold">{formatPaise(r.refundAmountPaise)}</span>
                 <StatusBadge label={(r.status as string) ?? '-'} variant={getStatusVariant(r.status as string)} dot={false} />
                 <span className="text-muted-foreground">{formatDate(r.createdAt)}</span>

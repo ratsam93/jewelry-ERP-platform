@@ -4,6 +4,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import { parsePagination, buildPaginatedResult } from '../../common/pagination.helper';
 import type { EmployeeInput, EmployeeUpdate } from '@caratflow/shared-types';
 import { EmployeeStatus } from '@caratflow/shared-types';
@@ -38,13 +39,27 @@ export class PayrollEmployeeService extends TenantAwareService {
       this.prisma.employee.findMany({ where, skip, take, orderBy: { createdAt: 'desc' } }),
       this.prisma.employee.count({ where }),
     ]);
-    return buildPaginatedResult(items, total, page, limit);
+    return buildPaginatedResult(maskSensitiveDeep(items), total, page, limit);
   }
 
-  async getById(tenantId: string, id: string) {
+  private async findRaw(tenantId: string, id: string) {
     const emp = await this.prisma.employee.findFirst({ where: { id, tenantId } });
     if (!emp) throw new NotFoundException(`Employee ${id} not found`);
     return emp;
+  }
+
+  /** Detail view: PAN / Aadhaar / bank account are masked (HK-PAY-03). */
+  async getById(tenantId: string, id: string) {
+    return maskSensitiveDeep(await this.findRaw(tenantId, id));
+  }
+
+  /**
+   * Intentionally RAW: feeds ONLY the admin edit form, which prefills (and
+   * re-submits) PAN / Aadhaar / bank account. Masked values would corrupt the
+   * record on save. Gated by the payroll permission on the tRPC procedure.
+   */
+  async getForEdit(tenantId: string, id: string) {
+    return this.findRaw(tenantId, id);
   }
 
   async create(tenantId: string, input: EmployeeInput) {
@@ -54,7 +69,7 @@ export class PayrollEmployeeService extends TenantAwareService {
     if (existing) {
       throw new BadRequestException(`Employee code ${input.employeeCode} already exists`);
     }
-    return this.prisma.employee.create({
+    const created = await this.prisma.employee.create({
       data: {
         tenantId,
         userId: input.userId ?? null,
@@ -83,10 +98,11 @@ export class PayrollEmployeeService extends TenantAwareService {
         status: 'ACTIVE',
       },
     });
+    return maskSensitiveDeep(created);
   }
 
   async update(tenantId: string, id: string, input: EmployeeUpdate) {
-    await this.getById(tenantId, id);
+    await this.findRaw(tenantId, id);
     const data: Record<string, unknown> = { ...input };
     for (const key of [
       'basicSalaryPaise',
@@ -98,15 +114,17 @@ export class PayrollEmployeeService extends TenantAwareService {
     ] as const) {
       if (input[key] != null) data[key] = BigInt(input[key] as number);
     }
-    return this.prisma.employee.update({ where: { id }, data });
+    return maskSensitiveDeep(await this.prisma.employee.update({ where: { id }, data }));
   }
 
   async deactivate(tenantId: string, id: string) {
-    await this.getById(tenantId, id);
-    return this.prisma.employee.update({
-      where: { id },
-      data: { status: 'INACTIVE', leftAt: new Date() },
-    });
+    await this.findRaw(tenantId, id);
+    return maskSensitiveDeep(
+      await this.prisma.employee.update({
+        where: { id },
+        data: { status: 'INACTIVE', leftAt: new Date() },
+      }),
+    );
   }
 
   /**

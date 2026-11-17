@@ -7,3 +7,4 @@ export { CatalogSyncButton } from './CatalogSyncButton';
 export { WebhookLogViewer } from './WebhookLogViewer';
 export { ReviewStars } from './ReviewStars';
 export { ClickCollectQueue } from './ClickCollectQueue';
+export { ChannelFormDialog } from './ChannelFormDialog';

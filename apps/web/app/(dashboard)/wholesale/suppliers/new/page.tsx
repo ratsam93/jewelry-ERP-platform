@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { buildSupplierInput, type SupplierFormValues } from '@/lib/supplier-form';
+import { readableError } from '@/lib/wholesale-form';
 
 const EMPTY: SupplierFormValues = {
   name: '',
@@ -71,7 +72,7 @@ export default function NewSupplierPage() {
       <form onSubmit={handleSubmit} noValidate className="max-w-2xl space-y-4 rounded-lg border p-5">
         {createMut.error && (
           <p role="alert" className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {createMut.error.message || 'Could not create the supplier.'}
+            {readableError(createMut.error, 'Could not create the supplier.')}
           </p>
         )}
         <div className="grid gap-4 sm:grid-cols-2">

@@ -13,7 +13,7 @@ export {
   DialogClose,
   ConfirmModal,
 } from './modal';
-export { CommandPalette } from './command-palette';
+export { CommandPalette, type CommandPaletteItem } from './command-palette';
 export { DatePicker, DateRangePicker } from './date-picker';
 export { StatusBadge, getStatusVariant } from './status-badge';
 export { StatCard } from './stat-card';

@@ -7,6 +7,7 @@ import { Package, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { PaginationControls } from '@/components/pagination-controls';
 import { formatDate } from '@/components/format';
+import { consignmentPartyName } from '@/lib/wholesale-form';
 
 export default function ConsignmentsOutPage() {
   const [page, setPage] = useState(1);
@@ -26,10 +27,10 @@ export default function ConsignmentsOutPage() {
           { label: 'Consignments Out' },
         ]}
         actions={
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/wholesale/consignments-out/new" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" />
             New Consignment
-          </button>
+          </Link>
         }
       />
 
@@ -48,8 +49,7 @@ export default function ConsignmentsOutPage() {
         ) : (
           <div className="divide-y">
             {items.map((c) => {
-              const customer = c.customer as { firstName?: string; lastName?: string } | undefined;
-              const name = customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : '-';
+              const name = consignmentPartyName(c, 'customer');
               return (
                 <Link
                   key={c.id as string}

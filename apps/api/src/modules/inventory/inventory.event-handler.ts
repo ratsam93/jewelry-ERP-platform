@@ -32,19 +32,28 @@ export class InventoryEventHandler implements OnModuleInit {
    */
   private async handleSaleCompleted(event: DomainEvent) {
     const { tenantId, userId, payload } = event as RetailSaleCompletedEvent;
-    const { saleId, items } = payload;
+    const { saleId, items, locationId } = payload;
+
+    // RetailService decrements stock + writes the OUT movement inside the sale transaction.
+    // If a movement for this sale already exists, the event is a duplicate/retry: do nothing
+    // (keeps the decrement exactly-once). Otherwise fall back to decrementing here.
+    const alreadyApplied = await this.prisma.stockMovement.findFirst({
+      where: { tenantId, referenceType: 'RETAIL_SALE', referenceId: saleId },
+      select: { id: true },
+    });
+    if (alreadyApplied) return;
 
     for (const item of items) {
+      if (!item.productId) continue; // free-text line, nothing to decrement
       try {
-        // Find the stock item at the default location (sale location)
-        // In a real implementation, the sale event would include locationId
-        const stockItems = await this.findStockItemsForProduct(tenantId, item.productId);
+        // Decrement at the sale location (falls back to the latest stock row for older events)
+        const stockItems = await this.findStockItemsForProduct(tenantId, item.productId, locationId);
         if (stockItems.length > 0) {
           const stockItem = stockItems[0]!;
           await this.inventoryService.recordMovement(tenantId, userId, {
             stockItemId: stockItem.id,
             movementType: MovementType.OUT,
-            quantityChange: -1,
+            quantityChange: -Math.max(1, item.quantity ?? 1),
             referenceType: 'RETAIL_SALE',
             referenceId: saleId,
             notes: `Sold via retail sale ${saleId}`,
@@ -108,9 +117,9 @@ export class InventoryEventHandler implements OnModuleInit {
     }
   }
 
-  private async findStockItemsForProduct(tenantId: string, productId: string) {
+  private async findStockItemsForProduct(tenantId: string, productId: string, locationId?: string) {
     return this.prisma.stockItem.findMany({
-      where: { tenantId, productId },
+      where: { tenantId, productId, ...(locationId ? { locationId } : {}) },
       orderBy: { updatedAt: 'desc' },
       take: 1,
     });

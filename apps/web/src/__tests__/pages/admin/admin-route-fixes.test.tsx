@@ -90,7 +90,7 @@ describe('ADM-003: Trial balance page', () => {
     mockState.trialBalance = { data: undefined, isLoading: false, isError: false };
   });
 
-  it('renders accounts, totals and as-of date from the real response shape', async () => {
+  it('renders accounts, totals and range label from the real response shape', async () => {
     mockState.trialBalance = { data: realTrialBalance, isLoading: false, isError: false };
     const { default: Page } = await import('../../../../app/(dashboard)/finance/reports/trial-balance/page');
     render(<Page />);
@@ -101,7 +101,8 @@ describe('ADM-003: Trial balance page', () => {
     // Paise amounts are formatted as rupees: 150000 paise = 1,500.00
     expect(screen.getAllByText(/1,500\.00/).length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText('Total')).toBeInTheDocument();
-    expect(screen.getByText(/As of 30 Nov 2026/)).toBeInTheDocument();
+    // The label shows the selected range (HK-FIN-14), not only the end date.
+    expect(screen.getByText(/^From \d{2} \w{3} \d{4} to \d{2} \w{3} \d{4}$/)).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no accounts', async () => {

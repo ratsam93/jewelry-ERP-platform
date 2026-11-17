@@ -6,6 +6,7 @@ import { Injectable, BadRequestException, NotFoundException, Logger } from '@nes
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { parsePagination, buildPaginatedResult } from '../../common/pagination.helper';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import type { Prisma } from '@caratflow/db';
 import type {
   GirviLoanInput,
@@ -115,7 +116,7 @@ export class IndiaGirviService extends TenantAwareService {
     });
 
     this.logger.log(`Girvi loan created: ${loanNumber} for tenant ${tenantId}`);
-    return loan;
+    return maskSensitiveDeep(loan);
   }
 
   // ─── Calculate Accrued Interest ──────────────────────────────
@@ -309,7 +310,7 @@ export class IndiaGirviService extends TenantAwareService {
       );
     }
 
-    return this.prisma.girviLoan.update({
+    const closed = await this.prisma.girviLoan.update({
       where: { id: loanId },
       data: {
         status: 'CLOSED',
@@ -318,6 +319,7 @@ export class IndiaGirviService extends TenantAwareService {
       },
       include: { customer: true },
     });
+    return maskSensitiveDeep(closed);
   }
 
   // ─── Default Handling ────────────────────────────────────────
@@ -328,11 +330,12 @@ export class IndiaGirviService extends TenantAwareService {
     });
     if (!loan) throw new NotFoundException('Active girvi loan not found');
 
-    return this.prisma.girviLoan.update({
+    const defaulted = await this.prisma.girviLoan.update({
       where: { id: loanId },
       data: { status: 'DEFAULTED', updatedBy: userId },
       include: { customer: true },
     });
+    return maskSensitiveDeep(defaulted);
   }
 
   /**
@@ -398,7 +401,7 @@ export class IndiaGirviService extends TenantAwareService {
     });
     if (!loan) throw new NotFoundException('Defaulted girvi loan not found');
 
-    return this.prisma.girviAuction.create({
+    const scheduled = await this.prisma.girviAuction.create({
       data: {
         tenantId,
         girviLoanId: input.girviLoanId,
@@ -411,6 +414,7 @@ export class IndiaGirviService extends TenantAwareService {
       },
       include: { girviLoan: { include: { customer: true } } },
     });
+    return maskSensitiveDeep(scheduled);
   }
 
   async recordAuctionResult(tenantId: string, userId: string, input: GirviAuctionResultInput) {
@@ -471,7 +475,7 @@ export class IndiaGirviService extends TenantAwareService {
       },
     });
     if (!loan) throw new NotFoundException('Girvi loan not found');
-    return loan;
+    return maskSensitiveDeep(loan);
   }
 
   async listLoans(tenantId: string, input: GirviLoanListInput) {
@@ -505,18 +509,19 @@ export class IndiaGirviService extends TenantAwareService {
       this.prisma.girviLoan.count({ where }),
     ]);
 
-    return buildPaginatedResult(items, total, page, limit);
+    return buildPaginatedResult(maskSensitiveDeep(items), total, page, limit);
   }
 
   async listAuctions(tenantId: string, status?: string) {
     const where: Prisma.GirviAuctionWhereInput = { tenantId };
     if (status) where.status = status as 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
 
-    return this.prisma.girviAuction.findMany({
+    const auctions = await this.prisma.girviAuction.findMany({
       where,
       include: { girviLoan: { include: { customer: true } } },
       orderBy: { auctionDate: 'asc' },
     });
+    return maskSensitiveDeep(auctions);
   }
 
   // ─── Dashboard ───────────────────────────────────────────────

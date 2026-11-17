@@ -82,6 +82,21 @@ const config: Config = {
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
       },
+      // Text-only overrides: `text-primary` / `text-destructive` are used for TEXT on
+      // light surfaces, where the brand gold / bright red fail WCAG AA. They resolve to
+      // the darker *-text tokens; backgrounds (`bg-primary`) keep the brand colours.
+      textColor: {
+        primary: {
+          DEFAULT: 'hsl(var(--primary-text))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--danger-text))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        success: 'hsl(var(--success-text))',
+        danger: 'hsl(var(--danger-text))',
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

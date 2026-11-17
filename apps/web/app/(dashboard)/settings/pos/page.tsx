@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
 import { Save } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { flattenSettings, toBool } from '@/features/settings/settings-utils';
 
 type PosConfig = {
   'billing.invoicePrefix': string;
@@ -48,30 +49,29 @@ function categoryFor(key: keyof PosConfig): 'billing' | 'pos' {
 export default function PosSettingsPage() {
   const [config, setConfig] = useState<PosConfig>(defaults);
 
-  const { data: loaded, isLoading, refetch } = trpc.platform.settings.getAll.useQuery();
+  const utils = trpc.useUtils();
+  const { data: loaded, isLoading } = trpc.platform.settings.getAll.useQuery(undefined, {
+    refetchOnMount: 'always',
+  });
   const setSettingsMutation = trpc.platform.settings.set.useMutation({
-    onSuccess: () => {
-      void refetch();
+    // Invalidate every settings query so later loads and other settings pages
+    // read the saved value instead of a 5-minute-stale cached copy.
+    onSuccess: async () => {
+      await utils.platform.settings.invalidate();
     },
   });
 
   useEffect(() => {
     if (!loaded) return;
-    const grouped = (loaded as { grouped?: Record<string, Record<string, unknown>> } | Record<string, Record<string, unknown>> | undefined);
-    const source = (grouped && typeof grouped === 'object' && 'grouped' in grouped
-      ? (grouped as { grouped?: Record<string, Record<string, unknown>> }).grouped
-      : (grouped as Record<string, Record<string, unknown>> | undefined)) ?? {};
-    const billing = source.billing ?? {};
-    const pos = source.pos ?? {};
+    const flat = flattenSettings(loaded);
     setConfig((prev) => {
-      const next = { ...prev };
+      const next = { ...prev } as Record<string, unknown>;
       for (const key of Object.keys(defaults) as Array<keyof PosConfig>) {
-        const bucket = categoryFor(key) === 'billing' ? billing : pos;
-        if (bucket[key] !== undefined) {
-          (next as Record<string, unknown>)[key] = bucket[key];
-        }
+        const v = flat[key];
+        if (v === undefined) continue;
+        next[key] = typeof defaults[key] === 'boolean' ? toBool(v, defaults[key] as boolean) : v;
       }
-      return next;
+      return next as PosConfig;
     });
   }, [loaded]);
 

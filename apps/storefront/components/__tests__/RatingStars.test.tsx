@@ -5,16 +5,22 @@ import RatingStars from "@/components/RatingStars";
 import { render } from "./test-utils";
 
 describe("RatingStars", () => {
-  it("renders 5 star buttons by default", () => {
+  it("renders display-only stars as a single labelled image, not buttons", () => {
     render(<RatingStars rating={3} />);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("img", { name: "Rated 3.0 out of 5 stars" })).toBeInTheDocument();
+  });
+
+  it("renders 5 named star buttons in interactive mode", () => {
+    render(<RatingStars rating={3} interactive />);
     const buttons = screen.getAllByRole("button");
     expect(buttons).toHaveLength(5);
+    expect(buttons[2]).toHaveAccessibleName("Rate 3 stars");
   });
 
   it("renders custom number of stars", () => {
-    render(<RatingStars rating={3} maxRating={10} />);
-    const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(10);
+    render(<RatingStars rating={3} maxRating={10} interactive />);
+    expect(screen.getAllByRole("button")).toHaveLength(10);
   });
 
   it("shows review count when provided", () => {

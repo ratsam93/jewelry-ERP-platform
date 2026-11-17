@@ -237,6 +237,18 @@ describe('ManufacturingService (Unit)', () => {
       );
     });
 
+    it('rejects a BOM that belongs to a different product (HK-MFG-02)', async () => {
+      mockPrisma.billOfMaterials.findFirst.mockResolvedValue({
+        id: 'bom-5', productId: 'prod-5', items: [],
+      });
+      await expect(
+        service.createJobOrder(TEST_TENANT_ID, TEST_USER_ID, {
+          productId: 'prod-A9', bomId: 'bom-5', locationId: 'loc-1', priority: 'HIGH', quantity: 1,
+        } as any),
+      ).rejects.toThrow('BOM belongs to a different product');
+      expect(mockPrisma.jobOrder.create).not.toHaveBeenCalled();
+    });
+
     it('creates job order items from BOM when bomId specified', async () => {
       mockPrisma.jobOrder.count.mockResolvedValue(0);
       mockPrisma.jobOrder.create.mockResolvedValue({
@@ -455,6 +467,57 @@ describe('ManufacturingService (Unit)', () => {
       expect(result.costsByType['LABOR']).toBe(BigInt(300000));
       expect(result.itemCount).toBe(2);
       expect(result.costEntryCount).toBe(4);
+    });
+
+    it('returns the BOM estimated cost next to an actual cost of zero (HK-MFG-05)', async () => {
+      mockPrisma.jobOrder.findFirst.mockResolvedValue({
+        id: 'job-1',
+        tenantId: TEST_TENANT_ID,
+        jobNumber: 'JO-000003',
+        costs: [],
+        items: [{ id: 'item-1', costPaise: BigInt(100) }],
+        quantity: 1,
+        bom: { estimatedCostPaise: BigInt(5724200), outputQuantity: 1 },
+      });
+
+      const result = await service.getJobCost(TEST_TENANT_ID, 'job-1');
+
+      expect(result.totalCostPaise).toBe(BigInt(0));
+      expect(result.estimatedCostPaise).toBe(BigInt(5724200));
+    });
+
+    it('scales the estimate by job quantity / BOM output quantity (HK-MFG-03)', async () => {
+      mockPrisma.jobOrder.findFirst.mockResolvedValue({
+        id: 'job-17', tenantId: TEST_TENANT_ID, jobNumber: 'JO-000017',
+        quantity: 3, costs: [], items: [],
+        bom: { estimatedCostPaise: BigInt(7650000), outputQuantity: 1 },
+      });
+      const r = await service.getJobCost(TEST_TENANT_ID, 'job-17');
+      expect(r.estimatedCostPaise).toBe(BigInt(22950000));
+      expect(r.estimatedForQuantity).toBe(3);
+
+      mockPrisma.jobOrder.findFirst.mockResolvedValue({
+        id: 'job-18', tenantId: TEST_TENANT_ID, jobNumber: 'JO-000018',
+        quantity: 3, costs: [], items: [],
+        bom: { estimatedCostPaise: BigInt(1000000), outputQuantity: 2 },
+      });
+      const r2 = await service.getJobCost(TEST_TENANT_ID, 'job-18');
+      expect(r2.estimatedCostPaise).toBe(BigInt(1500000));
+    });
+
+    it('falls back to the sum of job item costs when the job has no BOM', async () => {
+      mockPrisma.jobOrder.findFirst.mockResolvedValue({
+        id: 'job-2',
+        tenantId: TEST_TENANT_ID,
+        jobNumber: 'JO-000004',
+        costs: [],
+        items: [{ costPaise: BigInt(1500) }, { costPaise: BigInt(2500) }],
+        bom: null,
+      });
+
+      const result = await service.getJobCost(TEST_TENANT_ID, 'job-2');
+
+      expect(result.estimatedCostPaise).toBe(BigInt(4000));
     });
   });
 

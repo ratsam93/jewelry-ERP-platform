@@ -17,6 +17,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class EcommerceCatalogService extends TenantAwareService {
+  static readonly SYNC_ALL_LIMIT = 500;
+
   constructor(prisma: PrismaService) {
     super(prisma);
   }
@@ -152,6 +154,24 @@ export class EcommerceCatalogService extends TenantAwareService {
     });
 
     return result;
+  }
+
+  /**
+   * Publish every active product to a channel (used by the admin "Sync products
+   * to channel" action). Capped so one request cannot run unbounded.
+   */
+  async bulkSyncAll(
+    tenantId: string,
+    userId: string,
+    channelId: string,
+  ): Promise<BulkSyncResult> {
+    const products = await this.prisma.product.findMany({
+      where: { tenantId, isActive: true },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+      take: EcommerceCatalogService.SYNC_ALL_LIMIT,
+    });
+    return this.bulkSync(tenantId, userId, channelId, products.map((p) => p.id));
   }
 
   /**

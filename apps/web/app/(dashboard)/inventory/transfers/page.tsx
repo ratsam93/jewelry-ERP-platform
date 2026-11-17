@@ -7,6 +7,7 @@ import { trpc } from '@/lib/trpc';
 import type { ColumnDef } from '@caratflow/ui';
 import { TransferForm } from '@/features/inventory/transfer-form';
 import { TransferStatus } from '@caratflow/shared-types';
+import { totalRequested, transferLineLabels } from '@/lib/inventory-forms';
 
 interface TransferRow {
   id: string;
@@ -71,6 +72,22 @@ export default function TransfersPage() {
       id: 'itemCount',
       header: 'Items',
       cell: ({ row }) => row.original.items?.length ?? 0,
+    },
+    {
+      id: 'lines',
+      header: 'Lines (qty)',
+      cell: ({ row }) => {
+        const labels = transferLineLabels(row.original.items);
+        if (labels.length === 0) return '-';
+        return (
+          <div className="space-y-0.5 text-xs">
+            {labels.map((l, i) => <div key={i}>{l}</div>)}
+            {labels.length > 1 && (
+              <div className="font-medium text-muted-foreground">Total qty {totalRequested(row.original.items)}</div>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'status',

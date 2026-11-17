@@ -4,8 +4,10 @@ import * as React from 'react';
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { TaxBreakdownDisplay } from '@/features/finance/tax-breakdown-display';
-import { Printer, Ban, FileCheck2, Download } from 'lucide-react';
+import { Printer, Ban, FileCheck2, Download, Send, XCircle } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { formatDateOnly, formatTimestampDate } from '@/lib/date-only';
+import { deriveInvoiceTaxView, derivePaidView, sortInvoiceLines } from '@/lib/finance-forms';
 
 // ─── Types (shape of financial.invoices.getById) ──────────────────
 
@@ -21,6 +23,7 @@ interface InvoiceLine {
   sgstPaise: unknown;
   igstPaise: unknown;
   totalPaise: unknown;
+  createdAt?: string;
 }
 
 interface InvoicePayment {
@@ -39,10 +42,13 @@ interface InvoiceDetail {
   status: string;
   dueDate: string | null;
   createdAt: string;
-  customer: { firstName: string; lastName: string; gstinNumber: string | null } | null;
-  supplier: { name: string } | null;
+  customer: { firstName: string; lastName: string; gstinNumber: string | null; state?: string | null } | null;
+  supplier: { name: string; state?: string | null } | null;
   subtotalPaise: unknown;
+  discountPaise?: unknown;
   taxPaise: unknown;
+  location?: { state?: string | null } | null;
+  taxTransactions?: Array<{ taxType?: string; taxAmountPaise?: unknown; taxRate?: unknown }>;
   totalPaise: unknown;
   paidPaise: unknown;
   notes: string | null;
@@ -80,10 +86,7 @@ function formatAmount(paise: number): string {
   return (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('en-IN');
-}
+const formatDate = formatTimestampDate;
 
 /** Human-readable notes: strip the stored e-invoice JSON block. */
 function visibleNotes(notes: string | null): string {
@@ -104,6 +107,7 @@ export default function InvoiceDetailPage() {
   const [showCancel, setShowCancel] = React.useState(false);
   const [eiError, setEiError] = React.useState<string | null>(null);
   const [pdfError, setPdfError] = React.useState<string | null>(null);
+  const [statusError, setStatusError] = React.useState<string | null>(null);
 
   const invoiceQ = trpc.financial.invoices.getById.useQuery(
     { id: invoiceId },
@@ -137,6 +141,15 @@ export default function InvoiceDetailPage() {
     onError: (err) => setEiError(err.message),
   });
 
+  const statusMut = trpc.financial.invoices.updateStatus.useMutation({
+    onSuccess: () => {
+      setStatusError(null);
+      void utils.financial.invoices.getById.invalidate({ id: invoiceId });
+      void utils.financial.invoices.list.invalidate();
+    },
+    onError: (err) => setStatusError(err.message),
+  });
+
   if (invoiceQ.isLoading) {
     return <p className="text-sm text-muted-foreground">Loading invoice...</p>;
   }
@@ -149,14 +162,16 @@ export default function InvoiceDetailPage() {
   }
 
   const inv = invoiceQ.data as unknown as InvoiceDetail;
-  const lines = inv.lineItems;
-  const cgst = lines.reduce((s, l) => s + toNumber(l.cgstPaise), 0);
-  const sgst = lines.reduce((s, l) => s + toNumber(l.sgstPaise), 0);
-  const igst = lines.reduce((s, l) => s + toNumber(l.igstPaise), 0);
-  const isInterState = igst > 0;
-  const gstRate = lines[0]?.gstRate ?? 0;
+  // Entry order: oldest line first (line rows carry no number; createdAt increases per line).
+  const lines = sortInvoiceLines(inv.lineItems ?? []);
+  const payments = inv.payments ?? [];
+  // Legacy/imported invoices can have no line rows or tax rows: fall back to the
+  // invoice-level tax so the breakdown matches the grand total.
+  const taxView = deriveInvoiceTaxView(inv);
+  const paidView = derivePaidView(inv);
+  const isInterState = taxView.isInterState;
   const total = toNumber(inv.totalPaise);
-  const paid = toNumber(inv.paidPaise);
+  const paid = paidView.paidPaise;
   const outstanding = total - paid;
   const customerName = inv.customer
     ? `${inv.customer.firstName} ${inv.customer.lastName}`.trim()
@@ -181,6 +196,27 @@ export default function InvoiceDetailPage() {
       setPdfError(err instanceof Error ? err.message : 'PDF download failed.');
     }
   };
+
+  const issueInvoice = () => {
+    if (
+      !window.confirm(
+        `Issue invoice ${inv.invoiceNumber}? It will be posted to the ledger and counted in receivables aging.`,
+      )
+    ) {
+      return;
+    }
+    setStatusError(null);
+    statusMut.mutate({ id: invoiceId, status: 'SENT' });
+  };
+
+  const cancelInvoice = () => {
+    if (!window.confirm(`Cancel invoice ${inv.invoiceNumber}? This cannot be reversed.`)) return;
+    setStatusError(null);
+    statusMut.mutate({ id: invoiceId, status: 'CANCELLED' });
+  };
+
+  const canIssue = inv.status === 'DRAFT';
+  const canCancel = ['DRAFT', 'SENT', 'OVERDUE'].includes(inv.status) && toNumber(inv.paidPaise) === 0;
 
   const submitToIrp = () => {
     if (!window.confirm('Submit this invoice to the NIC IRP to generate an IRN? This cannot be undone except by cancelling within 24 hours.')) {
@@ -228,6 +264,37 @@ export default function InvoiceDetailPage() {
         }
       />
 
+      {(canIssue || canCancel) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {canIssue && (
+            <button
+              type="button"
+              onClick={issueInvoice}
+              disabled={statusMut.isPending}
+              className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" /> {statusMut.isPending ? 'Working...' : 'Issue invoice'}
+            </button>
+          )}
+          {canCancel && (
+            <button
+              type="button"
+              onClick={cancelInvoice}
+              disabled={statusMut.isPending}
+              className="inline-flex items-center gap-1 rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              <XCircle className="h-4 w-4" /> Cancel invoice
+            </button>
+          )}
+        </div>
+      )}
+
+      {statusError && (
+        <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          {statusError}
+        </div>
+      )}
+
       {pdfError && (
         <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
           {pdfError}
@@ -248,7 +315,7 @@ export default function InvoiceDetailPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Due Date</span>
-              <span className="text-sm font-medium">{formatDate(inv.dueDate)}</span>
+              <span className="text-sm font-medium">{formatDateOnly(inv.dueDate)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Customer</span>
@@ -268,14 +335,15 @@ export default function InvoiceDetailPage() {
         </div>
 
         <TaxBreakdownDisplay
-          taxableAmountPaise={lines.reduce((s, l) => s + toNumber(l.taxableAmountPaise), 0)}
-          cgstPaise={cgst}
-          sgstPaise={sgst}
-          igstPaise={igst}
-          cgstRate={isInterState ? 0 : gstRate / 2}
-          sgstRate={isInterState ? 0 : gstRate / 2}
-          igstRate={isInterState ? gstRate : 0}
+          taxableAmountPaise={taxView.taxablePaise}
+          cgstPaise={taxView.cgstPaise}
+          sgstPaise={taxView.sgstPaise}
+          igstPaise={taxView.igstPaise}
+          cgstRate={taxView.cgstRate}
+          sgstRate={taxView.sgstRate}
+          igstRate={taxView.igstRate}
           isInterState={isInterState}
+          rateRows={taxView.rateRows}
         />
       </div>
 
@@ -389,6 +457,14 @@ export default function InvoiceDetailPage() {
             </tr>
           </thead>
           <tbody>
+            {lines.length === 0 && (
+              <tr className="border-b">
+                <td colSpan={6} className="px-4 py-3 text-sm text-muted-foreground">
+                  No line-item detail was recorded for this invoice. Totals below come from the invoice
+                  record: subtotal {formatAmount(toNumber(inv.subtotalPaise))}, tax {formatAmount(toNumber(inv.taxPaise))}.
+                </td>
+              </tr>
+            )}
             {lines.map((line) => (
               <tr key={line.id} className="border-b">
                 <td className="px-4 py-2">{line.description}</td>
@@ -422,8 +498,12 @@ export default function InvoiceDetailPage() {
             <span className="font-mono font-medium">{formatAmount(total)}</span>
           </div>
         </div>
-        {inv.payments.length === 0 ? (
-          <p className="px-4 py-4 text-sm text-muted-foreground">No payments recorded.</p>
+        {payments.length === 0 ? (
+          <p className="px-4 py-4 text-sm text-muted-foreground">
+            {paid > 0
+              ? `No individual payment records are linked to this invoice, but ${formatAmount(paid)} is marked as paid (opening balance or imported).`
+              : 'No payments recorded.'}
+          </p>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -435,7 +515,7 @@ export default function InvoiceDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {inv.payments.map((pay) => (
+              {payments.map((pay) => (
                 <tr key={pay.id} className="border-b">
                   <td className="px-4 py-2 font-mono">{pay.paymentNumber}</td>
                   <td className="px-4 py-2">{formatDate(pay.createdAt)}</td>
@@ -447,6 +527,11 @@ export default function InvoiceDetailPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {payments.length > 0 && paidView.unallocatedPaise > 0 && (
+          <p className="border-t px-4 py-3 text-xs text-muted-foreground">
+            {formatAmount(paidView.unallocatedPaise)} of the paid amount has no individual payment record (opening balance or imported).
+          </p>
         )}
         {outstanding > 0 && (
           <div className="border-t bg-amber-50 px-4 py-3 dark:bg-amber-950/20">

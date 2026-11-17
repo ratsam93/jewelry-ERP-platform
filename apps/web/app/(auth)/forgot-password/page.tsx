@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-navy-50 px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-brand-600">CaratFlow</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-brand-700">CaratFlow</h1>
           <p className="mt-2 text-sm text-muted-foreground">Reset your password</p>
         </div>
 
@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
                 If an account exists for <strong>{email}</strong>, a password reset link has been
                 sent. Check your email.
               </p>
-              <Link href="/login" className="inline-block text-sm text-primary hover:underline">
+              <Link href="/login" className="inline-block text-sm text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                 Back to login
               </Link>
             </div>
@@ -39,19 +39,19 @@ export default function ForgotPasswordPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   placeholder="your@email.com"
                   required
                 />
               </div>
               <button
                 type="submit"
-                className="flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+                className="flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Send Reset Link
               </button>
               <p className="text-center text-sm text-muted-foreground">
-                <Link href="/login" className="text-primary hover:underline">
+                <Link href="/login" className="text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                   Back to login
                 </Link>
               </p>

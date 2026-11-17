@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
+import { formatCommissionRate } from '@/lib/wholesale-form';
 import { renderDetailState } from '@/components/detail-states';
 import { formatPaise, formatDate } from '@/components/format';
 
@@ -43,7 +44,7 @@ export default function AgentDetailPage() {
         <div className="rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">Commission Type</p>
           <p className="text-sm font-medium mt-1">{a.commissionType as string}</p>
-          <p className="text-sm text-muted-foreground">Value: {String(a.commissionValue ?? '-')}</p>
+          <p className="text-sm text-muted-foreground">Rate: {formatCommissionRate(a.commissionType, a.commissionRate)}</p>
         </div>
         <div className="rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">PAN</p>
@@ -69,7 +70,7 @@ export default function AgentDetailPage() {
                 <div key={c.id as string} className="grid grid-cols-5 gap-4 px-4 py-3 text-sm">
                   <span>{(c.referenceType as string) ?? '-'}</span>
                   <span className="font-mono text-xs">{((c.referenceId as string) ?? '').slice(0, 8)}</span>
-                  <span className="font-semibold">{formatPaise(c.commissionAmountPaise)}</span>
+                  <span className="font-semibold">{formatPaise(c.amountPaise ?? c.commissionAmountPaise)}</span>
                   <span>{c.status as string}</span>
                   <span className="text-muted-foreground">{formatDate(c.createdAt)}</span>
                 </div>

@@ -1,10 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { renderDetailState } from '@/components/detail-states';
 import { formatPaise } from '@/components/format';
+import { maskAadhaar, maskBankAccount, maskPan } from '@/lib/pii';
 
 export default function EmployeeDetailPage() {
   const params = useParams<{ id: string }>();
@@ -24,6 +26,11 @@ export default function EmployeeDetailPage() {
       <PageHeader
         title={`${(e.firstName as string) ?? ''} ${(e.lastName as string) ?? ''}`.trim()}
         description={(e.employeeCode as string) ?? ''}
+        actions={
+          <Link href={`/finance/payroll/employees/${params.id}/edit`} className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Edit
+          </Link>
+        }
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Finance', href: '/finance' },
@@ -39,8 +46,8 @@ export default function EmployeeDetailPage() {
           <div className="text-sm text-muted-foreground">Designation: {(e.designation as string) ?? '-'}</div>
           <div className="text-sm text-muted-foreground">Department: {(e.department as string) ?? '-'}</div>
           <div className="text-sm text-muted-foreground">Status: <StatusBadge label={(e.status as string) ?? '-'} variant={getStatusVariant(e.status as string)} dot={false} /></div>
-          <div className="text-sm text-muted-foreground">PAN: {(e.panNumber as string) ?? '-'}</div>
-          <div className="text-sm text-muted-foreground">Aadhaar: {(e.aadhaarNumber as string) ?? '-'}</div>
+          <div className="text-sm text-muted-foreground">PAN: {maskPan(e.panNumber as string) ?? '-'}</div>
+          <div className="text-sm text-muted-foreground">Aadhaar: {maskAadhaar(e.aadhaarNumber as string) ?? '-'}</div>
         </div>
         <div className="rounded-lg border p-5 space-y-3">
           <h3 className="text-sm font-semibold">Salary Components</h3>
@@ -53,7 +60,7 @@ export default function EmployeeDetailPage() {
         </div>
         <div className="rounded-lg border p-5 space-y-3 lg:col-span-2">
           <h3 className="text-sm font-semibold">Bank Details</h3>
-          <div className="text-sm text-muted-foreground">Account: {(e.bankAccountNumber as string) ?? '-'}</div>
+          <div className="text-sm text-muted-foreground">Account: {maskBankAccount(e.bankAccountNumber as string) ?? '-'}</div>
           <div className="text-sm text-muted-foreground">IFSC: {(e.bankIfsc as string) ?? '-'}</div>
           <div className="text-sm text-muted-foreground">Bank: {(e.bankName as string) ?? '-'}</div>
         </div>

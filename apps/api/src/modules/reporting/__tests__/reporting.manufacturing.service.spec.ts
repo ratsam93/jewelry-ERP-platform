@@ -40,6 +40,17 @@ describe('ReportingManufacturingService (Unit)', () => {
       expect(result.completedJobs).toBe(5);
       expect(result.overdueJobs).toBe(1);
     });
+
+    it('scales the BOM estimate by job quantity / BOM output quantity', async () => {
+      mockPrisma.jobOrder.groupBy.mockResolvedValue([{ status: 'IN_PROGRESS', _count: { id: 2 } }]);
+      mockPrisma.jobOrder.findMany.mockResolvedValue([
+        { status: 'IN_PROGRESS', quantity: 3, bom: { estimatedCostPaise: 7650000n, outputQuantity: 1 } },
+        { status: 'IN_PROGRESS', quantity: 4, bom: { estimatedCostPaise: 1000000n, outputQuantity: 2 } },
+      ]);
+      mockPrisma.jobOrder.count.mockResolvedValue(0);
+      const result = await service.jobSummary(TEST_TENANT_ID, dateRange);
+      expect(result.jobSummary[0].totalEstimatedCostPaise).toBe(3 * 7650000 + 2000000);
+    });
   });
 
   describe('karigarPerformance', () => {

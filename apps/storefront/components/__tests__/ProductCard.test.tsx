@@ -24,7 +24,7 @@ describe("ProductCard", () => {
 
   it("renders product image", () => {
     renderWithStore(<ProductCard product={product} />);
-    const img = screen.getByRole("img");
+    const img = document.querySelector("img")!;
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src");
   });

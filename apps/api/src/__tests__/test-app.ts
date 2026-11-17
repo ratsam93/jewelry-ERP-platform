@@ -6,6 +6,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../common/prisma.service';
+import { EventBusService } from '../event-bus/event-bus.service';
 import { vi } from 'vitest';
 import * as jwt from 'jsonwebtoken';
 import { createMockPrismaService, createMockEventBusService } from './mocks';
@@ -110,6 +111,10 @@ export async function createTestApp(): Promise<TestApp> {
 
   // Override PrismaService globally
   moduleBuilder.overrideProvider(PrismaService).useValue(mockPrisma);
+
+  // The real EventBusService opens BullMQ queues/workers against Redis at construction time.
+  // Unit/integration tests must not need a live Redis, so replace it with the mock.
+  moduleBuilder.overrideProvider(EventBusService).useValue(mockEventBus);
 
   const module = await moduleBuilder.compile();
   const app = module.createNestApplication();

@@ -10,6 +10,7 @@ import type {
   CustomReportFilter,
   SupportedEntity,
 } from '@caratflow/shared-types';
+import { inclusiveRangeEnd } from './date-range.util';
 
 /** Supported entities and their DB table + allowed fields */
 const ENTITY_REGISTRY: Record<
@@ -173,7 +174,7 @@ export class ReportingCustomService extends TenantAwareService {
       whereParts.push('created_at >= ?');
       params.push(request.dateRange.from);
       whereParts.push('created_at <= ?');
-      params.push(request.dateRange.to);
+      params.push(inclusiveRangeEnd(request.dateRange.to));
     }
 
     for (const filter of request.filters) {

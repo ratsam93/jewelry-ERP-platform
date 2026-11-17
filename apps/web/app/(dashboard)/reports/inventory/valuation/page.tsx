@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { PageHeader } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { formatPaise } from '@/components/format';
+import { ReportExportMenu } from '@/features/reporting';
+import { money, type ExportTable } from '@/lib/report-export';
 
 export default function InventoryValuationReportPage() {
   const [method, setMethod] = useState<'cost' | 'market'>('cost');
@@ -14,6 +16,14 @@ export default function InventoryValuationReportPage() {
     | undefined;
   const rows = Array.isArray(d?.items) ? d.items : [];
 
+  const getTable = (): ExportTable => ({
+    headers: ['Product', 'SKU', 'Qty on hand', 'Total value (INR)'],
+    rows: [
+      ...rows.map((r) => [r.productName ?? '', r.sku ?? '', r.quantityOnHand ?? 0, money(r.totalValuePaise)]),
+      ['GRAND TOTAL', '', '', money(d?.grandTotalPaise ?? 0)],
+    ],
+  });
+
   return (
     <div className="space-y-6">
       <PageHeader title="Inventory Valuation" breadcrumbs={[
@@ -22,10 +32,13 @@ export default function InventoryValuationReportPage() {
         { label: 'Inventory', href: '/reports/inventory' },
         { label: 'Valuation' },
       ]} />
+      <div className="flex flex-wrap items-center gap-3">
       <select value={method} onChange={(e) => setMethod(e.target.value as 'cost' | 'market')} className="h-9 rounded-md border px-2 text-sm">
         <option value="cost">Cost Method</option>
         <option value="market">Market Method</option>
       </select>
+      <ReportExportMenu fileBase={`inventory-valuation-${method}`} getTable={getTable} disabled={isLoading || isError || rows.length === 0} />
+      </div>
       <div className="rounded-lg border p-4">
         <div className="text-sm text-muted-foreground">Total Valuation</div>
         <div className="text-2xl font-bold">{formatPaise(d?.grandTotalPaise ?? 0)}</div>

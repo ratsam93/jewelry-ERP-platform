@@ -258,6 +258,15 @@ export const OnlineOrderResponseSchema = z.object({
     sku: z.string().nullable(),
     weightMg: z.number().int().nullable(),
   })),
+  payments: z.array(z.object({
+    id: z.string(),
+    method: z.string().nullable(),
+    status: z.string(),
+    amountPaise: z.number().int(),
+    currencyCode: z.string().optional(),
+    initiatedAt: z.coerce.date().nullable().optional(),
+    completedAt: z.coerce.date().nullable().optional(),
+  })).optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -385,6 +394,8 @@ export const PaymentResponseSchema = z.object({
   completedAt: z.coerce.date().nullable(),
   refundedAt: z.coerce.date().nullable(),
   refundAmountPaise: z.number().int().nullable(),
+  gatewayName: z.string().nullable().optional(),
+  orderNumber: z.string().nullable().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -530,6 +541,11 @@ export type ReviewListFilter = z.infer<typeof ReviewListFilterSchema>;
 export const EcommerceDashboardResponseSchema = z.object({
   totalOnlineOrders: z.number().int(),
   onlineRevenuePaise: z.number().int(),
+  /** Month-to-date orders (excluding cancelled/refunded). */
+  mtdOrders: z.number().int(),
+  /** Month-to-date revenue of confirmed-and-later orders. */
+  mtdRevenuePaise: z.number().int(),
+  activeChannels: z.number().int(),
   pendingShipments: z.number().int(),
   pendingOrders: z.number().int(),
   channelBreakdown: z.array(z.object({

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { branchOptionLabels, dedupeBranches, type PosBranch } from '@/lib/pos-location';
+import { formatServerError } from '@/features/compliance/form-errors';
 
 export default function NewHallmarkSubmissionPage() {
   const router = useRouter();
@@ -17,6 +19,13 @@ export default function NewHallmarkSubmissionPage() {
   ]);
 
   const { data: centers } = trpc.compliance.hallmark.centers.list.useQuery({});
+  const { data: branchData } = trpc.platform.branches.list.useQuery({ includeInactive: false });
+  const branches = dedupeBranches((branchData as PosBranch[] | undefined) ?? []);
+  const branchLabels = branchOptionLabels(branches);
+  const { data: productData } = trpc.storefront.catalog.list.useQuery(
+    { page: 1, limit: 100, sortOrder: 'asc' } as never,
+  );
+  const products = ((productData as { items?: Array<{ id: string; name?: string; sku?: string }> } | undefined)?.items ?? []);
   const createMutation = trpc.compliance.hallmark.submissions.create.useMutation({
     onSuccess: (result) => {
       router.push(`/compliance/hallmark/${result.id}`);
@@ -82,15 +91,20 @@ export default function NewHallmarkSubmissionPage() {
 
         {/* Location */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Location ID *</label>
-          <input
-            type="text"
+          <label className="text-sm font-medium">Location *</label>
+          <select
             value={locationId}
             onChange={(e) => setLocationId(e.target.value)}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            placeholder="Enter location UUID"
             required
-          />
+          >
+            <option value="">Select a location...</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {branchLabels.get(b.id) ?? b.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Expected Return Date */}
@@ -120,15 +134,20 @@ export default function NewHallmarkSubmissionPage() {
           {items.map((item, i) => (
             <div key={i} className="flex items-end gap-3 rounded-md border p-3">
               <div className="flex-1 space-y-1">
-                <label className="text-xs text-muted-foreground">Product ID</label>
-                <input
-                  type="text"
+                <label className="text-xs text-muted-foreground">Product</label>
+                <select
                   value={item.productId}
                   onChange={(e) => updateItem(i, 'productId', e.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
-                  placeholder="Product UUID"
                   required
-                />
+                >
+                  <option value="">Select a product...</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.sku ? `${p.name} (${p.sku})` : (p.name ?? p.id)}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="w-32 space-y-1">
                 <label className="text-xs text-muted-foreground">Declared Purity</label>
@@ -176,8 +195,8 @@ export default function NewHallmarkSubmissionPage() {
         </button>
 
         {createMutation.isError && (
-          <p className="text-sm text-destructive">
-            {createMutation.error.message}
+          <p className="whitespace-pre-line text-sm text-destructive">
+            {formatServerError(createMutation.error.message)}
           </p>
         )}
       </form>

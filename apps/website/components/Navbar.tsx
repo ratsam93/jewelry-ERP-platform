@@ -75,6 +75,8 @@ export default function Navbar() {
           className="md:hidden p-2 cursor-pointer"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-menu"
         >
           <svg
             className={`w-6 h-6 transition-colors ${scrolled ? "text-navy" : "text-white"}`}
@@ -94,7 +96,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
+        <div id="mobile-menu" className="md:hidden bg-white border-t border-gray-100 shadow-lg">
           <div className="px-4 py-4 space-y-3">
             {navLinks.map((link) => (
               <a

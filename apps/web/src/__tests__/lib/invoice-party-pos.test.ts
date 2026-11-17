@@ -20,8 +20,8 @@ describe('POS branch list', () => {
   });
   it('disambiguates same-name distinct locations', () => {
     const l = branchOptionLabels([a, b, { id: 'c', name: 'Vault', locationType: 'WORKSHOP' }]);
-    expect(l.get('aaaa-1')).toBe('Main Showroom (SHOWROOM) #aaaa');
-    expect(l.get('bbbb-2')).toBe('Main Showroom (SHOWROOM) #bbbb');
+    expect(l.get('aaaa-1')).toBe('Main Showroom (SHOWROOM) #aaaa-1');
+    expect(l.get('bbbb-2')).toBe('Main Showroom (SHOWROOM) #bbbb-2');
     expect(l.get('c')).toBe('Vault (WORKSHOP)');
   });
 });

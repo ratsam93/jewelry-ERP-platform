@@ -209,9 +209,28 @@ export class StorefrontCheckoutService extends TenantAwareService {
       }
 
       // Create initial payment record
-      const defaultGateway = await tx.paymentGateway.findFirst({
+      let defaultGateway = await tx.paymentGateway.findFirst({
         where: { tenantId, isActive: true, isDefault: true },
       });
+
+      // Cash on delivery needs no online gateway, but the payment row still has
+      // to reference one: fall back to any gateway, else an internal offline
+      // placeholder, so COD orders always get a pending payment record.
+      if (!defaultGateway && String(input.paymentMethod).toUpperCase() === 'COD') {
+        defaultGateway =
+          (await tx.paymentGateway.findFirst({ where: { tenantId }, orderBy: { createdAt: 'asc' } })) ??
+          (await tx.paymentGateway.create({
+            data: {
+              id: uuidv4(),
+              tenantId,
+              name: 'Cash on delivery (offline)',
+              gatewayType: 'RAZORPAY',
+              isActive: false,
+              isDefault: false,
+              supportedMethods: ['COD'],
+            },
+          }));
+      }
 
       if (defaultGateway) {
         await tx.onlinePayment.create({

@@ -33,6 +33,7 @@ export function LabelTemplateEditor({
   const [height, setHeight] = useState(initialTemplate?.height ?? 25);
   const [fields, setFields] = useState<LabelField[]>(initialTemplate?.fields ?? []);
   const [selectedFieldIdx, setSelectedFieldIdx] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const addField = useCallback(
     (type: LabelField['type']) => {
@@ -79,11 +80,36 @@ export function LabelTemplateEditor({
       { type: 'text', x: 2, y: 19, width: 20, height: 4, value: '{{price}}', fontSize: 12 },
       { type: 'barcode', x: 2, y: 24, width: 40, height: 8, value: '{{barcode}}', barcodeType: 'CODE128' },
     ];
+    const changes: string[] = [];
+    if (fields.length > 0) {
+      const ok =
+        typeof window === 'undefined' ||
+        window.confirm(`Replace the ${fields.length} existing field(s) with the default jewelry layout?`);
+      if (!ok) return;
+      changes.push(`replaced ${fields.length} existing field(s)`);
+    }
     setFields(defaultFields);
-    setName(name || 'Standard Jewelry Label');
-    setWidth(50);
-    setHeight(35);
-  }, [name]);
+    if (!name.trim()) {
+      setName('Standard Jewelry Label');
+      changes.push('set the name to "Standard Jewelry Label"');
+    }
+    if (width < 50) {
+      changes.push(`width ${width}mm to 50mm`);
+      setWidth(50);
+    }
+    if (height < 35) {
+      changes.push(`height ${height}mm to 35mm (needed to fit the default layout)`);
+      setHeight(35);
+    }
+    setNotice(changes.length ? `Defaults loaded: ${changes.join('; ')}.` : 'Defaults loaded. Your name and size were kept.');
+    setSelectedFieldIdx(null);
+  }, [name, fields.length, width, height]);
+
+  const saveBlockReason = !name.trim()
+    ? 'Enter a template name to enable Save.'
+    : fields.length === 0
+      ? 'Add at least one field (or load the jewelry defaults) to enable Save.'
+      : null;
 
   const handleSave = () => {
     onSave({ name, width, height, fields });
@@ -97,7 +123,7 @@ export function LabelTemplateEditor({
       {/* Template Info */}
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium" htmlFor="tmpl-name">Template Name</label>
+          <label className="block text-sm font-medium" htmlFor="tmpl-name">Template Name <span className="text-red-600" aria-hidden="true">*</span></label>
           <input
             id="tmpl-name"
             type="text"
@@ -132,6 +158,11 @@ export function LabelTemplateEditor({
           />
         </div>
       </div>
+      {notice && (
+        <p role="status" className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          {notice}
+        </p>
+      )}
 
       <div className="flex gap-4">
         {/* Canvas */}
@@ -271,7 +302,12 @@ export function LabelTemplateEditor({
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 pt-2">
+      <div className="flex items-center justify-end gap-3 pt-2">
+        {saveBlockReason && !isLoading && (
+          <span role="status" className="mr-auto text-xs text-muted-foreground">
+            {saveBlockReason}
+          </span>
+        )}
         <button
           onClick={onCancel}
           className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"

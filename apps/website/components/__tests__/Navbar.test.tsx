@@ -31,7 +31,9 @@ describe("Navbar", () => {
     // Mobile menu should not be visible initially
     expect(screen.queryByText("Login")).toBeTruthy(); // Desktop login always renders
 
+    expect(toggleButton).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggleButton);
+    expect(toggleButton).toHaveAttribute("aria-expanded", "true");
 
     // After clicking, mobile menu should be open - verify mobile-specific links appear
     const featureLinks = screen.getAllByText("Features");

@@ -5,6 +5,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import { parsePagination, buildPaginatedResult } from '../../common/pagination.helper';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import type { Prisma } from '@caratflow/db';
 import type {
   BankAccountInput,
@@ -29,7 +30,7 @@ export class FinancialBankService extends TenantAwareService {
       });
     }
 
-    return this.prisma.bankAccount.create({
+    const created = await this.prisma.bankAccount.create({
       data: {
         tenantId,
         accountId: input.accountId,
@@ -46,14 +47,16 @@ export class FinancialBankService extends TenantAwareService {
       },
       include: { account: true },
     });
+    return maskSensitiveDeep(created);
   }
 
   async listBankAccounts(tenantId: string) {
-    return this.prisma.bankAccount.findMany({
+    const accounts = await this.prisma.bankAccount.findMany({
       where: { tenantId },
       include: { account: true },
       orderBy: { bankName: 'asc' },
     });
+    return maskSensitiveDeep(accounts);
   }
 
   async getBankAccount(tenantId: string, id: string) {
@@ -65,7 +68,7 @@ export class FinancialBankService extends TenantAwareService {
       },
     });
     if (!account) throw new NotFoundException('Bank account not found');
-    return account;
+    return maskSensitiveDeep(account);
   }
 
   // ─── Statement Import ────────────────────────────────────────

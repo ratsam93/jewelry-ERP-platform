@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { COUNTRY_OPTIONS, countryName } from "@/lib/countries";
 
 interface AddressDto {
   id: string;
@@ -80,7 +81,7 @@ export default function AddressesPage() {
       addressLine2: addr.addressLine2 ?? "",
       city: addr.city,
       state: addr.state,
-      country: addr.country ?? "IN",
+      country: COUNTRY_OPTIONS.some((c) => c.code === (addr.country ?? "").toUpperCase()) ? (addr.country as string).toUpperCase() : "IN",
       postalCode: addr.postalCode,
       isDefault: addr.isDefault ?? false,
     });
@@ -174,7 +175,20 @@ export default function AddressesPage() {
               <Field label="Address Line 2" value={form.addressLine2 ?? ""} onChange={(v) => setForm({ ...form, addressLine2: v })} />
               <Field label="City" value={form.city} onChange={(v) => setForm({ ...form, city: v })} required />
               <Field label="State" value={form.state} onChange={(v) => setForm({ ...form, state: v })} required />
-              <Field label="Country" value={form.country ?? "IN"} onChange={(v) => setForm({ ...form, country: v })} required />
+              <div>
+                <label htmlFor="addr-country" className="block text-xs font-medium text-navy/60 mb-1">Country *</label>
+                <select
+                  id="addr-country"
+                  value={form.country ?? "IN"}
+                  onChange={(e) => setForm({ ...form, country: e.target.value })}
+                  required
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
+                >
+                  {COUNTRY_OPTIONS.map((c) => (
+                    <option key={c.code} value={c.code}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
               <Field label="Postal Code" value={form.postalCode} onChange={(v) => setForm({ ...form, postalCode: v })} required />
             </div>
             <label className="flex items-center gap-2">
@@ -221,6 +235,7 @@ export default function AddressesPage() {
                   {addr.addressLine2 && `, ${addr.addressLine2}`}
                 </p>
                 <p className="text-sm text-navy/60">{addr.city}, {addr.state} - {addr.postalCode}</p>
+                <p className="text-sm text-navy/60">{countryName(addr.country)}</p>
                 {addr.phone && <p className="text-xs text-navy/40 mt-1">{addr.phone}</p>}
                 <div className="flex gap-3 mt-3 pt-3 border-t border-gray-50">
                   <button
@@ -261,7 +276,7 @@ function Field({
   return (
     <div>
       <label className="block text-xs font-medium text-navy/60 mb-1">{label}{required && " *"}</label>
-      <input
+      <input aria-label={label}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -9,6 +9,7 @@ import { Injectable, BadRequestException, NotFoundException, Logger, Inject, Opt
 import { v4 as uuidv4 } from 'uuid';
 import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
+import { maskSensitiveDeep } from '../../common/pii-mask';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import { isValidAadhaar, isValidPan } from '@caratflow/utils';
 import type { Prisma } from '@caratflow/db';
@@ -78,7 +79,7 @@ export class IndiaKycService extends TenantAwareService {
 
     // If there's a pending one, update it instead of creating new
     if (existing && existing.verificationStatus === 'PENDING') {
-      return this.prisma.kycVerification.update({
+      const updatedRow = await this.prisma.kycVerification.update({
         where: { id: existing.id },
         data: {
           documentNumber: input.documentNumber,
@@ -88,9 +89,10 @@ export class IndiaKycService extends TenantAwareService {
         },
         include: { customer: true },
       });
+      return this.sanitizeVerification(updatedRow);
     }
 
-    return this.prisma.kycVerification.create({
+    const createdRow = await this.prisma.kycVerification.create({
       data: {
         tenantId,
         customerId: input.customerId,
@@ -104,6 +106,7 @@ export class IndiaKycService extends TenantAwareService {
       },
       include: { customer: true },
     });
+    return this.sanitizeVerification(createdRow);
   }
 
   // ─── Verify Document ─────────────────────────────────────────
@@ -126,7 +129,7 @@ export class IndiaKycService extends TenantAwareService {
       validUntil.setFullYear(validUntil.getFullYear() + 10);
     }
 
-    return this.prisma.kycVerification.update({
+    const verifiedRow = await this.prisma.kycVerification.update({
       where: { id: input.verificationId },
       data: {
         verificationStatus: status,
@@ -138,6 +141,7 @@ export class IndiaKycService extends TenantAwareService {
       },
       include: { customer: true },
     });
+    return this.sanitizeVerification(verifiedRow);
   }
 
   // ─── Get KYC Status ──────────────────────────────────────────
@@ -181,7 +185,7 @@ export class IndiaKycService extends TenantAwareService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() + daysAhead);
 
-    return this.prisma.kycVerification.findMany({
+    const rows = await this.prisma.kycVerification.findMany({
       where: {
         tenantId,
         verificationStatus: 'VERIFIED',
@@ -190,6 +194,7 @@ export class IndiaKycService extends TenantAwareService {
       include: { customer: true },
       orderBy: { validUntil: 'asc' },
     });
+    return rows.map((r) => this.sanitizeVerification(r));
   }
 
   async markExpiredVerifications(tenantId: string): Promise<number> {
@@ -306,7 +311,7 @@ export class IndiaKycService extends TenantAwareService {
    * List KYC verifications with optional filters (admin use).
    */
   async listVerifications(tenantId: string, input: KycListInput) {
-    return this.prisma.kycVerification.findMany({
+    const rows = await this.prisma.kycVerification.findMany({
       where: {
         tenantId,
         ...(input.status ? { verificationStatus: input.status } : {}),
@@ -316,6 +321,7 @@ export class IndiaKycService extends TenantAwareService {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+    return rows.map((r) => this.sanitizeVerification(r));
   }
 
   // ─── Persistence helper ──────────────────────────────────────
@@ -346,10 +352,10 @@ export class IndiaKycService extends TenantAwareService {
         id: `ephemeral-${uuidv4()}`,
         verificationType: type,
         verificationStatus: status,
-        documentNumber,
+        documentNumber: this.maskDocumentNumber(type, documentNumber),
         provider: result.source,
         verified: result.verified,
-        result,
+        result: maskSensitiveDeep(result),
         persisted: false,
       };
     }
@@ -377,10 +383,10 @@ export class IndiaKycService extends TenantAwareService {
     await this.emitAuditEvent(tenantId, userId, type, result, record.id);
 
     return {
-      ...record,
+      ...this.sanitizeVerification(record),
       provider: result.source,
       verified: result.verified,
-      result,
+      result: maskSensitiveDeep(result),
       persisted: true,
     };
   }
@@ -453,6 +459,17 @@ export class IndiaKycService extends TenantAwareService {
         }
         break;
     }
+  }
+
+  /**
+   * Mask a KycVerification row (and any embedded customer row / OCR payload)
+   * before it leaves the service: the stored documentNumber is a raw
+   * Aadhaar/PAN, and the customer row carries PAN/Aadhaar columns.
+   */
+  private sanitizeVerification<T extends { verificationType?: string; documentNumber?: string | null }>(row: T): T {
+    const safe = maskSensitiveDeep(row);
+    if (typeof row.documentNumber !== 'string') return safe;
+    return { ...safe, documentNumber: this.maskDocumentNumber(row.verificationType ?? '', row.documentNumber) };
   }
 
   private maskDocumentNumber(type: string, number: string): string {

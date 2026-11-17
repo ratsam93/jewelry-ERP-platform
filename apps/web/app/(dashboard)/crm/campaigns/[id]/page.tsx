@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { PageHeader, StatusBadge, getStatusVariant } from '@caratflow/ui';
 import { trpc } from '@/lib/trpc';
 import { formatDate } from '@/components/format';
+import { campaignView, orDash } from '@/lib/crm-form';
 import { renderDetailState } from '@/components/detail-states';
 
 export default function CampaignDetailPage() {
@@ -25,6 +26,7 @@ export default function CampaignDetailPage() {
   if (state) return state;
   const c: Record<string, unknown> = (data as unknown) as Record<string, unknown>;
   const status = c.status as string;
+  const cv = campaignView(c);
 
   return (
     <div className="space-y-6">
@@ -42,7 +44,7 @@ export default function CampaignDetailPage() {
             {(status === 'DRAFT' || status === 'SCHEDULED') && (
               <button onClick={() => exec.mutate({ id })} disabled={exec.isPending} className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">Execute</button>
             )}
-            {status === 'RUNNING' && (
+            {status === 'ACTIVE' && (
               <button onClick={() => pause.mutate({ id })} disabled={pause.isPending} className="h-9 rounded-md border px-4 text-sm disabled:opacity-50">Pause</button>
             )}
             {status !== 'CANCELLED' && status !== 'COMPLETED' && (
@@ -54,10 +56,13 @@ export default function CampaignDetailPage() {
       />
 
       <div className="rounded-lg border p-4 space-y-2 text-sm">
-        <div className="flex justify-between"><span className="text-muted-foreground">Channel</span><span>{(c.channel as string) ?? '-'}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Channel</span><span>{orDash(c.channel)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Scheduled</span><span>{formatDate(c.scheduledAt)}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Audience</span><span>{String(c.audienceCount ?? '-')}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Subject</span><span>{(c.subject as string) ?? '-'}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Audience</span><span>{orDash(cv.audience)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Sent / Delivered / Failed</span><span>{`${orDash(cv.sent)} / ${orDash(cv.delivered)} / ${orDash(cv.failed)}`}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Template</span><span>{orDash(cv.templateName)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Subject</span><span>{orDash(cv.subject)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Description</span><span>{orDash(c.description)}</span></div>
       </div>
     </div>
   );

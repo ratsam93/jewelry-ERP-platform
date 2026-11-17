@@ -43,7 +43,7 @@ export function branchOptionLabels(branches: PosBranch[]): Map<string, string> {
   const out = new Map<string, string>();
   for (const b of branches) {
     const base = `${b.name} (${b.locationType})`;
-    out.set(b.id, (counts.get(key(b)) ?? 0) > 1 ? `${base} #${b.id.slice(0, 4)}` : base);
+    out.set(b.id, (counts.get(key(b)) ?? 0) > 1 ? `${base} #${b.id.slice(0, 6)}` : base);
   }
   return out;
 }

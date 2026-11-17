@@ -20,6 +20,8 @@
     "seed": "tsx src/seed.ts",
     "demo-seed": "tsx src/demo-seed.ts",
     "realistic-seed": "tsx src/realistic-seed.ts",
+    "seed:demo-customer": "tsx src/seed-demo-customer.ts",
+    "seed:permissions": "tsx src/seed-permissions.ts",
     "build": "tsc -p tsconfig.build.json",
     "clean": "rimraf dist"
   },

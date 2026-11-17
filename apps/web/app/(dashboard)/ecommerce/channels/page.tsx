@@ -1,13 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { PageHeader, StatusBadge, EmptyState } from '@caratflow/ui';
 import { Globe, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { formatDateTime } from '@/components/format';
+import { ChannelFormDialog } from '@/features/ecommerce/ChannelFormDialog';
 
 export default function ChannelsPage() {
-  const { data, isLoading } = trpc.ecommerce.listChannels.useQuery({});
+  const { data, isLoading, refetch } = trpc.ecommerce.listChannels.useQuery({});
+  const [creating, setCreating] = useState(false);
   const items = ((data as Array<Record<string, unknown>> | undefined) ?? []);
 
   return (
@@ -17,7 +20,7 @@ export default function ChannelsPage() {
         { label: 'E-Commerce', href: '/ecommerce' },
         { label: 'Channels' },
       ]} actions={
-        <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+        <button type="button" onClick={() => setCreating(true)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
           <Plus className="h-4 w-4" /> New Channel
         </button>
       } />
@@ -40,13 +43,14 @@ export default function ChannelsPage() {
                 <span className="font-medium">{(c.name as string) ?? '-'}</span>
                 <span>{(c.channelType as string) ?? '-'}</span>
                 <span className="truncate text-muted-foreground">{(c.storeUrl as string) ?? '-'}</span>
-                <span className="text-muted-foreground">{formatDateTime(c.lastSyncAt)}</span>
+                <span className="text-muted-foreground">{c.lastSyncAt ? formatDateTime(c.lastSyncAt) : 'Never'}</span>
                 <StatusBadge label={c.isActive ? 'Active' : 'Inactive'} variant={c.isActive ? 'success' : 'default'} />
               </Link>
             ))}
           </div>
         )}
       </div>
+      {creating && <ChannelFormDialog onClose={() => setCreating(false)} onSaved={() => { setCreating(false); void refetch(); }} />}
     </div>
   );
 }

@@ -26,3 +26,4 @@ export type {
   AuditLog,
   RefreshToken,
 } from '@prisma/client';
+export { DEFAULT_PERMISSIONS, type PermissionDefinition } from './permission-catalog';

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { LocationSelect } from '@/features/inventory/location-select';
+import { DEVICE_TYPE_LABELS, CONNECTION_TYPE_LABELS, validateDeviceForm } from './hardware-utils';
 import { DeviceType, ConnectionType } from '@caratflow/shared-types';
 import type { CreateDeviceConfig } from '@caratflow/shared-types';
 
@@ -11,22 +13,22 @@ interface DeviceConfigFormProps {
   isLoading?: boolean;
 }
 
-const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
-  [DeviceType.RFID_READER]: 'RFID Reader',
-  [DeviceType.BARCODE_SCANNER]: 'Barcode Scanner',
-  [DeviceType.WEIGHING_SCALE]: 'Weighing Scale',
-  [DeviceType.LABEL_PRINTER]: 'Label Printer',
-  [DeviceType.CUSTOMER_DISPLAY]: 'Customer Display',
-  [DeviceType.BIOMETRIC]: 'Biometric Device',
-};
+function Req() {
+  return (
+    <span className="text-red-600" aria-hidden="true">
+      {' '}*
+    </span>
+  );
+}
 
-const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
-  [ConnectionType.USB_HID]: 'USB HID',
-  [ConnectionType.USB_SERIAL]: 'USB Serial (COM Port)',
-  [ConnectionType.BLUETOOTH]: 'Bluetooth',
-  [ConnectionType.NETWORK_TCP]: 'Network (TCP)',
-  [ConnectionType.NETWORK_HTTP]: 'Network (HTTP)',
-};
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p id={id} role="alert" className="mt-1 text-xs text-red-600">
+      {message}
+    </p>
+  );
+}
 
 /**
  * Form for registering or editing a hardware device configuration.
@@ -51,6 +53,9 @@ export function DeviceConfigForm({
     locationId: initialValues?.locationId ?? '',
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+
   const showSerialFields = formData.connectionType === ConnectionType.USB_SERIAL;
   const showNetworkFields =
     formData.connectionType === ConnectionType.NETWORK_TCP ||
@@ -59,16 +64,29 @@ export function DeviceConfigForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
+    setSubmitted(true);
+    const found = validateDeviceForm({
       name: formData.name,
+      connectionType: formData.connectionType,
+      locationId: formData.locationId,
+      port: formData.port,
+      ipAddress: formData.ipAddress,
+      tcpPort: formData.tcpPort,
+      vendorId: formData.vendorId,
+      productId: formData.productId,
+    });
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+    onSubmit({
+      name: formData.name.trim(),
       deviceType: formData.deviceType,
       connectionType: formData.connectionType,
-      port: showSerialFields ? formData.port : undefined,
+      port: showSerialFields ? formData.port.trim() : undefined,
       baudRate: showSerialFields ? formData.baudRate : undefined,
-      ipAddress: showNetworkFields ? formData.ipAddress : undefined,
+      ipAddress: showNetworkFields ? formData.ipAddress.trim() : undefined,
       tcpPort: showNetworkFields && formData.tcpPort > 0 ? formData.tcpPort : undefined,
-      vendorId: showUsbHidFields ? formData.vendorId : undefined,
-      productId: showUsbHidFields ? formData.productId : undefined,
+      vendorId: showUsbHidFields && formData.vendorId.trim() ? formData.vendorId.trim() : undefined,
+      productId: showUsbHidFields && formData.productId.trim() ? formData.productId.trim() : undefined,
       settings: {},
       isActive: formData.isActive,
       locationId: formData.locationId,
@@ -76,19 +94,21 @@ export function DeviceConfigForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       {/* Device Name */}
       <div>
-        <label className="block text-sm font-medium" htmlFor="device-name">Device Name</label>
+        <label className="block text-sm font-medium" htmlFor="device-name">Device Name<Req /></label>
         <input
           id="device-name"
           type="text"
-          required
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          aria-invalid={!!errors.name}
+          aria-describedby={errors.name ? 'device-name-error' : undefined}
+          className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.name ? 'border-red-500' : ''}`}
           placeholder="e.g., Front Counter Scale"
         />
+        <FieldError id="device-name-error" message={errors.name} />
       </div>
 
       {/* Device Type */}
@@ -121,25 +141,23 @@ export function DeviceConfigForm({
         </select>
       </div>
 
-      {/* Location ID */}
+      {/* Location */}
       <div>
-        <label className="block text-sm font-medium" htmlFor="location-id">Location ID</label>
-        <input
+        <label className="block text-sm font-medium" htmlFor="location-id">Location<Req /></label>
+        <LocationSelect
           id="location-id"
-          type="text"
-          required
           value={formData.locationId}
-          onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-          className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-          placeholder="UUID of the location"
+          onChange={(id) => setFormData({ ...formData, locationId: id })}
+          className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.locationId ? 'border-red-500' : ''}`}
         />
+        <FieldError id="location-id-error" message={errors.locationId} />
       </div>
 
       {/* Serial Port Fields */}
       {showSerialFields && (
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium" htmlFor="port">COM Port</label>
+            <label className="block text-sm font-medium" htmlFor="port">COM Port<Req /></label>
             <input
               id="port"
               type="text"
@@ -148,6 +166,7 @@ export function DeviceConfigForm({
               className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
               placeholder="COM3 or /dev/ttyUSB0"
             />
+            <FieldError id="port-error" message={errors.port} />
           </div>
           <div>
             <label className="block text-sm font-medium" htmlFor="baud-rate">Baud Rate</label>
@@ -169,7 +188,7 @@ export function DeviceConfigForm({
       {showNetworkFields && (
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium" htmlFor="ip-address">IP Address</label>
+            <label className="block text-sm font-medium" htmlFor="ip-address">IP Address<Req /></label>
             <input
               id="ip-address"
               type="text"
@@ -178,6 +197,7 @@ export function DeviceConfigForm({
               className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
               placeholder="192.168.1.100"
             />
+            <FieldError id="ip-error" message={errors.ipAddress} />
           </div>
           <div>
             <label className="block text-sm font-medium" htmlFor="tcp-port">TCP Port</label>
@@ -191,6 +211,7 @@ export function DeviceConfigForm({
               min={1}
               max={65535}
             />
+            <FieldError id="tcp-error" message={errors.tcpPort} />
           </div>
         </div>
       )}
@@ -208,6 +229,7 @@ export function DeviceConfigForm({
               className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
               placeholder="0x1234"
             />
+            <FieldError id="vendor-error" message={errors.vendorId} />
           </div>
           <div>
             <label className="block text-sm font-medium" htmlFor="product-id">Product ID</label>
@@ -219,6 +241,7 @@ export function DeviceConfigForm({
               className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
               placeholder="0x5678"
             />
+            <FieldError id="product-error" message={errors.productId} />
           </div>
         </div>
       )}
@@ -234,6 +257,13 @@ export function DeviceConfigForm({
         />
         <label htmlFor="is-active" className="text-sm font-medium">Device is active</label>
       </div>
+
+      {submitted && Object.keys(errors).length > 0 && (
+        <p role="alert" className="text-sm text-red-600">
+          Please fix the highlighted fields before saving.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground"><span className="text-red-600">*</span> Required field</p>
 
       {/* Actions */}
       <div className="flex justify-end gap-3 pt-4">

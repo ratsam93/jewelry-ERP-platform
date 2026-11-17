@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@caratflow/ui';
 import { Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
+import { customerLabel, exportInvoiceBlockers, listItems } from '@/features/export/form-helpers';
 
 type InvoiceType = 'COMMERCIAL' | 'PROFORMA' | 'CUSTOMS';
 
@@ -50,8 +52,9 @@ export default function NewExportInvoicePage() {
     sortOrder: 'desc',
   });
 
-  const orders = ((ordersQuery.data as { data?: Array<{ id: string; orderNumber?: string; buyerId?: string }> } | undefined)?.data) ?? [];
-  const customers = ((customersQuery.data as { data?: Array<{ id: string; firstName?: string; lastName?: string }> } | undefined)?.data) ?? [];
+  const orders = listItems<{ id: string; orderNumber?: string; buyerId?: string }>(ordersQuery.data);
+  const customers = listItems<{ id: string; firstName?: string; lastName?: string }>(customersQuery.data);
+  const blockers = exportInvoiceBlockers({ exportOrderId, buyerId, ieCode, items });
 
   const createMutation = trpc.export.createInvoice.useMutation({
     onSuccess: (result: unknown) => {
@@ -159,7 +162,7 @@ export default function NewExportInvoicePage() {
               <option value="">Select buyer...</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {[c.firstName, c.lastName].filter(Boolean).join(' ') || c.id}
+                  {customerLabel(c)}
                 </option>
               ))}
             </select>
@@ -391,13 +394,23 @@ export default function NewExportInvoicePage() {
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={createMutation.isPending || !exportOrderId || !buyerId || !ieCode}
+            disabled={createMutation.isPending || blockers.length > 0}
             className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {createMutation.isPending ? 'Creating...' : 'Create Export Invoice'}
           </button>
+          <Link href="/export/invoices" className="rounded-md border px-6 py-2 text-sm font-medium hover:bg-muted">
+            Cancel
+          </Link>
           {createMutation.isSuccess && <p className="text-sm text-green-600">Created.</p>}
         </div>
+        {blockers.length > 0 && (
+          <ul className="list-disc pl-5 text-sm text-muted-foreground" data-testid="create-blockers">
+            {blockers.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+        )}
         {createMutation.isError && (
           <p className="text-sm text-destructive">{createMutation.error.message}</p>
         )}
