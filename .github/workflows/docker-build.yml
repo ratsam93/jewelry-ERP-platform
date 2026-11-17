@@ -1,0 +1,65 @@
+name: Docker build check
+
+# Builds the container images WITHOUT pushing, so Dockerfile/compose breakage is caught
+# in the pull request. Only runs when something that affects the images changes.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docker/**"
+      - "deploy/**"
+      - ".dockerignore"
+      - ".github/workflows/deploy.yml"
+      - ".github/workflows/docker-build.yml"
+      - "apps/*/next.config.*"
+      - "apps/*/package.json"
+      - "packages/*/package.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  compose-config:
+    name: Validate compose and Caddyfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: docker compose config
+        run: |
+          cp deploy/.env.production.example /tmp/ci.env
+          docker compose -f deploy/docker-compose.prod.yml --env-file /tmp/ci.env config -q
+      - name: caddy validate
+        run: |
+          docker run --rm -e DOMAIN=example.com -e ACME_EMAIL=ops@example.com \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+  build:
+    name: Build ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, web, storefront, website]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/${{ matrix.image }}.Dockerfile
+          push: false
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.example.com
+            NEXT_PUBLIC_SITE_URL=https://example.com
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+          provenance: false
