@@ -46,7 +46,7 @@ export class ReportingTrpcRouter {
       dailySalesSummary: this.trpc.authedProcedure
         .input(z.object({
           date: z.coerce.date(),
-          locationId: z.string().uuid().optional(),
+          locationId: z.guid().optional(),
         }))
         .query(({ ctx, input }) =>
           this.salesService.dailySalesSummary(
@@ -81,7 +81,7 @@ export class ReportingTrpcRouter {
       salesBySalesperson: this.trpc.authedProcedure
         .input(z.object({
           dateRange: DateRangeSchema,
-          locationId: z.string().uuid().optional(),
+          locationId: z.guid().optional(),
         }))
         .query(({ ctx, input }) =>
           this.salesService.salesBySalesperson(
@@ -107,7 +107,7 @@ export class ReportingTrpcRouter {
         .input(z.object({
           period1: DateRangeSchema,
           period2: DateRangeSchema,
-          locationId: z.string().uuid().optional(),
+          locationId: z.guid().optional(),
         }))
         .query(({ ctx, input }) =>
           this.salesService.salesComparison(
@@ -120,7 +120,7 @@ export class ReportingTrpcRouter {
 
       // ─── Inventory Reports ──────────────────────────────────
       stockSummary: this.trpc.authedProcedure
-        .input(z.object({ locationId: z.string().uuid().optional() }))
+        .input(z.object({ locationId: z.guid().optional() }))
         .query(({ ctx, input }) =>
           this.inventoryService.stockSummary(ctx.tenantId, input.locationId),
         ),
@@ -160,7 +160,7 @@ export class ReportingTrpcRouter {
         ),
 
       stockAgingReport: this.trpc.authedProcedure
-        .input(z.object({ locationId: z.string().uuid().optional() }))
+        .input(z.object({ locationId: z.guid().optional() }))
         .query(({ ctx, input }) =>
           this.inventoryService.stockAgingReport(ctx.tenantId, input.locationId),
         ),
@@ -168,7 +168,7 @@ export class ReportingTrpcRouter {
       stockValuationReport: this.trpc.authedProcedure
         .input(z.object({
           method: z.enum(['cost', 'market']).default('cost'),
-          locationId: z.string().uuid().optional(),
+          locationId: z.guid().optional(),
         }))
         .query(({ ctx, input }) =>
           this.inventoryService.stockValuationReport(
@@ -297,7 +297,7 @@ export class ReportingTrpcRouter {
 
       reorderPointCalculation: this.trpc.authedProcedure
         .input(z.object({
-          productId: z.string().uuid(),
+          productId: z.guid(),
           leadTimeDays: z.number().int().min(1).max(365),
           serviceLevel: z.number().min(0.5).max(0.999).default(0.95),
         }))
@@ -312,7 +312,7 @@ export class ReportingTrpcRouter {
 
       seasonalityAnalysis: this.trpc.authedProcedure
         .input(z.object({
-          categoryId: z.string().uuid().optional(),
+          categoryId: z.guid().optional(),
           years: z.number().int().min(1).max(5).default(2),
         }))
         .query(({ ctx, input }) =>
@@ -377,7 +377,7 @@ export class ReportingTrpcRouter {
         ),
 
       getSavedReport: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(({ ctx, input }) =>
           this.prisma.savedReport.findFirst({
             where: { id: input.id, tenantId: ctx.tenantId },
@@ -385,7 +385,7 @@ export class ReportingTrpcRouter {
         ),
 
       deleteSavedReport: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           await this.prisma.savedReport.deleteMany({
             where: { id: input.id, tenantId: ctx.tenantId },
@@ -424,7 +424,7 @@ export class ReportingTrpcRouter {
 
       toggleScheduledReport: this.trpc.authedProcedure
         .input(z.object({
-          id: z.string().uuid(),
+          id: z.guid(),
           isActive: z.boolean(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -436,7 +436,7 @@ export class ReportingTrpcRouter {
 
       listExecutions: this.trpc.authedProcedure
         .input(z.object({
-          scheduledReportId: z.string().uuid().optional(),
+          scheduledReportId: z.guid().optional(),
           limit: z.number().int().min(1).max(100).default(20),
         }).default({ limit: 20 }))
         .query(({ ctx, input }) =>

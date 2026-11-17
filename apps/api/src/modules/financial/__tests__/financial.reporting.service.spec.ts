@@ -187,6 +187,26 @@ describe('FinancialReportingService (Unit)', () => {
       expect(result.totalAssets).toBe(result.totalLiabilities + result.totalEquity);
     });
 
+    it('includes unclosed net income as Current Period Earnings so the sheet balances', async () => {
+      mockPrisma.account.findMany.mockResolvedValue([
+        { id: 'asset-1', name: 'Cash', accountType: 'ASSET', isActive: true },
+        { id: 'eq-1', name: 'Capital', accountType: 'EQUITY', isActive: true },
+      ]);
+      mockPrisma.journalEntryLine.findMany
+        .mockResolvedValueOnce([{ debitPaise: BigInt(1500000), creditPaise: BigInt(0) }]) // cash
+        .mockResolvedValueOnce([{ debitPaise: BigInt(0), creditPaise: BigInt(1000000) }]) // capital
+        .mockResolvedValueOnce([
+          { debitPaise: BigInt(0), creditPaise: BigInt(700000) }, // revenue
+          { debitPaise: BigInt(200000), creditPaise: BigInt(0) }, // expense
+        ]);
+
+      const result = await service.balanceSheet(TEST_TENANT_ID, new Date());
+
+      expect(result.equity.find((e) => e.accountName === 'Current Period Earnings')?.amount).toBe(500000);
+      expect(result.totalEquity).toBe(1500000);
+      expect(result.totalAssets).toBe(result.totalLiabilities + result.totalEquity);
+    });
+
     it('excludes zero-balance accounts', async () => {
       mockPrisma.account.findMany.mockResolvedValue([
         { id: 'asset-1', name: 'Cash', accountType: 'ASSET', isActive: true },

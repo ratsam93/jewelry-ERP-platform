@@ -63,7 +63,7 @@ export class StorefrontTrpcRouter {
           ),
 
         getById: anyPrincipal
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.catalogService.getProductById(ctx.tenantId, input.id),
           ),
@@ -79,7 +79,7 @@ export class StorefrontTrpcRouter {
         ),
 
         compare: anyPrincipal
-          .input(z.object({ productIds: z.array(z.string().uuid()).min(2).max(4) }))
+          .input(z.object({ productIds: z.array(z.guid()).min(2).max(4) }))
           .query(({ ctx, input }) =>
             this.catalogService.compareProducts(ctx.tenantId, input.productIds),
           ),
@@ -107,7 +107,7 @@ export class StorefrontTrpcRouter {
         updateItem: customer
           .input(z.object({
             sessionId: z.string().min(1),
-            itemId: z.string().uuid(),
+            itemId: z.guid(),
             quantity: z.number().int().min(1),
           }))
           .mutation(async ({ ctx, input }) => {
@@ -120,7 +120,7 @@ export class StorefrontTrpcRouter {
           }),
 
         removeItem: customer
-          .input(z.object({ sessionId: z.string().min(1), itemId: z.string().uuid() }))
+          .input(z.object({ sessionId: z.string().min(1), itemId: z.guid() }))
           .mutation(async ({ ctx, input }) => {
             const cart = await this.cartService.getOrCreateCart(
               ctx.tenantId, ctx.userId, input.sessionId,
@@ -158,7 +158,7 @@ export class StorefrontTrpcRouter {
       // ─── Wishlist ────────────────────────────────────────
       wishlist: this.trpc.router({
         add: customer
-          .input(z.object({ productId: z.string().uuid() }))
+          .input(z.object({ productId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.wishlistService.add(ctx.tenantId, ctx.userId, input.productId),
           ),
@@ -168,13 +168,13 @@ export class StorefrontTrpcRouter {
         ),
 
         remove: customer
-          .input(z.object({ productId: z.string().uuid() }))
+          .input(z.object({ productId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.wishlistService.remove(ctx.tenantId, ctx.userId, input.productId),
           ),
 
         enablePriceAlert: customer
-          .input(z.object({ productId: z.string().uuid(), targetPricePaise: z.number().int().nonnegative() }))
+          .input(z.object({ productId: z.guid(), targetPricePaise: z.number().int().nonnegative() }))
           .mutation(({ ctx, input }) =>
             this.wishlistService.enablePriceAlert(
               ctx.tenantId, ctx.userId, input.productId, input.targetPricePaise,
@@ -192,7 +192,7 @@ export class StorefrontTrpcRouter {
 
         complete: customer
           .input(z.object({
-            orderId: z.string().uuid(),
+            orderId: z.guid(),
             externalPaymentId: z.string().min(1),
             gatewayResponse: z.record(z.string(), z.unknown()).optional(),
           }))
@@ -218,16 +218,16 @@ export class StorefrontTrpcRouter {
           ),
 
         getById: customer
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.orderService.getOrderById(ctx.tenantId, ctx.userId, input.id),
           ),
 
         requestReturn: customer
           .input(z.object({
-            id: z.string().uuid(),
+            id: z.guid(),
             items: z.array(z.object({
-              orderItemId: z.string().uuid(),
+              orderItemId: z.guid(),
               quantity: z.number().int().min(1),
               reason: z.string().min(1),
             })),
@@ -240,13 +240,13 @@ export class StorefrontTrpcRouter {
           ),
 
         cancel: customer
-          .input(z.object({ id: z.string().uuid(), reason: z.string().min(1) }))
+          .input(z.object({ id: z.guid(), reason: z.string().min(1) }))
           .mutation(({ ctx, input }) =>
             this.checkoutService.cancelOrder(ctx.tenantId, ctx.userId, input.id, input.reason),
           ),
 
         reorder: customer
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.orderService.reorder(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -267,7 +267,7 @@ export class StorefrontTrpcRouter {
           ),
 
         markHelpful: anyPrincipal
-          .input(z.object({ reviewId: z.string().uuid() }))
+          .input(z.object({ reviewId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.reviewService.markHelpful(ctx.tenantId, input.reviewId),
           ),
@@ -280,7 +280,7 @@ export class StorefrontTrpcRouter {
         ),
 
         get: customer
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.addressService.getAddress(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -292,7 +292,7 @@ export class StorefrontTrpcRouter {
           ),
 
         update: customer
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(AddressInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(AddressInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.addressService.updateAddress(
               ctx.tenantId, ctx.userId, input.id, input.data as Record<string, unknown>,
@@ -300,7 +300,7 @@ export class StorefrontTrpcRouter {
           ),
 
         delete: customer
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.addressService.deleteAddress(ctx.tenantId, ctx.userId, input.id),
           ),

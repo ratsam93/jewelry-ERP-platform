@@ -63,8 +63,8 @@ function getTenantId(req: AuthenticatedRequest): string {
 }
 
 const PrintLabelBodySchema = z.object({
-  productId: z.string().uuid(),
-  templateId: z.string().uuid(),
+  productId: z.guid(),
+  templateId: z.guid(),
   copies: z.number().int().min(1).max(100).default(1),
   language: z.enum(['ZPL', 'TSPL']).default('ZPL'),
 });

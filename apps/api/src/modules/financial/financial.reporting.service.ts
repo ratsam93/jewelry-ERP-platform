@@ -139,6 +139,28 @@ export class FinancialReportingService extends TenantAwareService {
 
     const nonZeroAssets = assets.filter((a) => a.amount !== 0);
     const nonZeroLiabilities = liabilities.filter((l) => l.amount !== 0);
+    // Unclosed P&L: revenue/expense accounts are not part of the equity accounts
+    // above, so surface cumulative net income as equity (credit - debit) to keep
+    // Assets = Liabilities + Equity before year-end closing.
+    const plLines =
+      (await this.prisma.journalEntryLine.findMany({
+        where: {
+          tenantId,
+          account: { accountType: { in: ['REVENUE', 'EXPENSE'] } },
+          journalEntry: { status: 'POSTED', date: { lte: asOfDate } },
+        },
+      })) ?? [];
+    const currentEarnings = plLines.reduce(
+      (sum, l) => sum + Number(l.creditPaise) - Number(l.debitPaise),
+      0,
+    );
+    if (currentEarnings !== 0) {
+      equity.push({
+        accountId: 'current-period-earnings',
+        accountName: 'Current Period Earnings',
+        amount: currentEarnings,
+      });
+    }
     const nonZeroEquity = equity.filter((e) => e.amount !== 0);
 
     return {

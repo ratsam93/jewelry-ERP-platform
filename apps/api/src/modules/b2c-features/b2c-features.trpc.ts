@@ -36,20 +36,20 @@ export class B2cFeaturesTrpcRouter {
         }),
 
       couponUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(CouponCodeUpdateSchema))
+        .input(z.object({ id: z.guid() }).merge(CouponCodeUpdateSchema))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.couponService.updateCoupon(ctx.tenantId, ctx.userId, id, data);
         }),
 
       couponDeactivate: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.couponService.deactivateCoupon(ctx.tenantId, ctx.userId, input.id);
         }),
 
       couponGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.couponService.getCoupon(ctx.tenantId, input.id);
         }),

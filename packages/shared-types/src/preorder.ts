@@ -39,8 +39,8 @@ export enum ModificationStatus {
 // ─── Pre-Order Schemas ────────────────────────────────────────────
 
 export const CreatePreOrderInputSchema = z.object({
-  customerId: z.string().uuid(),
-  productId: z.string().uuid(),
+  customerId: z.guid(),
+  productId: z.guid(),
   quantity: z.number().int().positive().default(1),
   orderType: z.nativeEnum(PreOrderType).default(PreOrderType.PRE_ORDER),
   notes: z.string().optional(),
@@ -50,11 +50,11 @@ export const CreatePreOrderInputSchema = z.object({
 export type CreatePreOrderInput = z.infer<typeof CreatePreOrderInputSchema>;
 
 export const PreOrderResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  customerId: z.guid(),
   customerName: z.string().nullable(),
-  productId: z.string().uuid(),
+  productId: z.guid(),
   productName: z.string().nullable(),
   quantity: z.number().int(),
   status: z.nativeEnum(PreOrderStatus),
@@ -64,7 +64,7 @@ export const PreOrderResponseSchema = z.object({
   estimatedDeliveryDate: z.coerce.date().nullable(),
   actualAvailableDate: z.coerce.date().nullable(),
   notifiedAt: z.coerce.date().nullable(),
-  fulfilledOrderId: z.string().uuid().nullable(),
+  fulfilledOrderId: z.guid().nullable(),
   cancelReason: z.string().nullable(),
   notes: z.string().nullable(),
   priceLockPaise: z.number().int().nullable(),
@@ -77,8 +77,8 @@ export type PreOrderResponse = z.infer<typeof PreOrderResponseSchema>;
 export const PreOrderListFilterSchema = z.object({
   status: z.nativeEnum(PreOrderStatus).optional(),
   orderType: z.nativeEnum(PreOrderType).optional(),
-  customerId: z.string().uuid().optional(),
-  productId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
+  productId: z.guid().optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
   search: z.string().optional(),
@@ -86,7 +86,7 @@ export const PreOrderListFilterSchema = z.object({
 export type PreOrderListFilter = z.infer<typeof PreOrderListFilterSchema>;
 
 export const PreOrderProductStatusSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   isPreOrderAvailable: z.boolean(),
   isBackorderAvailable: z.boolean(),
   estimatedLeadDays: z.number().int().nullable(),
@@ -100,7 +100,7 @@ export type PreOrderProductStatus = z.infer<typeof PreOrderProductStatusSchema>;
 // ─── Pre-Order Config Schemas ─────────────────────────────────────
 
 export const PreOrderConfigInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   isPreOrderEnabled: z.boolean().default(false),
   isBackorderEnabled: z.boolean().default(false),
   maxPreOrderQty: z.number().int().nonnegative().default(0),
@@ -112,9 +112,9 @@ export const PreOrderConfigInputSchema = z.object({
 export type PreOrderConfigInput = z.infer<typeof PreOrderConfigInputSchema>;
 
 export const PreOrderConfigResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  productId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  productId: z.guid(),
   productName: z.string().nullable(),
   isPreOrderEnabled: z.boolean(),
   isBackorderEnabled: z.boolean(),
@@ -129,7 +129,7 @@ export const PreOrderConfigResponseSchema = z.object({
 export type PreOrderConfigResponse = z.infer<typeof PreOrderConfigResponseSchema>;
 
 export const BulkPreOrderConfigInputSchema = z.object({
-  productIds: z.array(z.string().uuid()).min(1),
+  productIds: z.array(z.guid()).min(1),
   config: z.object({
     isPreOrderEnabled: z.boolean().optional(),
     isBackorderEnabled: z.boolean().optional(),
@@ -145,8 +145,8 @@ export type BulkPreOrderConfigInput = z.infer<typeof BulkPreOrderConfigInputSche
 // ─── Order Modification Schemas ───────────────────────────────────
 
 export const RequestModificationInputSchema = z.object({
-  orderId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  orderId: z.guid(),
+  customerId: z.guid(),
   modificationType: z.nativeEnum(ModificationType),
   requestedData: z.record(z.string(), z.unknown()),
   reason: z.string().optional(),
@@ -154,10 +154,10 @@ export const RequestModificationInputSchema = z.object({
 export type RequestModificationInput = z.infer<typeof RequestModificationInputSchema>;
 
 export const ModificationRequestResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  orderId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  orderId: z.guid(),
+  customerId: z.guid(),
   customerName: z.string().nullable(),
   orderNumber: z.string().nullable(),
   modificationType: z.nativeEnum(ModificationType),
@@ -165,7 +165,7 @@ export const ModificationRequestResponseSchema = z.object({
   requestedData: z.unknown(),
   status: z.nativeEnum(ModificationStatus),
   reason: z.string().nullable(),
-  reviewedBy: z.string().uuid().nullable(),
+  reviewedBy: z.guid().nullable(),
   reviewedAt: z.coerce.date().nullable(),
   autoApplyWindow: z.number().int(),
   createdAt: z.coerce.date(),
@@ -174,8 +174,8 @@ export const ModificationRequestResponseSchema = z.object({
 export type ModificationRequestResponse = z.infer<typeof ModificationRequestResponseSchema>;
 
 export const ModificationListFilterSchema = z.object({
-  orderId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
+  orderId: z.guid().optional(),
+  customerId: z.guid().optional(),
   status: z.nativeEnum(ModificationStatus).optional(),
   modificationType: z.nativeEnum(ModificationType).optional(),
   search: z.string().optional(),
@@ -183,7 +183,7 @@ export const ModificationListFilterSchema = z.object({
 export type ModificationListFilter = z.infer<typeof ModificationListFilterSchema>;
 
 export const ReviewModificationInputSchema = z.object({
-  requestId: z.string().uuid(),
+  requestId: z.guid(),
   approved: z.boolean(),
   reason: z.string().optional(),
 });
@@ -192,17 +192,17 @@ export type ReviewModificationInput = z.infer<typeof ReviewModificationInputSche
 // ─── Reorder Schemas ──────────────────────────────────────────────
 
 export const ReorderTemplateItemSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   quantity: z.number().int().positive(),
 });
 export type ReorderTemplateItem = z.infer<typeof ReorderTemplateItemSchema>;
 
 export const ReorderTemplateResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  customerId: z.guid(),
   name: z.string(),
-  sourceOrderId: z.string().uuid(),
+  sourceOrderId: z.guid(),
   items: z.array(ReorderTemplateItemSchema),
   lastUsedAt: z.coerce.date().nullable(),
   createdAt: z.coerce.date(),
@@ -212,7 +212,7 @@ export type ReorderTemplateResponse = z.infer<typeof ReorderTemplateResponseSche
 
 export const ReorderResultSchema = z.object({
   availableItems: z.array(z.object({
-    productId: z.string().uuid(),
+    productId: z.guid(),
     productName: z.string(),
     quantity: z.number().int(),
     unitPricePaise: z.number().int(),
@@ -220,7 +220,7 @@ export const ReorderResultSchema = z.object({
     availableQty: z.number().int(),
   })),
   unavailableItems: z.array(z.object({
-    productId: z.string().uuid(),
+    productId: z.guid(),
     productName: z.string(),
     requestedQty: z.number().int(),
     reason: z.string(),
@@ -230,7 +230,7 @@ export const ReorderResultSchema = z.object({
 export type ReorderResult = z.infer<typeof ReorderResultSchema>;
 
 export const ReorderableOrderSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.guid(),
   orderNumber: z.string(),
   placedAt: z.coerce.date().nullable(),
   totalPaise: z.number().int(),

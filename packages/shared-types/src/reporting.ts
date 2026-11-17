@@ -86,8 +86,8 @@ export const SavedReportInputSchema = z.object({
 export type SavedReportInput = z.infer<typeof SavedReportInputSchema>;
 
 export const SavedReportResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   name: z.string(),
   description: z.string().nullable(),
   reportType: z.nativeEnum(ReportTypeEnum),
@@ -109,7 +109,7 @@ export type SavedReportResponse = z.infer<typeof SavedReportResponseSchema>;
 // ─── ScheduledReport ──────────────────────────────────────────
 
 export const ScheduledReportInputSchema = z.object({
-  savedReportId: z.string().uuid(),
+  savedReportId: z.guid(),
   frequency: z.nativeEnum(ReportFrequencyEnum),
   dayOfWeek: z.number().int().min(0).max(6).optional(),
   dayOfMonth: z.number().int().min(1).max(31).optional(),
@@ -121,9 +121,9 @@ export const ScheduledReportInputSchema = z.object({
 export type ScheduledReportInput = z.infer<typeof ScheduledReportInputSchema>;
 
 export const ScheduledReportResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  savedReportId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  savedReportId: z.guid(),
   savedReport: SavedReportResponseSchema.optional(),
   frequency: z.nativeEnum(ReportFrequencyEnum),
   dayOfWeek: z.number().nullable(),
@@ -142,8 +142,8 @@ export type ScheduledReportResponse = z.infer<typeof ScheduledReportResponseSche
 // ─── ReportExecution ──────────────────────────────────────────
 
 export const ReportExecutionResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   savedReportId: z.string().nullable(),
   scheduledReportId: z.string().nullable(),
   reportType: z.nativeEnum(ReportTypeEnum),
@@ -179,9 +179,9 @@ export const DashboardLayoutInputSchema = z.object({
 export type DashboardLayoutInput = z.infer<typeof DashboardLayoutInputSchema>;
 
 export const DashboardLayoutResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  userId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  userId: z.guid(),
   name: z.string(),
   isDefault: z.boolean(),
   layout: z.array(DashboardWidgetConfigSchema),
@@ -585,7 +585,7 @@ export interface AnalyticsDashboardResponse {
 
 export const ReportDateRangeInputSchema = z.object({
   dateRange: DateRangeSchema,
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
 });
 export type ReportDateRangeInput = z.infer<typeof ReportDateRangeInputSchema>;
 
@@ -596,27 +596,27 @@ export const SalesReportInputSchema = ReportDateRangeInputSchema.extend({
 export type SalesReportInput = z.infer<typeof SalesReportInputSchema>;
 
 export const InventoryReportInputSchema = z.object({
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
   daysSinceLastMovement: z.number().int().min(1).default(90),
   limit: z.number().int().min(1).max(500).default(50),
 });
 export type InventoryReportInput = z.infer<typeof InventoryReportInputSchema>;
 
 export const ManufacturingReportInputSchema = ReportDateRangeInputSchema.extend({
-  karigarId: z.string().uuid().optional(),
+  karigarId: z.guid().optional(),
 });
 export type ManufacturingReportInput = z.infer<typeof ManufacturingReportInputSchema>;
 
 export const ForecastInputSchema = z.object({
-  productId: z.string().uuid().optional(),
-  categoryId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
+  categoryId: z.guid().optional(),
   periods: z.number().int().min(1).max(24).default(6),
 });
 export type ForecastInput = z.infer<typeof ForecastInputSchema>;
 
 export const DashboardInputSchema = z.object({
   dateRange: DateRangeSchema.optional(),
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
 });
 export type DashboardInput = z.infer<typeof DashboardInputSchema>;
 

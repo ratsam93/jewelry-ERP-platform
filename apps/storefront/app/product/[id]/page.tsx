@@ -9,7 +9,8 @@ import {
 } from "@/lib/catalog";
 import { calculateProductPrice } from "@/lib/utils";
 
-export const revalidate = 60;
+// Keep in step with CATALOG_REVALIDATE_SECONDS: price data must not go stale.
+export const revalidate = 15;
 
 interface PageProps {
   params: Promise<{ id: string }>;

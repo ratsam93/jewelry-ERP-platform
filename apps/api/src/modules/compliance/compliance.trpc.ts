@@ -57,13 +57,13 @@ export class ComplianceTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.huidService.findById(ctx.tenantId, input.id),
           ),
 
         getByProduct: this.trpc.authedProcedure
-          .input(z.object({ productId: z.string().uuid() }))
+          .input(z.object({ productId: z.guid() }))
           .query(({ ctx, input }) =>
             this.huidService.findByProduct(ctx.tenantId, input.productId),
           ),
@@ -87,7 +87,7 @@ export class ComplianceTrpcRouter {
           ),
 
         checkSaleEligibility: this.trpc.authedProcedure
-          .input(z.object({ productId: z.string().uuid() }))
+          .input(z.object({ productId: z.guid() }))
           .query(({ ctx, input }) =>
             this.huidService.enforceHuidOnSale(ctx.tenantId, input.productId),
           ),
@@ -108,7 +108,7 @@ export class ComplianceTrpcRouter {
             ),
 
           getById: this.trpc.authedProcedure
-            .input(z.object({ id: z.string().uuid() }))
+            .input(z.object({ id: z.guid() }))
             .query(({ input }) =>
               this.hallmarkService.getCenterById(input.id),
             ),
@@ -120,7 +120,7 @@ export class ComplianceTrpcRouter {
             ),
 
           update: this.trpc.authedProcedure
-            .input(z.object({ id: z.string().uuid(), data: partialUpdate(HallmarkCenterInputSchema) }))
+            .input(z.object({ id: z.guid(), data: partialUpdate(HallmarkCenterInputSchema) }))
             .mutation(({ input }) =>
               this.hallmarkService.updateCenter(input.id, input.data),
             ),
@@ -134,7 +134,7 @@ export class ComplianceTrpcRouter {
             ),
 
           getById: this.trpc.authedProcedure
-            .input(z.object({ id: z.string().uuid() }))
+            .input(z.object({ id: z.guid() }))
             .query(({ ctx, input }) =>
               this.hallmarkService.findById(ctx.tenantId, input.id),
             ),
@@ -162,7 +162,7 @@ export class ComplianceTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.certificateService.findById(ctx.tenantId, input.id),
           ),
@@ -180,19 +180,19 @@ export class ComplianceTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(GemstoneCertificateInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(GemstoneCertificateInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.certificateService.update(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         verify: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.certificateService.verifyCertificate(ctx.tenantId, ctx.userId, input.id),
           ),
 
         manualVerifyCertificate: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.certificateService.manualVerify(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -207,7 +207,7 @@ export class ComplianceTrpcRouter {
           ),
 
         getChain: this.trpc.authedProcedure
-          .input(z.object({ productId: z.string().uuid() }))
+          .input(z.object({ productId: z.guid() }))
           .query(({ ctx, input }) =>
             this.traceabilityService.getChainForProduct(ctx.tenantId, input.productId),
           ),
@@ -228,7 +228,7 @@ export class ComplianceTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.documentService.findById(ctx.tenantId, input.id),
           ),
@@ -240,13 +240,13 @@ export class ComplianceTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(ComplianceDocumentInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(ComplianceDocumentInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.documentService.update(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         revoke: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.documentService.revoke(ctx.tenantId, ctx.userId, input.id),
           ),
@@ -261,7 +261,7 @@ export class ComplianceTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.insuranceService.findById(ctx.tenantId, input.id),
           ),
@@ -273,7 +273,7 @@ export class ComplianceTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(InsurancePolicyInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(InsurancePolicyInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.insuranceService.update(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
@@ -293,7 +293,7 @@ export class ComplianceTrpcRouter {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .query(({ ctx, input }) =>
             this.auditService.findById(ctx.tenantId, input.id),
           ),
@@ -305,20 +305,20 @@ export class ComplianceTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid(), data: partialUpdate(ComplianceAuditInputSchema) }))
+          .input(z.object({ id: z.guid(), data: partialUpdate(ComplianceAuditInputSchema) }))
           .mutation(({ ctx, input }) =>
             this.auditService.update(ctx.tenantId, ctx.userId, input.id, input.data),
           ),
 
         start: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.auditService.startAudit(ctx.tenantId, ctx.userId, input.id),
           ),
 
         recordFindings: this.trpc.authedProcedure
           .input(z.object({
-            id: z.string().uuid(),
+            id: z.guid(),
             findings: z.string(),
             recommendations: z.string().optional(),
           }))
@@ -335,7 +335,7 @@ export class ComplianceTrpcRouter {
           ),
 
         complete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.auditService.completeAudit(ctx.tenantId, ctx.userId, input.id),
           ),

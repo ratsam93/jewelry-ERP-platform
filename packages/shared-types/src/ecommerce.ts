@@ -107,8 +107,8 @@ export const SalesChannelInputSchema = z.object({
 export type SalesChannelInput = z.infer<typeof SalesChannelInputSchema>;
 
 export const SalesChannelResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   name: z.string(),
   channelType: z.nativeEnum(SalesChannelType),
   storeUrl: z.string().nullable(),
@@ -130,8 +130,8 @@ export type SalesChannelListFilter = z.infer<typeof SalesChannelListFilterSchema
 // ─── Catalog Item ─────────────────────────────────────────────────
 
 export const CatalogSyncInputSchema = z.object({
-  productId: z.string().uuid(),
-  channelId: z.string().uuid(),
+  productId: z.guid(),
+  channelId: z.guid(),
   title: z.string().min(1).max(500),
   description: z.string().optional(),
   pricePaise: z.number().int().nonnegative(),
@@ -143,10 +143,10 @@ export const CatalogSyncInputSchema = z.object({
 export type CatalogSyncInput = z.infer<typeof CatalogSyncInputSchema>;
 
 export const CatalogItemResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  productId: z.string().uuid(),
-  channelId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  productId: z.guid(),
+  channelId: z.guid(),
   externalProductId: z.string().nullable(),
   externalVariantId: z.string().nullable(),
   title: z.string(),
@@ -170,14 +170,14 @@ export const BulkSyncResultSchema = z.object({
   failed: z.number().int(),
   skipped: z.number().int(),
   errors: z.array(z.object({
-    productId: z.string().uuid(),
+    productId: z.guid(),
     error: z.string(),
   })),
 });
 export type BulkSyncResult = z.infer<typeof BulkSyncResultSchema>;
 
 export const CatalogListFilterSchema = z.object({
-  channelId: z.string().uuid().optional(),
+  channelId: z.guid().optional(),
   status: z.nativeEnum(CatalogItemStatus).optional(),
   syncStatus: z.nativeEnum(CatalogSyncStatus).optional(),
   search: z.string().optional(),
@@ -187,8 +187,8 @@ export type CatalogListFilter = z.infer<typeof CatalogListFilterSchema>;
 // ─── Online Order ─────────────────────────────────────────────────
 
 export const OnlineOrderItemInputSchema = z.object({
-  catalogItemId: z.string().uuid().optional(),
-  productId: z.string().uuid().optional(),
+  catalogItemId: z.guid().optional(),
+  productId: z.guid().optional(),
   externalLineItemId: z.string().optional(),
   title: z.string().min(1),
   quantity: z.number().int().positive(),
@@ -200,9 +200,9 @@ export const OnlineOrderItemInputSchema = z.object({
 export type OnlineOrderItemInput = z.infer<typeof OnlineOrderItemInputSchema>;
 
 export const OnlineOrderInputSchema = z.object({
-  channelId: z.string().uuid(),
+  channelId: z.guid(),
   externalOrderId: z.string().optional(),
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   customerEmail: z.string().email().optional(),
   customerPhone: z.string().optional(),
   customerName: z.string().optional(),
@@ -222,12 +222,12 @@ export const OnlineOrderInputSchema = z.object({
 export type OnlineOrderInput = z.infer<typeof OnlineOrderInputSchema>;
 
 export const OnlineOrderResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   orderNumber: z.string(),
-  channelId: z.string().uuid(),
+  channelId: z.guid(),
   externalOrderId: z.string().nullable(),
-  customerId: z.string().uuid().nullable(),
+  customerId: z.guid().nullable(),
   customerEmail: z.string().nullable(),
   customerPhone: z.string().nullable(),
   customerName: z.string().nullable(),
@@ -247,9 +247,9 @@ export const OnlineOrderResponseSchema = z.object({
   shippedAt: z.coerce.date().nullable(),
   deliveredAt: z.coerce.date().nullable(),
   items: z.array(z.object({
-    id: z.string().uuid(),
-    catalogItemId: z.string().uuid().nullable(),
-    productId: z.string().uuid().nullable(),
+    id: z.guid(),
+    catalogItemId: z.guid().nullable(),
+    productId: z.guid().nullable(),
     externalLineItemId: z.string().nullable(),
     title: z.string(),
     quantity: z.number().int(),
@@ -264,7 +264,7 @@ export const OnlineOrderResponseSchema = z.object({
 export type OnlineOrderResponse = z.infer<typeof OnlineOrderResponseSchema>;
 
 export const OrderStatusUpdateSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.guid(),
   status: z.nativeEnum(OnlineOrderStatus),
   cancelReason: z.string().optional(),
 });
@@ -272,8 +272,8 @@ export type OrderStatusUpdate = z.infer<typeof OrderStatusUpdateSchema>;
 
 export const OnlineOrderListFilterSchema = z.object({
   status: z.nativeEnum(OnlineOrderStatus).optional(),
-  channelId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
+  channelId: z.guid().optional(),
+  customerId: z.guid().optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
   search: z.string().optional(),
@@ -283,7 +283,7 @@ export type OnlineOrderListFilter = z.infer<typeof OnlineOrderListFilterSchema>;
 // ─── Shipment ─────────────────────────────────────────────────────
 
 export const ShipmentInputSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.guid(),
   carrier: z.string().max(100).optional(),
   trackingNumber: z.string().max(255).optional(),
   trackingUrl: z.string().url().max(500).optional(),
@@ -295,9 +295,9 @@ export const ShipmentInputSchema = z.object({
 export type ShipmentInput = z.infer<typeof ShipmentInputSchema>;
 
 export const ShipmentResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  orderId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  orderId: z.guid(),
   shipmentNumber: z.string(),
   carrier: z.string().nullable(),
   trackingNumber: z.string().nullable(),
@@ -314,7 +314,7 @@ export const ShipmentResponseSchema = z.object({
 export type ShipmentResponse = z.infer<typeof ShipmentResponseSchema>;
 
 export const TrackingUpdateSchema = z.object({
-  shipmentId: z.string().uuid(),
+  shipmentId: z.guid(),
   status: z.nativeEnum(ShipmentStatus),
   trackingNumber: z.string().optional(),
   trackingUrl: z.string().url().optional(),
@@ -323,7 +323,7 @@ export const TrackingUpdateSchema = z.object({
 export type TrackingUpdate = z.infer<typeof TrackingUpdateSchema>;
 
 export const ShipmentListFilterSchema = z.object({
-  orderId: z.string().uuid().optional(),
+  orderId: z.guid().optional(),
   status: z.nativeEnum(ShipmentStatus).optional(),
   carrier: z.string().optional(),
   search: z.string().optional(),
@@ -346,8 +346,8 @@ export const PaymentGatewayInputSchema = z.object({
 export type PaymentGatewayInput = z.infer<typeof PaymentGatewayInputSchema>;
 
 export const PaymentGatewayResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   name: z.string(),
   gatewayType: z.nativeEnum(PaymentGatewayType),
   isActive: z.boolean(),
@@ -362,8 +362,8 @@ export type PaymentGatewayResponse = z.infer<typeof PaymentGatewayResponseSchema
 // ─── Online Payment ───────────────────────────────────────────────
 
 export const OnlinePaymentInputSchema = z.object({
-  orderId: z.string().uuid(),
-  gatewayId: z.string().uuid(),
+  orderId: z.guid(),
+  gatewayId: z.guid(),
   method: z.string().optional(),
   amountPaise: z.number().int().positive(),
   currencyCode: z.string().length(3).default('INR'),
@@ -371,10 +371,10 @@ export const OnlinePaymentInputSchema = z.object({
 export type OnlinePaymentInput = z.infer<typeof OnlinePaymentInputSchema>;
 
 export const PaymentResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  orderId: z.string().uuid(),
-  gatewayId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  orderId: z.guid(),
+  gatewayId: z.guid(),
   externalPaymentId: z.string().nullable(),
   method: z.string().nullable(),
   amountPaise: z.number().int(),
@@ -391,8 +391,8 @@ export const PaymentResponseSchema = z.object({
 export type PaymentResponse = z.infer<typeof PaymentResponseSchema>;
 
 export const PaymentListFilterSchema = z.object({
-  orderId: z.string().uuid().optional(),
-  gatewayId: z.string().uuid().optional(),
+  orderId: z.guid().optional(),
+  gatewayId: z.guid().optional(),
   status: z.nativeEnum(OnlinePaymentStatus).optional(),
   search: z.string().optional(),
 });
@@ -459,17 +459,17 @@ export type WebhookPayload = z.infer<typeof WebhookPayloadSchema>;
 // ─── Click & Collect ──────────────────────────────────────────────
 
 export const ClickAndCollectInputSchema = z.object({
-  orderId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  orderId: z.guid(),
+  locationId: z.guid(),
   expiresAt: z.coerce.date().optional(),
 });
 export type ClickAndCollectInput = z.infer<typeof ClickAndCollectInputSchema>;
 
 export const ClickAndCollectResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  orderId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  orderId: z.guid(),
+  locationId: z.guid(),
   status: z.nativeEnum(ClickAndCollectStatus),
   readyAt: z.coerce.date().nullable(),
   notifiedAt: z.coerce.date().nullable(),
@@ -481,7 +481,7 @@ export const ClickAndCollectResponseSchema = z.object({
 export type ClickAndCollectResponse = z.infer<typeof ClickAndCollectResponseSchema>;
 
 export const ClickAndCollectListFilterSchema = z.object({
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
   status: z.nativeEnum(ClickAndCollectStatus).optional(),
 });
 export type ClickAndCollectListFilter = z.infer<typeof ClickAndCollectListFilterSchema>;
@@ -489,8 +489,8 @@ export type ClickAndCollectListFilter = z.infer<typeof ClickAndCollectListFilter
 // ─── Product Review ───────────────────────────────────────────────
 
 export const ProductReviewInputSchema = z.object({
-  productId: z.string().uuid(),
-  channelId: z.string().uuid().optional(),
+  productId: z.guid(),
+  channelId: z.guid().optional(),
   customerName: z.string().min(1).max(255),
   rating: z.number().int().min(1).max(5),
   title: z.string().max(500).optional(),
@@ -500,10 +500,10 @@ export const ProductReviewInputSchema = z.object({
 export type ProductReviewInput = z.infer<typeof ProductReviewInputSchema>;
 
 export const ProductReviewResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  productId: z.string().uuid(),
-  channelId: z.string().uuid().nullable(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  productId: z.guid(),
+  channelId: z.guid().nullable(),
   customerName: z.string(),
   rating: z.number().int(),
   title: z.string().nullable(),
@@ -517,8 +517,8 @@ export const ProductReviewResponseSchema = z.object({
 export type ProductReviewResponse = z.infer<typeof ProductReviewResponseSchema>;
 
 export const ReviewListFilterSchema = z.object({
-  productId: z.string().uuid().optional(),
-  channelId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
+  channelId: z.guid().optional(),
   isPublished: z.boolean().optional(),
   rating: z.number().int().min(1).max(5).optional(),
   search: z.string().optional(),
@@ -533,7 +533,7 @@ export const EcommerceDashboardResponseSchema = z.object({
   pendingShipments: z.number().int(),
   pendingOrders: z.number().int(),
   channelBreakdown: z.array(z.object({
-    channelId: z.string().uuid(),
+    channelId: z.guid(),
     channelName: z.string(),
     channelType: z.nativeEnum(SalesChannelType),
     orderCount: z.number().int(),
@@ -541,7 +541,7 @@ export const EcommerceDashboardResponseSchema = z.object({
   })),
   conversionRate: z.number(), // percentage
   recentOrders: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     orderNumber: z.string(),
     customerName: z.string().nullable(),
     channelType: z.nativeEnum(SalesChannelType),

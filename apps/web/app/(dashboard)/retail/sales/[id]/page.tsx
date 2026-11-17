@@ -17,7 +17,7 @@ export default function SaleDetailPage() {
   if (state) return state;
 
   const s = data as Record<string, unknown>;
-  const items = (s.items as Array<Record<string, unknown>>) ?? [];
+  const items = ((s.lineItems ?? s.items) as Array<Record<string, unknown>> | undefined) ?? [];
   const status = s.status as string;
   const customer = s.customer as { firstName?: string; lastName?: string; phone?: string } | undefined;
   const customerName = customer ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() : 'Walk-in';
@@ -25,13 +25,13 @@ export default function SaleDetailPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={(s.invoiceNumber as string) ?? 'Sale'}
+        title={(s.saleNumber as string) ?? (s.invoiceNumber as string) ?? 'Sale'}
         description={`${customerName} — ${status}`}
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Retail', href: '/retail' },
           { label: 'Sales', href: '/retail/sales' },
-          { label: (s.invoiceNumber as string) ?? '' },
+          { label: (s.saleNumber as string) ?? (s.invoiceNumber as string) ?? '' },
         ]}
         actions={
           <div className="flex gap-2">

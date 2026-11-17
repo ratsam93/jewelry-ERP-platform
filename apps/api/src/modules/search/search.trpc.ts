@@ -47,7 +47,7 @@ export class SearchTrpcRouter {
       updateSynonym: this.trpc.authedProcedure
         .input(
           z.object({
-            id: z.string().uuid(),
+            id: z.guid(),
             term: z.string().min(1).max(255).optional(),
             synonyms: z.array(z.string().min(1).max(255)).min(1).optional(),
             isActive: z.boolean().optional(),
@@ -62,7 +62,7 @@ export class SearchTrpcRouter {
         ),
 
       deleteSynonym: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.synonymService.deleteSynonym(ctx.tenantId!, input.id),
         ),
@@ -116,7 +116,7 @@ export class SearchTrpcRouter {
       updateSuggestion: this.trpc.authedProcedure
         .input(
           z.object({
-            id: z.string().uuid(),
+            id: z.guid(),
             suggestion: z.string().min(1).max(500).optional(),
             category: z.string().max(100).nullable().optional(),
             priority: z.number().int().optional(),
@@ -141,7 +141,7 @@ export class SearchTrpcRouter {
         }),
 
       deleteSuggestion: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ input }) => {
           await this.prisma.searchSuggestion.delete({
             where: { id: input.id },
@@ -180,7 +180,7 @@ export class SearchTrpcRouter {
         ),
 
       deletePopularSearch: this.trpc.authedProcedure
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.analyticsService.deletePopularSearch(ctx.tenantId!, input.id),
         ),

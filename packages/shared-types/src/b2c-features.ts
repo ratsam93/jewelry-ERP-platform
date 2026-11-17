@@ -25,19 +25,19 @@ export type BackInStockAlertStatus = z.infer<typeof BackInStockAlertStatusEnum>;
 // ─── Wishlist ─────────────────────────────────────────────────────
 
 export const AddToWishlistInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
 });
 export type AddToWishlistInput = z.infer<typeof AddToWishlistInputSchema>;
 
 export const PriceAlertInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   thresholdPaise: z.number().int().positive(),
 });
 export type PriceAlertInput = z.infer<typeof PriceAlertInputSchema>;
 
 export const WishlistItemSchema = z.object({
-  id: z.string().uuid(),
-  productId: z.string().uuid(),
+  id: z.guid(),
+  productId: z.guid(),
   addedAt: z.coerce.date(),
   priceAtAddPaise: z.bigint(),
   currentPricePaise: z.bigint().nullable(),
@@ -46,7 +46,7 @@ export const WishlistItemSchema = z.object({
   priceAlertThresholdPaise: z.bigint().nullable(),
   priceAlertTriggered: z.boolean(),
   product: z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     name: z.string(),
     sku: z.string(),
     productType: z.string(),
@@ -59,22 +59,22 @@ export type WishlistItem = z.infer<typeof WishlistItemSchema>;
 // ─── Compare List ─────────────────────────────────────────────────
 
 export const AddToCompareInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   sessionId: z.string().optional(),
 });
 export type AddToCompareInput = z.infer<typeof AddToCompareInputSchema>;
 
 export const RemoveFromCompareInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   sessionId: z.string().optional(),
 });
 export type RemoveFromCompareInput = z.infer<typeof RemoveFromCompareInputSchema>;
 
 export const CompareListOutputSchema = z.object({
-  id: z.string().uuid(),
-  productIds: z.array(z.string().uuid()),
+  id: z.guid(),
+  productIds: z.array(z.guid()),
   products: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     name: z.string(),
     sku: z.string(),
     productType: z.string(),
@@ -105,9 +105,9 @@ export const CouponCodeInputSchema = z.object({
   validFrom: z.coerce.date(),
   validTo: z.coerce.date(),
   isActive: z.boolean().default(true),
-  applicableCategories: z.array(z.string().uuid()).optional(),
-  applicableProducts: z.array(z.string().uuid()).optional(),
-  excludedProducts: z.array(z.string().uuid()).optional(),
+  applicableCategories: z.array(z.guid()).optional(),
+  applicableProducts: z.array(z.guid()).optional(),
+  excludedProducts: z.array(z.guid()).optional(),
   isFirstOrderOnly: z.boolean().default(false),
   isAutoApply: z.boolean().default(false),
 });
@@ -120,8 +120,8 @@ export const ValidateCouponInputSchema = z.object({
   code: z.string().toUpperCase(),
   cartTotalPaise: z.number().int().positive(),
   cartItems: z.array(z.object({
-    productId: z.string().uuid(),
-    categoryId: z.string().uuid().optional(),
+    productId: z.guid(),
+    categoryId: z.guid().optional(),
     pricePaise: z.number().int().positive(),
     quantity: z.number().int().positive(),
   })),
@@ -133,7 +133,7 @@ export const CouponValidationResultSchema = z.object({
   discountPaise: z.number().int().nonnegative(),
   errorMessage: z.string().optional(),
   coupon: z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     code: z.string(),
     discountType: CouponDiscountTypeEnum,
     discountValue: z.number().int(),
@@ -159,7 +159,7 @@ export type BulkCouponGenerateInput = z.infer<typeof BulkCouponGenerateInputSche
 // ─── Abandoned Cart ───────────────────────────────────────────────
 
 export const AbandonedCartItemSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   productName: z.string(),
   sku: z.string(),
   pricePaise: z.number().int(),
@@ -188,7 +188,7 @@ export type AbandonedCartDateRange = z.infer<typeof AbandonedCartDateRangeSchema
 // ─── Back In Stock Alert ──────────────────────────────────────────
 
 export const BackInStockSubscribeInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   email: z.string().email(),
 });
 export type BackInStockSubscribeInput = z.infer<typeof BackInStockSubscribeInputSchema>;

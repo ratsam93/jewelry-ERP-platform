@@ -31,14 +31,14 @@ export class ReferralTrpcRouter {
         }),
 
       programUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(ReferralProgramInputSchema)))
+        .input(z.object({ id: z.guid() }).merge(partialUpdate(ReferralProgramInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.referralService.updateProgram(ctx.tenantId, ctx.userId, id, data);
         }),
 
       programGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.referralService.getProgram(ctx.tenantId, input.id);
         }),
@@ -63,7 +63,7 @@ export class ReferralTrpcRouter {
         }),
 
       referralStats: authed
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.referralService.getReferralStats(ctx.tenantId, input.customerId);
         }),
@@ -90,14 +90,14 @@ export class ReferralTrpcRouter {
         }),
 
       payoutCredit: authed
-        .input(z.object({ payoutId: z.string().uuid() }))
+        .input(z.object({ payoutId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.referralService.creditPayout(ctx.tenantId, ctx.userId, input.payoutId);
         }),
 
       // ─── Code Generation (Admin) ────────────────────────────
       generateCode: authed
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.referralService.generateReferralCode(ctx.tenantId, input.customerId);
         }),

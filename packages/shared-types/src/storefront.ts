@@ -35,7 +35,7 @@ export const CouponDiscountTypeEnum = z.enum(['PERCENTAGE', 'FIXED_AMOUNT', 'FRE
 // ─── Product List / Catalog ───────────────────────────────────────
 
 export const ProductListInputSchema = PaginationSchema.extend({
-  categoryId: z.string().uuid().optional(),
+  categoryId: z.guid().optional(),
   productType: z.enum(['GOLD', 'SILVER', 'PLATINUM', 'DIAMOND', 'GEMSTONE', 'KUNDAN', 'OTHER']).optional(),
   metalPurity: z.number().int().min(1).max(999).optional(),
   priceMinPaise: z.number().int().nonnegative().optional(),
@@ -54,13 +54,13 @@ export const ReviewSummarySchema = z.object({
 export type ReviewSummary = z.infer<typeof ReviewSummarySchema>;
 
 export const CatalogProductResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   sku: z.string(),
   name: z.string(),
   description: z.string().nullable(),
-  categoryId: z.string().uuid().nullable(),
+  categoryId: z.guid().nullable(),
   categoryName: z.string().nullable(),
-  subCategoryId: z.string().uuid().nullable(),
+  subCategoryId: z.guid().nullable(),
   subCategoryName: z.string().nullable(),
   productType: z.string(),
   metalPurity: z.number().int().nullable(),
@@ -92,7 +92,7 @@ export type CatalogProductResponse = z.infer<typeof CatalogProductResponseSchema
 // ─── Cart ─────────────────────────────────────────────────────────
 
 export const CartItemInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   quantity: z.number().int().min(1).default(1),
 });
 export type CartItemInput = z.infer<typeof CartItemInputSchema>;
@@ -103,8 +103,8 @@ export const UpdateCartItemInputSchema = z.object({
 export type UpdateCartItemInput = z.infer<typeof UpdateCartItemInputSchema>;
 
 export const CartItemResponseSchema = z.object({
-  id: z.string().uuid(),
-  productId: z.string().uuid(),
+  id: z.guid(),
+  productId: z.guid(),
   productName: z.string(),
   productSku: z.string(),
   productImage: z.string().nullable(),
@@ -120,8 +120,8 @@ export const CartItemResponseSchema = z.object({
 export type CartItemResponse = z.infer<typeof CartItemResponseSchema>;
 
 export const CartResponseSchema = z.object({
-  id: z.string().uuid(),
-  customerId: z.string().uuid().nullable(),
+  id: z.guid(),
+  customerId: z.guid().nullable(),
   sessionId: z.string(),
   currencyCode: z.string(),
   couponCode: z.string().nullable(),
@@ -138,13 +138,13 @@ export type CartResponse = z.infer<typeof CartResponseSchema>;
 // ─── Wishlist ─────────────────────────────────────────────────────
 
 export const WishlistInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
 });
 export type WishlistInput = z.infer<typeof WishlistInputSchema>;
 
 export const WishlistItemResponseSchema = z.object({
-  id: z.string().uuid(),
-  productId: z.string().uuid(),
+  id: z.guid(),
+  productId: z.guid(),
   productName: z.string(),
   productSku: z.string(),
   productImage: z.string().nullable(),
@@ -182,8 +182,8 @@ export const AddressInputSchema = z.object({
 export type AddressInput = z.infer<typeof AddressInputSchema>;
 
 export const AddressResponseSchema = z.object({
-  id: z.string().uuid(),
-  customerId: z.string().uuid(),
+  id: z.guid(),
+  customerId: z.guid(),
   label: z.string(),
   firstName: z.string(),
   lastName: z.string(),
@@ -203,8 +203,8 @@ export type AddressResponse = z.infer<typeof AddressResponseSchema>;
 // ─── Checkout ─────────────────────────────────────────────────────
 
 export const CheckoutInputSchema = z.object({
-  cartId: z.string().uuid(),
-  addressId: z.string().uuid(),
+  cartId: z.guid(),
+  addressId: z.guid(),
   paymentMethod: z.string().min(1),
   couponCode: z.string().max(100).optional(),
 });
@@ -213,8 +213,8 @@ export type CheckoutInput = z.infer<typeof CheckoutInputSchema>;
 // ─── Order Response (Customer-facing) ─────────────────────────────
 
 export const StorefrontOrderItemSchema = z.object({
-  id: z.string().uuid(),
-  productId: z.string().uuid().nullable(),
+  id: z.guid(),
+  productId: z.guid().nullable(),
   title: z.string(),
   quantity: z.number().int(),
   unitPricePaise: z.number().int(),
@@ -226,7 +226,7 @@ export const StorefrontOrderItemSchema = z.object({
 export type StorefrontOrderItem = z.infer<typeof StorefrontOrderItemSchema>;
 
 export const StorefrontShipmentSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   shipmentNumber: z.string(),
   carrier: z.string().nullable(),
   trackingNumber: z.string().nullable(),
@@ -238,7 +238,7 @@ export const StorefrontShipmentSchema = z.object({
 export type StorefrontShipment = z.infer<typeof StorefrontShipmentSchema>;
 
 export const StorefrontPaymentSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   method: z.string().nullable(),
   amountPaise: z.number().int(),
   status: z.string(),
@@ -247,7 +247,7 @@ export const StorefrontPaymentSchema = z.object({
 export type StorefrontPayment = z.infer<typeof StorefrontPaymentSchema>;
 
 export const OrderResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   orderNumber: z.string(),
   status: z.string(),
   subtotalPaise: z.number().int(),
@@ -273,7 +273,7 @@ export type OrderResponse = z.infer<typeof OrderResponseSchema>;
 // ─── Review ───────────────────────────────────────────────────────
 
 export const ReviewInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   rating: z.number().int().min(1).max(5),
   title: z.string().max(500).optional(),
   body: z.string().max(5000).optional(),
@@ -282,9 +282,9 @@ export const ReviewInputSchema = z.object({
 export type ReviewInput = z.infer<typeof ReviewInputSchema>;
 
 export const ReviewResponseSchema = z.object({
-  id: z.string().uuid(),
-  productId: z.string().uuid(),
-  customerId: z.string().uuid().nullable(),
+  id: z.guid(),
+  productId: z.guid(),
+  customerId: z.guid().nullable(),
   customerName: z.string(),
   rating: z.number().int(),
   title: z.string().nullable(),
@@ -297,7 +297,7 @@ export const ReviewResponseSchema = z.object({
 export type ReviewResponse = z.infer<typeof ReviewResponseSchema>;
 
 export const ReviewListInputSchema = PaginationSchema.extend({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   sortBy: z.enum(['createdAt', 'rating', 'helpfulCount']).default('createdAt'),
 });
 export type ReviewListInput = z.infer<typeof ReviewListInputSchema>;
@@ -331,14 +331,14 @@ export const CouponCodeInputSchema = z.object({
   validFrom: z.coerce.date(),
   validTo: z.coerce.date(),
   isActive: z.boolean().default(true),
-  applicableCategories: z.array(z.string().uuid()).optional(),
-  applicableProducts: z.array(z.string().uuid()).optional(),
+  applicableCategories: z.array(z.guid()).optional(),
+  applicableProducts: z.array(z.guid()).optional(),
   isFirstOrderOnly: z.boolean().default(false),
 });
 export type CouponCodeInput = z.infer<typeof CouponCodeInputSchema>;
 
 export const CouponCodeResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   code: z.string(),
   description: z.string().nullable(),
   discountType: CouponDiscountTypeEnum,
@@ -370,9 +370,9 @@ export interface StorefrontCategory {
   children?: StorefrontCategory[];
 }
 export const StorefrontCategorySchema: z.ZodType<StorefrontCategory> = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string(),
-  parentId: z.string().uuid().nullable(),
+  parentId: z.guid().nullable(),
   description: z.string().nullable(),
   sortOrder: z.number().int(),
   children: z.array(z.lazy(() => StorefrontCategorySchema)).optional(),
@@ -405,7 +405,7 @@ export type StorefrontHomeResponse = z.infer<typeof StorefrontHomeResponseSchema
 // ─── Product Compare ──────────────────────────────────────────────
 
 export const ProductCompareInputSchema = z.object({
-  productIds: z.array(z.string().uuid()).min(2).max(4),
+  productIds: z.array(z.guid()).min(2).max(4),
 });
 export type ProductCompareInput = z.infer<typeof ProductCompareInputSchema>;
 
@@ -418,7 +418,7 @@ export type ProductCompareResponse = z.infer<typeof ProductCompareResponseSchema
 
 export const ReturnRequestInputSchema = z.object({
   items: z.array(z.object({
-    orderItemId: z.string().uuid(),
+    orderItemId: z.guid(),
     quantity: z.number().int().min(1),
     reason: z.string().min(1).max(500),
   })).min(1),
@@ -429,7 +429,7 @@ export type ReturnRequestInput = z.infer<typeof ReturnRequestInputSchema>;
 // ─── Price Alert Input ────────────────────────────────────────────
 
 export const PriceAlertInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   targetPricePaise: z.number().int().positive(),
 });
 export type PriceAlertInput = z.infer<typeof PriceAlertInputSchema>;

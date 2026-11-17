@@ -108,3 +108,17 @@ export function timeAgo(dateStr: string): string {
 export function generateId(): string {
   return Math.random().toString(36).slice(2, 11);
 }
+
+/**
+ * Normalise a typed/pasted Indian mobile number to its 10 national digits.
+ * Accepts an optional +91 / 91 / 0091 / 0 prefix and any spacing or dashes.
+ */
+export function normalizeIndianPhone(raw: string): string {
+  const hasPlus = raw.trim().startsWith("+");
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("0091")) digits = digits.slice(4);
+  else if (hasPlus && digits.startsWith("91")) digits = digits.slice(2);
+  else if (digits.length > 10 && digits.startsWith("91")) digits = digits.slice(2);
+  else if (digits.length > 10 && digits.startsWith("0")) digits = digits.slice(1);
+  return digits.slice(0, 10);
+}

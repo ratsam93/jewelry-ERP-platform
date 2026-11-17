@@ -43,7 +43,7 @@ export class BnplTrpcRouter {
         ),
 
       getProvider: this.trpc.authedProcedure
-        .input(z.object({ providerId: z.string().uuid() }))
+        .input(z.object({ providerId: z.guid() }))
         .query(({ ctx, input }) =>
           this.bnplService.getProvider(ctx.tenantId, input.providerId),
         ),
@@ -55,7 +55,7 @@ export class BnplTrpcRouter {
 
       updateProvider: this.trpc.authedProcedure
         .input(z.object({
-          providerId: z.string().uuid(),
+          providerId: z.guid(),
           data: partialUpdate(BnplProviderInputSchema),
         }))
         .mutation(({ ctx, input }) =>
@@ -64,7 +64,7 @@ export class BnplTrpcRouter {
 
       toggleProvider: this.trpc.authedProcedure
         .input(z.object({
-          providerId: z.string().uuid(),
+          providerId: z.guid(),
           isActive: z.boolean(),
         }))
         .mutation(({ ctx, input }) =>
@@ -80,7 +80,7 @@ export class BnplTrpcRouter {
 
       updateEmiPlan: this.trpc.authedProcedure
         .input(z.object({
-          planId: z.string().uuid(),
+          planId: z.guid(),
           data: partialUpdate(EmiPlanInputSchema),
         }))
         .mutation(({ ctx, input }) =>
@@ -101,14 +101,14 @@ export class BnplTrpcRouter {
         ),
 
       deleteEmiPlan: this.trpc.authedProcedure
-        .input(z.object({ planId: z.string().uuid() }))
+        .input(z.object({ planId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.emiService.deletePlan(ctx.tenantId, input.planId),
         ),
 
       toggleNoCostEmi: this.trpc.authedProcedure
         .input(z.object({
-          planId: z.string().uuid(),
+          planId: z.guid(),
           enabled: z.boolean(),
           subventionPct: z.number().int().nonnegative().default(0),
         }))
@@ -130,7 +130,7 @@ export class BnplTrpcRouter {
 
       // ─── Transactions ───────────────────────────────────────
       getTransaction: this.trpc.authedProcedure
-        .input(z.object({ transactionId: z.string().uuid() }))
+        .input(z.object({ transactionId: z.guid() }))
         .query(({ ctx, input }) =>
           this.bnplService.getTransaction(ctx.tenantId, input.transactionId),
         ),
@@ -151,7 +151,7 @@ export class BnplTrpcRouter {
       // ─── Eligibility ────────────────────────────────────────
       checkEligibility: this.trpc.authedProcedure
         .input(z.object({
-          customerId: z.string().uuid(),
+          customerId: z.guid(),
           amountPaise: z.number().int().positive(),
         }))
         .query(({ ctx, input }) =>
@@ -160,7 +160,7 @@ export class BnplTrpcRouter {
 
       // ─── Saved Payment Methods (Admin view) ─────────────────
       listCustomerMethods: this.trpc.authedProcedure
-        .input(z.object({ customerId: z.string().uuid() }))
+        .input(z.object({ customerId: z.guid() }))
         .query(({ ctx, input }) =>
           this.savedPaymentService.listMethods(ctx.tenantId, input.customerId),
         ),

@@ -53,7 +53,7 @@ export class PlatformTrpc {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ userId: z.string().uuid() }))
+          .input(z.object({ userId: z.guid() }))
           .query(({ ctx, input }) =>
             this.userService.getUserById(ctx.tenantId, input.userId),
           ),
@@ -64,7 +64,7 @@ export class PlatformTrpc {
               email: z.string().email(),
               firstName: z.string().min(1).max(100),
               lastName: z.string().min(1).max(100),
-              roleId: z.string().uuid().optional(),
+              roleId: z.guid().optional(),
             }),
           )
           .mutation(({ ctx, input }) =>
@@ -72,13 +72,13 @@ export class PlatformTrpc {
           ),
 
         activate: this.trpc.authedProcedure
-          .input(z.object({ userId: z.string().uuid() }))
+          .input(z.object({ userId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.userService.activateUser(ctx.tenantId, input.userId, { userId: ctx.userId }),
           ),
 
         deactivate: this.trpc.authedProcedure
-          .input(z.object({ userId: z.string().uuid() }))
+          .input(z.object({ userId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.userService.deactivateUser(ctx.tenantId, input.userId, { userId: ctx.userId }),
           ),
@@ -86,7 +86,7 @@ export class PlatformTrpc {
         updateProfile: this.trpc.authedProcedure
           .input(
             z.object({
-              userId: z.string().uuid(),
+              userId: z.guid(),
               firstName: z.string().min(1).max(100).optional(),
               lastName: z.string().min(1).max(100).optional(),
               preferences: z.record(z.string(), z.unknown()).optional(),
@@ -116,7 +116,7 @@ export class PlatformTrpc {
         ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ roleId: z.string().uuid() }))
+          .input(z.object({ roleId: z.guid() }))
           .query(({ ctx, input }) =>
             this.roleService.getRoleById(ctx.tenantId, input.roleId),
           ),
@@ -136,7 +136,7 @@ export class PlatformTrpc {
         update: this.trpc.authedProcedure
           .input(
             z.object({
-              roleId: z.string().uuid(),
+              roleId: z.guid(),
               name: z.string().min(1).max(100).optional(),
               description: z.string().max(500).optional(),
               permissions: z.array(z.string()).optional(),
@@ -148,13 +148,13 @@ export class PlatformTrpc {
           }),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ roleId: z.string().uuid() }))
+          .input(z.object({ roleId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.roleService.deleteRole(ctx.tenantId, input.roleId),
           ),
 
         assignToUser: this.trpc.authedProcedure
-          .input(z.object({ userId: z.string().uuid(), roleId: z.string().uuid() }))
+          .input(z.object({ userId: z.guid(), roleId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.roleService.assignRoleToUser(ctx.tenantId, input.userId, input.roleId, { userId: ctx.userId }),
           ),
@@ -177,7 +177,7 @@ export class PlatformTrpc {
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ branchId: z.string().uuid() }))
+          .input(z.object({ branchId: z.guid() }))
           .query(({ ctx, input }) =>
             this.branchService.getBranchById(ctx.tenantId, input.branchId),
           ),
@@ -204,7 +204,7 @@ export class PlatformTrpc {
         update: this.trpc.authedProcedure
           .input(
             z.object({
-              branchId: z.string().uuid(),
+              branchId: z.guid(),
               name: z.string().min(1).max(255).optional(),
               locationType: z.enum(['SHOWROOM', 'WAREHOUSE', 'WORKSHOP', 'OFFICE']).optional(),
               address: z.string().max(500).optional(),
@@ -224,13 +224,13 @@ export class PlatformTrpc {
           }),
 
         deactivate: this.trpc.authedProcedure
-          .input(z.object({ branchId: z.string().uuid() }))
+          .input(z.object({ branchId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.branchService.deactivateBranch(ctx.tenantId, input.branchId, { userId: ctx.userId }),
           ),
 
         setUserActiveBranch: this.trpc.authedProcedure
-          .input(z.object({ branchId: z.string().uuid() }))
+          .input(z.object({ branchId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.branchService.setUserActiveBranch(ctx.tenantId, ctx.userId, input.branchId),
           ),
@@ -238,7 +238,7 @@ export class PlatformTrpc {
         updateSettings: this.trpc.authedProcedure
           .input(
             z.object({
-              branchId: z.string().uuid(),
+              branchId: z.guid(),
               settings: z.record(z.string(), z.unknown()),
             }),
           )
@@ -306,7 +306,7 @@ export class PlatformTrpc {
         process: this.trpc.authedProcedure
           .input(
             z.object({
-              importJobId: z.string().uuid(),
+              importJobId: z.guid(),
               rows: z.array(z.record(z.string(), z.unknown())),
             }),
           )
@@ -315,7 +315,7 @@ export class PlatformTrpc {
           ),
 
         getJob: this.trpc.authedProcedure
-          .input(z.object({ jobId: z.string().uuid() }))
+          .input(z.object({ jobId: z.guid() }))
           .query(({ ctx, input }) =>
             this.importService.getImportJob(ctx.tenantId, input.jobId),
           ),
@@ -342,7 +342,7 @@ export class PlatformTrpc {
           ),
 
         getJob: this.trpc.authedProcedure
-          .input(z.object({ jobId: z.string().uuid() }))
+          .input(z.object({ jobId: z.guid() }))
           .query(({ ctx, input }) =>
             this.exportService.getExportJob(ctx.tenantId, input.jobId),
           ),
@@ -362,7 +362,7 @@ export class PlatformTrpc {
               ...PaginationSchema.shape,
               entityType: z.string().optional(),
               entityId: z.string().optional(),
-              userId: z.string().uuid().optional(),
+              userId: z.guid().optional(),
               action: z.string().optional(),
               dateFrom: z.string().optional(),
               dateTo: z.string().optional(),
@@ -380,7 +380,7 @@ export class PlatformTrpc {
           .input(
             z.object({
               ...PaginationSchema.shape,
-              userId: z.string().uuid().optional(),
+              userId: z.guid().optional(),
               action: z.string().optional(),
               dateFrom: z.string().optional(),
               dateTo: z.string().optional(),
@@ -416,7 +416,7 @@ export class PlatformTrpc {
         ),
 
         markAsRead: this.trpc.authedProcedure
-          .input(z.object({ notificationId: z.string().uuid() }))
+          .input(z.object({ notificationId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.notificationService.markAsRead(ctx.tenantId, input.notificationId, ctx.userId),
           ),
@@ -426,7 +426,7 @@ export class PlatformTrpc {
         ),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ notificationId: z.string().uuid() }))
+          .input(z.object({ notificationId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.notificationService.deleteNotification(ctx.tenantId, input.notificationId, ctx.userId),
           ),
@@ -475,7 +475,7 @@ export class PlatformTrpc {
         update: this.trpc.authedProcedure
           .input(
             z.object({
-              id: z.string().uuid(),
+              id: z.guid(),
               defaultValue: z.string().optional(),
               translations: z.record(z.string(), z.string()).optional(),
             }),
@@ -486,7 +486,7 @@ export class PlatformTrpc {
           }),
 
         delete: this.trpc.authedProcedure
-          .input(z.object({ id: z.string().uuid() }))
+          .input(z.object({ id: z.guid() }))
           .mutation(({ input }) => this.i18nService.deleteTranslationKey(input.id)),
 
         bulkUpdate: this.trpc.authedProcedure

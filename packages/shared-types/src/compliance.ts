@@ -52,13 +52,13 @@ export type ComplianceAuditStatus = z.infer<typeof ComplianceAuditStatusEnum>;
 // ─── HUID ─────────────────────────────────────────────────────
 
 export const HuidRecordInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   huidNumber: z.string().length(6).regex(/^[A-Z0-9]{6}$/, 'HUID must be 6 alphanumeric characters'),
   articleType: z.string().min(1).max(100),
   metalType: z.string().min(1).max(50),
   purityFineness: z.number().int().min(0).max(999),
   weightMg: z.number().int().positive(),
-  hallmarkCenterId: z.string().uuid().optional(),
+  hallmarkCenterId: z.guid().optional(),
   registeredAt: z.coerce.date().optional(),
 });
 export type HuidRecordInput = z.infer<typeof HuidRecordInputSchema>;
@@ -74,19 +74,19 @@ export const BulkHuidRegisterSchema = z.object({
 export type BulkHuidRegister = z.infer<typeof BulkHuidRegisterSchema>;
 
 export const HuidRecordSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  productId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  productId: z.guid(),
   huidNumber: z.string().length(6),
   articleType: z.string(),
   metalType: z.string(),
   purityFineness: z.number().int(),
   weightMg: z.number().int(),
-  hallmarkCenterId: z.string().uuid().nullable(),
+  hallmarkCenterId: z.guid().nullable(),
   registeredAt: z.coerce.date(),
   status: HuidStatusEnum,
   verifiedAt: z.coerce.date().nullable(),
-  verifiedBy: z.string().uuid().nullable(),
+  verifiedBy: z.guid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -123,7 +123,7 @@ export const HallmarkCenterInputSchema = z.object({
 export type HallmarkCenterInput = z.infer<typeof HallmarkCenterInputSchema>;
 
 export const HallmarkCenterSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   centerCode: z.string(),
   name: z.string(),
   address: z.string().nullable(),
@@ -139,14 +139,14 @@ export type HallmarkCenter = z.infer<typeof HallmarkCenterSchema>;
 // ─── Hallmark Submission ──────────────────────────────────────
 
 export const HallmarkSubmissionItemInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   declaredPurity: z.number().int().min(0).max(999),
 });
 export type HallmarkSubmissionItemInput = z.infer<typeof HallmarkSubmissionItemInputSchema>;
 
 export const HallmarkSubmissionInputSchema = z.object({
-  hallmarkCenterId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  hallmarkCenterId: z.guid(),
+  locationId: z.guid(),
   submittedDate: z.coerce.date().optional(),
   expectedReturnDate: z.coerce.date().optional(),
   notes: z.string().optional(),
@@ -155,7 +155,7 @@ export const HallmarkSubmissionInputSchema = z.object({
 export type HallmarkSubmissionInput = z.infer<typeof HallmarkSubmissionInputSchema>;
 
 export const HallmarkSubmissionItemResultSchema = z.object({
-  itemId: z.string().uuid(),
+  itemId: z.guid(),
   status: HallmarkItemStatusEnum,
   testedPurity: z.number().int().optional(),
   huidAssigned: z.string().length(6).regex(/^[A-Z0-9]{6}$/).optional(),
@@ -165,17 +165,17 @@ export const HallmarkSubmissionItemResultSchema = z.object({
 export type HallmarkSubmissionItemResult = z.infer<typeof HallmarkSubmissionItemResultSchema>;
 
 export const RecordHallmarkResultsSchema = z.object({
-  submissionId: z.string().uuid(),
+  submissionId: z.guid(),
   results: z.array(HallmarkSubmissionItemResultSchema).min(1),
 });
 export type RecordHallmarkResults = z.infer<typeof RecordHallmarkResultsSchema>;
 
 export const HallmarkSubmissionResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   submissionNumber: z.string(),
-  hallmarkCenterId: z.string().uuid(),
-  locationId: z.string().uuid(),
+  hallmarkCenterId: z.guid(),
+  locationId: z.guid(),
   status: HallmarkSubmissionStatusEnum,
   submittedDate: z.coerce.date(),
   expectedReturnDate: z.coerce.date().nullable(),
@@ -186,8 +186,8 @@ export const HallmarkSubmissionResponseSchema = z.object({
   notes: z.string().nullable(),
   createdAt: z.coerce.date(),
   items: z.array(z.object({
-    id: z.string().uuid(),
-    productId: z.string().uuid(),
+    id: z.guid(),
+    productId: z.guid(),
     status: HallmarkItemStatusEnum,
     testedPurity: z.number().int().nullable(),
     declaredPurity: z.number().int(),
@@ -206,14 +206,14 @@ export type HallmarkSubmissionResponse = z.infer<typeof HallmarkSubmissionRespon
 
 export const HallmarkSubmissionListInputSchema = PaginationSchema.extend({
   status: HallmarkSubmissionStatusEnum.optional(),
-  hallmarkCenterId: z.string().uuid().optional(),
+  hallmarkCenterId: z.guid().optional(),
 });
 export type HallmarkSubmissionListInput = z.infer<typeof HallmarkSubmissionListInputSchema>;
 
 // ─── Gemstone Certificate ─────────────────────────────────────
 
 export const GemstoneCertificateInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   certificateNumber: z.string().min(1).max(100),
   issuingLab: CertificateIssuingLabEnum,
   stoneType: z.string().min(1).max(100),
@@ -240,9 +240,9 @@ export const CertificateVerificationResultSchema = z.object({
 export type CertificateVerificationResult = z.infer<typeof CertificateVerificationResultSchema>;
 
 export const GemstoneCertificateSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  productId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  productId: z.guid(),
   certificateNumber: z.string(),
   issuingLab: CertificateIssuingLabEnum,
   stoneType: z.string(),
@@ -278,14 +278,14 @@ export type GemstoneCertificateListInput = z.infer<typeof GemstoneCertificateLis
 // ─── Chain of Custody ─────────────────────────────────────────
 
 export const ChainOfCustodyInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   eventType: CustodyEventTypeEnum,
   fromEntityType: z.string().max(100).optional(),
-  fromEntityId: z.string().uuid().optional(),
+  fromEntityId: z.guid().optional(),
   toEntityType: z.string().max(100).optional(),
-  toEntityId: z.string().uuid().optional(),
+  toEntityId: z.guid().optional(),
   eventDate: z.coerce.date().optional(),
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
   documentReference: z.string().max(200).optional(),
   notes: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
@@ -293,16 +293,16 @@ export const ChainOfCustodyInputSchema = z.object({
 export type ChainOfCustodyInput = z.infer<typeof ChainOfCustodyInputSchema>;
 
 export const ChainOfCustodyEventSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  productId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  productId: z.guid(),
   eventType: CustodyEventTypeEnum,
   fromEntityType: z.string().nullable(),
   fromEntityId: z.string().nullable(),
   toEntityType: z.string().nullable(),
   toEntityId: z.string().nullable(),
   eventDate: z.coerce.date(),
-  locationId: z.string().uuid().nullable(),
+  locationId: z.guid().nullable(),
   documentReference: z.string().nullable(),
   notes: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()).nullable(),
@@ -311,7 +311,7 @@ export const ChainOfCustodyEventSchema = z.object({
 export type ChainOfCustodyEvent = z.infer<typeof ChainOfCustodyEventSchema>;
 
 export const TraceabilityChainResponseSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   product: z.object({
     id: z.string(),
     sku: z.string(),
@@ -326,8 +326,8 @@ export type TraceabilityChainResponse = z.infer<typeof TraceabilityChainResponse
 // ─── Compliance Document ──────────────────────────────────────
 
 export const ComplianceDocumentInputSchema = z.object({
-  productId: z.string().uuid().optional(),
-  supplierId: z.string().uuid().optional(),
+  productId: z.guid().optional(),
+  supplierId: z.guid().optional(),
   documentType: ComplianceDocumentTypeEnum,
   documentNumber: z.string().min(1).max(200),
   issuedBy: z.string().max(255).optional(),
@@ -339,10 +339,10 @@ export const ComplianceDocumentInputSchema = z.object({
 export type ComplianceDocumentInput = z.infer<typeof ComplianceDocumentInputSchema>;
 
 export const ComplianceDocumentSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  productId: z.string().uuid().nullable(),
-  supplierId: z.string().uuid().nullable(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  productId: z.guid().nullable(),
+  supplierId: z.guid().nullable(),
   documentType: ComplianceDocumentTypeEnum,
   documentNumber: z.string(),
   issuedBy: z.string().nullable(),
@@ -368,7 +368,7 @@ export type ComplianceDocumentListInput = z.infer<typeof ComplianceDocumentListI
 export const InsurancePolicyInputSchema = z.object({
   policyNumber: z.string().min(1).max(100),
   provider: z.string().min(1).max(255),
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
   coverageType: InsuranceCoverageTypeEnum,
   coveredValuePaise: z.number().int().positive(),
   premiumPaise: z.number().int().positive(),
@@ -380,11 +380,11 @@ export const InsurancePolicyInputSchema = z.object({
 export type InsurancePolicyInput = z.infer<typeof InsurancePolicyInputSchema>;
 
 export const InsurancePolicySchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   policyNumber: z.string(),
   provider: z.string(),
-  locationId: z.string().uuid().nullable(),
+  locationId: z.guid().nullable(),
   coverageType: InsuranceCoverageTypeEnum,
   coveredValuePaise: z.number().int(),
   premiumPaise: z.number().int(),
@@ -410,24 +410,24 @@ export const ComplianceAuditInputSchema = z.object({
   auditType: ComplianceAuditTypeEnum,
   auditDate: z.coerce.date(),
   auditorName: z.string().min(1).max(255),
-  locationId: z.string().uuid().optional(),
+  locationId: z.guid().optional(),
   findings: z.string().optional(),
   recommendations: z.string().optional(),
 });
 export type ComplianceAuditInput = z.infer<typeof ComplianceAuditInputSchema>;
 
 export const ComplianceAuditSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   auditType: ComplianceAuditTypeEnum,
   auditDate: z.coerce.date(),
   auditorName: z.string(),
-  locationId: z.string().uuid().nullable(),
+  locationId: z.guid().nullable(),
   status: ComplianceAuditStatusEnum,
   findings: z.string().nullable(),
   recommendations: z.string().nullable(),
   resolvedAt: z.coerce.date().nullable(),
-  resolvedBy: z.string().uuid().nullable(),
+  resolvedBy: z.guid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -440,7 +440,7 @@ export const ComplianceAuditListInputSchema = PaginationSchema.extend({
 export type ComplianceAuditListInput = z.infer<typeof ComplianceAuditListInputSchema>;
 
 export const AuditResolveInputSchema = z.object({
-  auditId: z.string().uuid(),
+  auditId: z.guid(),
   findings: z.string().optional(),
   recommendations: z.string().optional(),
 });

@@ -68,7 +68,7 @@ export const BnplProviderInputSchema = z.object({
 export type BnplProviderInput = z.infer<typeof BnplProviderInputSchema>;
 
 export const BnplProviderResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   tenantId: z.string(),
   providerName: z.nativeEnum(BnplProviderName),
   displayName: z.string(),
@@ -86,7 +86,7 @@ export type BnplProviderResponse = z.infer<typeof BnplProviderResponseSchema>;
 // ─── EmiPlan ──────────────────────────────────────────────────────
 
 export const EmiPlanInputSchema = z.object({
-  providerId: z.string().uuid().optional(),
+  providerId: z.guid().optional(),
   bankName: z.string().max(255).optional(),
   tenure: z.number().int().positive(),
   interestRatePct: z.number().int().nonnegative(),
@@ -101,9 +101,9 @@ export const EmiPlanInputSchema = z.object({
 export type EmiPlanInput = z.infer<typeof EmiPlanInputSchema>;
 
 export const EmiPlanResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   tenantId: z.string(),
-  providerId: z.string().uuid().nullable(),
+  providerId: z.guid().nullable(),
   bankName: z.string().nullable(),
   tenure: z.number(),
   interestRatePct: z.number(),
@@ -148,7 +148,7 @@ export const EmiCalculatorResultSchema = z.object({
 export type EmiCalculatorResult = z.infer<typeof EmiCalculatorResultSchema>;
 
 export const EmiCalculationSchema = z.object({
-  planId: z.string().uuid(),
+  planId: z.guid(),
   bankName: z.string().nullable(),
   tenure: z.number(),
   interestRatePct: z.number(),
@@ -165,17 +165,17 @@ export type EmiCalculation = z.infer<typeof EmiCalculationSchema>;
 export const InitiateBnplInputSchema = z.object({
   orderId: z.string().min(1),
   providerName: z.nativeEnum(BnplProviderName),
-  planId: z.string().uuid().optional(),
+  planId: z.guid().optional(),
 });
 export type InitiateBnplInput = z.infer<typeof InitiateBnplInputSchema>;
 
 export const BnplTransactionResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   tenantId: z.string(),
   orderId: z.string(),
   customerId: z.string(),
   providerName: z.nativeEnum(BnplProviderName),
-  planId: z.string().uuid().nullable(),
+  planId: z.guid().nullable(),
   orderAmountPaise: z.number(),
   emiAmountPaise: z.number(),
   tenure: z.number(),
@@ -195,8 +195,8 @@ export type BnplTransactionResponse = z.infer<typeof BnplTransactionResponseSche
 // ─── EMI Schedule Response ────────────────────────────────────────
 
 export const EmiScheduleResponseSchema = z.object({
-  id: z.string().uuid(),
-  transactionId: z.string().uuid(),
+  id: z.guid(),
+  transactionId: z.guid(),
   installmentNumber: z.number(),
   dueDate: z.date(),
   amountPaise: z.number(),
@@ -226,7 +226,7 @@ export const SavedPaymentMethodInputSchema = z.object({
 export type SavedPaymentMethodInput = z.infer<typeof SavedPaymentMethodInputSchema>;
 
 export const SavedPaymentMethodResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   tenantId: z.string(),
   customerId: z.string(),
   methodType: z.nativeEnum(SavedMethodType),
@@ -246,7 +246,7 @@ export type SavedPaymentMethodResponse = z.infer<typeof SavedPaymentMethodRespon
 // ─── Eligibility Check ───────────────────────────────────────────
 
 export const CheckEligibilityInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   amountPaise: z.number().int().positive(),
 });
 export type CheckEligibilityInput = z.infer<typeof CheckEligibilityInputSchema>;
@@ -256,7 +256,7 @@ export const EligibilityResultSchema = z.object({
   providers: z.array(z.object({
     providerName: z.nativeEnum(BnplProviderName),
     displayName: z.string(),
-    providerId: z.string().uuid(),
+    providerId: z.guid(),
     maxAmountPaise: z.number(),
     supportedTenures: z.array(z.number()),
     processingFeePct: z.number(),
@@ -270,7 +270,7 @@ export type EligibilityResult = z.infer<typeof EligibilityResultSchema>;
 export const BnplTransactionListFilterSchema = z.object({
   status: z.nativeEnum(BnplTransactionStatus).optional(),
   providerName: z.nativeEnum(BnplProviderName).optional(),
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   orderId: z.string().optional(),
   search: z.string().optional(),
 });
@@ -279,7 +279,7 @@ export type BnplTransactionListFilter = z.infer<typeof BnplTransactionListFilter
 export const EmiPlanListFilterSchema = z.object({
   isActive: z.boolean().optional(),
   bankName: z.string().optional(),
-  providerId: z.string().uuid().optional(),
+  providerId: z.guid().optional(),
   isNoCostEmi: z.boolean().optional(),
   search: z.string().optional(),
 });

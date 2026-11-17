@@ -35,14 +35,14 @@ export class ChatbotTrpcRouter {
         }),
 
       faqUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(ChatFaqInputSchema)))
+        .input(z.object({ id: z.guid() }).merge(partialUpdate(ChatFaqInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.knowledgeService.updateFaq(ctx.tenantId, id, data);
         }),
 
       faqGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.knowledgeService.getFaq(ctx.tenantId, input.id);
         }),
@@ -61,7 +61,7 @@ export class ChatbotTrpcRouter {
         }),
 
       faqDelete: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.knowledgeService.deleteFaq(ctx.tenantId, input.id);
         }),
@@ -81,14 +81,14 @@ export class ChatbotTrpcRouter {
         }),
 
       templateUpdate: authed
-        .input(z.object({ id: z.string().uuid() }).merge(partialUpdate(ChatTemplateInputSchema)))
+        .input(z.object({ id: z.guid() }).merge(partialUpdate(ChatTemplateInputSchema)))
         .mutation(async ({ ctx, input }) => {
           const { id, ...data } = input;
           return this.knowledgeService.updateTemplate(ctx.tenantId, id, data);
         }),
 
       templateGet: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .query(async ({ ctx, input }) => {
           return this.knowledgeService.getTemplate(ctx.tenantId, input.id);
         }),
@@ -107,7 +107,7 @@ export class ChatbotTrpcRouter {
         }),
 
       templateDelete: authed
-        .input(z.object({ id: z.string().uuid() }))
+        .input(z.object({ id: z.guid() }))
         .mutation(async ({ ctx, input }) => {
           return this.knowledgeService.deleteTemplate(ctx.tenantId, input.id);
         }),

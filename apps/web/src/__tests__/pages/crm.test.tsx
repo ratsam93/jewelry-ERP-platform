@@ -16,7 +16,7 @@ describe('CRM Pages', () => {
       expect(screen.getByText('Total Customers')).toBeInTheDocument();
       expect(screen.getByText('Active Leads')).toBeInTheDocument();
       expect(screen.getByText('Active Campaigns')).toBeInTheDocument();
-      expect(screen.getByText('New (30d)')).toBeInTheDocument();
+      expect(screen.getByText('New Leads (30d)')).toBeInTheDocument();
     });
   });
 

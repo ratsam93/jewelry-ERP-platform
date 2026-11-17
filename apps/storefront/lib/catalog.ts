@@ -435,7 +435,24 @@ export function formatISTTime(iso: string): string {
 
 // ─── Transport ────────────────────────────────────────────────────────
 
-export const CATALOG_REVALIDATE_SECONDS = 60;
+// Prices change with metal rates and fixes, so keep the fetch cache short:
+// a stale entry must never outlive a deploy by more than a few seconds.
+export const CATALOG_REVALIDATE_SECONDS = 15;
+export const CATALOG_RETRY_DELAY_MS = 800;
+
+/**
+ * Run `fn`, retrying once after `delayMs` on a transient failure
+ * (network error or HTTP 5xx). 4xx errors are returned immediately.
+ */
+export async function withOneRetry<T>(fn: () => Promise<T>, delayMs = CATALOG_RETRY_DELAY_MS): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof ApiError && err.status < 500) throw err;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return fn();
+  }
+}
 export const CATEGORY_PAGE_SIZE = 48;
 
 interface CatalogRequestOptions {
@@ -622,7 +639,7 @@ export async function getCategories(opts: CatalogRequestOptions = {}): Promise<C
 }
 
 export async function getHome(opts: CatalogRequestOptions = {}): Promise<HomeData> {
-  const data = await catalogGet<ApiHome>("/home", opts);
+  const data = await withOneRetry(() => catalogGet<ApiHome>("/home", opts));
   return {
     featuredProducts: (data.featuredProducts ?? []).map((p) => mapProduct(p)),
     newArrivals: (data.newArrivals ?? []).map((p) => mapProduct(p, { isNew: true })),

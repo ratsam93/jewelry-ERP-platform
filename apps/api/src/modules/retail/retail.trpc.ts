@@ -59,13 +59,13 @@ export class RetailTrpcRouter {
         ),
 
       getSale: this.trpc.authedProcedure
-        .input(z.object({ saleId: z.string().uuid() }))
+        .input(z.object({ saleId: z.guid() }))
         .query(({ ctx, input }) =>
           this.retailService.getSale(ctx.tenantId, input.saleId),
         ),
 
       downloadReceipt: this.trpc.authedProcedure
-        .input(z.object({ saleId: z.string().uuid() }))
+        .input(z.object({ saleId: z.guid() }))
         .query(async ({ ctx, input }) => {
           const buf = await this.retailService.generateSaleReceipt(
             ctx.tenantId,
@@ -90,20 +90,20 @@ export class RetailTrpcRouter {
         ),
 
       voidSale: this.trpc.authedProcedure
-        .input(z.object({ saleId: z.string().uuid(), reason: z.string().min(1) }))
+        .input(z.object({ saleId: z.guid(), reason: z.string().min(1) }))
         .mutation(({ ctx, input }) =>
           this.retailService.voidSale(ctx.tenantId, ctx.userId, input.saleId, input.reason),
         ),
 
       // ─── POS Session / Dashboard ─────────────────────────────
       getPosSession: this.trpc.authedProcedure
-        .input(z.object({ locationId: z.string().uuid() }))
+        .input(z.object({ locationId: z.guid() }))
         .query(({ ctx, input }) =>
           this.retailService.getPosSession(ctx.tenantId, input.locationId),
         ),
 
       getDashboard: this.trpc.authedProcedure
-        .input(z.object({ locationId: z.string().uuid().optional() }).optional())
+        .input(z.object({ locationId: z.guid().optional() }).optional())
         .query(({ ctx, input }) =>
           this.retailService.getDashboard(ctx.tenantId, input?.locationId),
         ),
@@ -136,11 +136,11 @@ export class RetailTrpcRouter {
 
       validateDiscount: this.trpc.authedProcedure
         .input(z.object({
-          discountId: z.string().uuid(),
+          discountId: z.guid(),
           subtotalPaise: z.number().int().nonnegative(),
-          productIds: z.array(z.string().uuid()),
+          productIds: z.array(z.guid()),
           cartItems: z.array(z.object({
-            productId: z.string().uuid().optional(),
+            productId: z.guid().optional(),
             quantity: z.number().int().positive(),
             unitPricePaise: z.number().int().nonnegative(),
           })).optional(),
@@ -163,14 +163,14 @@ export class RetailTrpcRouter {
         ),
 
       getReturn: this.trpc.authedProcedure
-        .input(z.object({ returnId: z.string().uuid() }))
+        .input(z.object({ returnId: z.guid() }))
         .query(({ ctx, input }) =>
           this.returnService.getReturn(ctx.tenantId, input.returnId),
         ),
 
       listReturns: this.trpc.authedProcedure
         .input(z.object({
-          filters: z.object({ status: z.string().optional(), originalSaleId: z.string().uuid().optional() }).optional(),
+          filters: z.object({ status: z.string().optional(), originalSaleId: z.guid().optional() }).optional(),
           pagination: PaginationSchema.optional(),
         }))
         .query(({ ctx, input }) =>
@@ -182,19 +182,19 @@ export class RetailTrpcRouter {
         ),
 
       approveReturn: this.trpc.authedProcedure
-        .input(z.object({ returnId: z.string().uuid() }))
+        .input(z.object({ returnId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.returnService.approveReturn(ctx.tenantId, ctx.userId, input.returnId),
         ),
 
       completeReturn: this.trpc.authedProcedure
-        .input(z.object({ returnId: z.string().uuid() }))
+        .input(z.object({ returnId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.returnService.completeReturn(ctx.tenantId, ctx.userId, input.returnId),
         ),
 
       rejectReturn: this.trpc.authedProcedure
-        .input(z.object({ returnId: z.string().uuid(), reason: z.string().min(1) }))
+        .input(z.object({ returnId: z.guid(), reason: z.string().min(1) }))
         .mutation(({ ctx, input }) =>
           this.returnService.rejectReturn(ctx.tenantId, ctx.userId, input.returnId, input.reason),
         ),
@@ -207,7 +207,7 @@ export class RetailTrpcRouter {
         ),
 
       getRepairOrder: this.trpc.authedProcedure
-        .input(z.object({ repairId: z.string().uuid() }))
+        .input(z.object({ repairId: z.guid() }))
         .query(({ ctx, input }) =>
           this.repairService.getRepairOrder(ctx.tenantId, input.repairId),
         ),
@@ -226,19 +226,19 @@ export class RetailTrpcRouter {
         ),
 
       updateRepairStatus: this.trpc.authedProcedure
-        .input(z.object({ repairId: z.string().uuid(), update: RepairStatusUpdateSchema }))
+        .input(z.object({ repairId: z.guid(), update: RepairStatusUpdateSchema }))
         .mutation(({ ctx, input }) =>
           this.repairService.updateRepairStatus(ctx.tenantId, ctx.userId, input.repairId, input.update),
         ),
 
       getRepairProfitability: this.trpc.authedProcedure
-        .input(z.object({ repairId: z.string().uuid() }))
+        .input(z.object({ repairId: z.guid() }))
         .query(({ ctx, input }) =>
           this.repairService.computeRepairProfitability(ctx.tenantId, input.repairId),
         ),
 
       getRepairQueue: this.trpc.authedProcedure
-        .input(z.object({ locationId: z.string().uuid() }))
+        .input(z.object({ locationId: z.guid() }))
         .query(({ ctx, input }) =>
           this.repairService.getRepairQueue(ctx.tenantId, input.locationId),
         ),
@@ -251,14 +251,14 @@ export class RetailTrpcRouter {
         ),
 
       getCustomOrder: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid() }))
+        .input(z.object({ orderId: z.guid() }))
         .query(({ ctx, input }) =>
           this.customOrderService.getCustomOrder(ctx.tenantId, input.orderId),
         ),
 
       listCustomOrders: this.trpc.authedProcedure
         .input(z.object({
-          filters: z.object({ status: z.string().optional(), customerId: z.string().uuid().optional() }).optional(),
+          filters: z.object({ status: z.string().optional(), customerId: z.guid().optional() }).optional(),
           pagination: PaginationSchema.optional(),
         }))
         .query(({ ctx, input }) =>
@@ -270,13 +270,13 @@ export class RetailTrpcRouter {
         ),
 
       updateCustomOrderStatus: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid(), status: z.string() }))
+        .input(z.object({ orderId: z.guid(), status: z.string() }))
         .mutation(({ ctx, input }) =>
           this.customOrderService.updateStatus(ctx.tenantId, ctx.userId, input.orderId, input.status as never),
         ),
 
       recordCustomOrderDeposit: this.trpc.authedProcedure
-        .input(z.object({ orderId: z.string().uuid(), depositPaise: z.number().int().positive() }))
+        .input(z.object({ orderId: z.guid(), depositPaise: z.number().int().positive() }))
         .mutation(({ ctx, input }) =>
           this.customOrderService.recordDeposit(ctx.tenantId, ctx.userId, input.orderId, input.depositPaise),
         ),
@@ -289,14 +289,14 @@ export class RetailTrpcRouter {
         ),
 
       getLayaway: this.trpc.authedProcedure
-        .input(z.object({ layawayId: z.string().uuid() }))
+        .input(z.object({ layawayId: z.guid() }))
         .query(({ ctx, input }) =>
           this.layawayService.getLayaway(ctx.tenantId, input.layawayId),
         ),
 
       listLayaways: this.trpc.authedProcedure
         .input(z.object({
-          filters: z.object({ status: z.string().optional(), customerId: z.string().uuid().optional() }).optional(),
+          filters: z.object({ status: z.string().optional(), customerId: z.guid().optional() }).optional(),
           pagination: PaginationSchema.optional(),
         }))
         .query(({ ctx, input }) =>
@@ -314,7 +314,7 @@ export class RetailTrpcRouter {
         ),
 
       cancelLayaway: this.trpc.authedProcedure
-        .input(z.object({ layawayId: z.string().uuid() }))
+        .input(z.object({ layawayId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.layawayService.cancelLayaway(ctx.tenantId, ctx.userId, input.layawayId),
         ),
@@ -327,14 +327,14 @@ export class RetailTrpcRouter {
         ),
 
       getOldGoldPurchase: this.trpc.authedProcedure
-        .input(z.object({ purchaseId: z.string().uuid() }))
+        .input(z.object({ purchaseId: z.guid() }))
         .query(({ ctx, input }) =>
           this.oldGoldService.getPurchase(ctx.tenantId, input.purchaseId),
         ),
 
       listOldGoldPurchases: this.trpc.authedProcedure
         .input(z.object({
-          filters: z.object({ status: z.string().optional(), customerId: z.string().uuid().optional() }).optional(),
+          filters: z.object({ status: z.string().optional(), customerId: z.guid().optional() }).optional(),
           pagination: PaginationSchema.optional(),
         }))
         .query(({ ctx, input }) =>
@@ -346,14 +346,14 @@ export class RetailTrpcRouter {
         ),
 
       updateOldGoldStatus: this.trpc.authedProcedure
-        .input(z.object({ purchaseId: z.string().uuid(), status: z.string() }))
+        .input(z.object({ purchaseId: z.guid(), status: z.string() }))
         .mutation(({ ctx, input }) =>
           this.oldGoldService.updateStatus(ctx.tenantId, ctx.userId, input.purchaseId, input.status as never),
         ),
 
       updateOldGoldTestResults: this.trpc.authedProcedure
         .input(z.object({
-          purchaseId: z.string().uuid(),
+          purchaseId: z.guid(),
           purityFineness: z.number().int().min(1).max(999),
           netWeightMg: z.number().int().positive(),
         }))
@@ -364,7 +364,7 @@ export class RetailTrpcRouter {
         ),
 
       linkOldGoldToSale: this.trpc.authedProcedure
-        .input(z.object({ purchaseId: z.string().uuid(), saleId: z.string().uuid() }))
+        .input(z.object({ purchaseId: z.guid(), saleId: z.guid() }))
         .mutation(({ ctx, input }) =>
           this.oldGoldService.linkToSale(ctx.tenantId, ctx.userId, input.purchaseId, input.saleId),
         ),
@@ -377,14 +377,14 @@ export class RetailTrpcRouter {
         ),
 
       getAppraisal: this.trpc.authedProcedure
-        .input(z.object({ appraisalId: z.string().uuid() }))
+        .input(z.object({ appraisalId: z.guid() }))
         .query(({ ctx, input }) =>
           this.appraisalService.getAppraisal(ctx.tenantId, input.appraisalId),
         ),
 
       listAppraisals: this.trpc.authedProcedure
         .input(z.object({
-          filters: z.object({ customerId: z.string().uuid().optional() }).optional(),
+          filters: z.object({ customerId: z.guid().optional() }).optional(),
           pagination: PaginationSchema.optional(),
         }))
         .query(({ ctx, input }) =>
@@ -422,7 +422,7 @@ export class RetailTrpcRouter {
         ),
 
       getDiscount: this.trpc.authedProcedure
-        .input(z.object({ discountId: z.string().uuid() }))
+        .input(z.object({ discountId: z.guid() }))
         .query(({ ctx, input }) =>
           this.discountService.getDiscount(ctx.tenantId, input.discountId),
         ),
@@ -441,7 +441,7 @@ export class RetailTrpcRouter {
         ),
 
       updateDiscount: this.trpc.authedProcedure
-        .input(z.object({ discountId: z.string().uuid(), data: partialUpdate(DiscountInputSchema) }))
+        .input(z.object({ discountId: z.guid(), data: partialUpdate(DiscountInputSchema) }))
         .mutation(({ ctx, input }) =>
           this.discountService.updateDiscount(ctx.tenantId, ctx.userId, input.discountId, input.data),
         ),

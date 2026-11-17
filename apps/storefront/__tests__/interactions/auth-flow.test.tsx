@@ -10,12 +10,14 @@ import LoginPage from "@/app/auth/login/page";
 import RegisterPage from "@/app/auth/register/page";
 import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 
+const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
+
 vi.mock("next/navigation", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("next/navigation");
   return {
     ...actual,
     useRouter: () => ({
-      push: vi.fn(),
+      push: pushMock,
       replace: vi.fn(),
       back: vi.fn(),
       prefetch: vi.fn(),
@@ -240,5 +242,48 @@ describe("Auth Flow - API contract", () => {
     await fillRegister(user);
     expect(await screen.findByText(/could not send the verification code: purpose must be one of/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /continue to my account/i })).toHaveAttribute("href", "/account");
+  });
+
+  it("register accepts a pasted +91 number and keeps 10 digits", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () =>
+        String(url).includes("/register/email")
+          ? { success: true, data: { accessToken: "tok" } }
+          : { success: true, data: {} },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<RegisterPage />);
+    const phone = screen.getByPlaceholderText("98765 43210") as HTMLInputElement;
+    await user.click(phone);
+    await user.paste("+91 98765-43210");
+    expect(phone.value).toBe("9876543210");
+    await user.clear(phone);
+    await user.paste("919876543210");
+    expect(phone.value).toBe("9876543210");
+    await user.clear(phone);
+    await user.paste("+919876543210");
+    expect(phone.value).toBe("9876543210");
+  });
+
+  it("register flags an explicit delivered:false OTP response on the verify page link", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => ({
+        ok: true,
+        status: 200,
+        json: async () =>
+          String(url).includes("/otp/send")
+            ? { success: true, data: { message: "OTP sent successfully", delivered: false } }
+            : { success: true, data: { accessToken: "tok" } },
+      })),
+    );
+    render(<RegisterPage />);
+    await fillRegister(user);
+    await waitFor(() => expect(pushMock).toHaveBeenCalled());
+    expect(String(pushMock.mock.calls.at(-1)![0])).toContain("delivered=0");
   });
 });

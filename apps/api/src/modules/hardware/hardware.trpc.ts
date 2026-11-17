@@ -73,25 +73,25 @@ export class HardwareTrpcRouter {
           ),
 
         update: this.trpc.authedProcedure
-          .input(z.object({ deviceId: z.string().uuid(), data: UpdateDeviceConfigSchema }))
+          .input(z.object({ deviceId: z.guid(), data: UpdateDeviceConfigSchema }))
           .mutation(({ ctx, input }) =>
             this.deviceService.updateDevice(ctx.tenantId, ctx.userId, input.deviceId, input.data),
           ),
 
         remove: this.trpc.authedProcedure
-          .input(z.object({ deviceId: z.string().uuid() }))
+          .input(z.object({ deviceId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.deviceService.removeDevice(ctx.tenantId, input.deviceId),
           ),
 
         getStatus: this.trpc.authedProcedure
-          .input(z.object({ deviceId: z.string().uuid() }))
+          .input(z.object({ deviceId: z.guid() }))
           .query(({ ctx, input }) =>
             this.deviceService.getDeviceStatus(ctx.tenantId, input.deviceId),
           ),
 
         getById: this.trpc.authedProcedure
-          .input(z.object({ deviceId: z.string().uuid() }))
+          .input(z.object({ deviceId: z.guid() }))
           .query(({ ctx, input }) =>
             this.deviceService.getDevice(ctx.tenantId, input.deviceId),
           ),
@@ -124,7 +124,7 @@ export class HardwareTrpcRouter {
           ),
 
         writeTag: this.trpc.authedProcedure
-          .input(z.object({ serialNumberId: z.string().uuid(), data: RfidWriteRequestSchema }))
+          .input(z.object({ serialNumberId: z.guid(), data: RfidWriteRequestSchema }))
           .mutation(({ ctx, input }) =>
             this.rfidService.writeTag(ctx.tenantId, ctx.userId, input.serialNumberId, input.data),
           ),
@@ -160,7 +160,7 @@ export class HardwareTrpcRouter {
       // ─── Weighing Scale ─────────────────────────────────────
       scale: this.trpc.router({
         getReading: this.trpc.authedProcedure
-          .input(z.object({ deviceId: z.string().uuid() }))
+          .input(z.object({ deviceId: z.guid() }))
           .query(({ ctx, input }) =>
             this.scaleService.getLastReading(ctx.tenantId, input.deviceId),
           ),
@@ -173,7 +173,7 @@ export class HardwareTrpcRouter {
 
         tare: this.trpc.authedProcedure
           .input(z.object({
-            deviceId: z.string().uuid(),
+            deviceId: z.guid(),
             tareWeightMg: z.number().int().nonnegative(),
           }))
           .mutation(({ ctx, input }) => {
@@ -182,7 +182,7 @@ export class HardwareTrpcRouter {
           }),
 
         clearTare: this.trpc.authedProcedure
-          .input(z.object({ deviceId: z.string().uuid() }))
+          .input(z.object({ deviceId: z.guid() }))
           .mutation(({ ctx, input }) => {
             this.scaleService.clearTare(ctx.tenantId, input.deviceId);
             return { success: true };
@@ -222,19 +222,19 @@ export class HardwareTrpcRouter {
             ),
 
           update: this.trpc.authedProcedure
-            .input(z.object({ templateId: z.string().uuid(), data: UpdateLabelTemplateSchema }))
+            .input(z.object({ templateId: z.guid(), data: UpdateLabelTemplateSchema }))
             .mutation(({ ctx, input }) =>
               this.printerService.updateTemplate(ctx.tenantId, ctx.userId, input.templateId, input.data),
             ),
 
           delete: this.trpc.authedProcedure
-            .input(z.object({ templateId: z.string().uuid() }))
+            .input(z.object({ templateId: z.guid() }))
             .mutation(({ ctx, input }) =>
               this.printerService.deleteTemplate(ctx.tenantId, input.templateId),
             ),
 
           getById: this.trpc.authedProcedure
-            .input(z.object({ templateId: z.string().uuid() }))
+            .input(z.object({ templateId: z.guid() }))
             .query(({ ctx, input }) =>
               this.printerService.getTemplate(ctx.tenantId, input.templateId),
             ),
@@ -254,7 +254,7 @@ export class HardwareTrpcRouter {
 
         preview: this.trpc.authedProcedure
           .input(z.object({
-            templateId: z.string().uuid(),
+            templateId: z.guid(),
             data: z.record(z.string(), z.string()),
           }))
           .query(({ ctx, input }) =>
@@ -263,8 +263,8 @@ export class HardwareTrpcRouter {
 
         jewelryLabel: this.trpc.authedProcedure
           .input(z.object({
-            templateId: z.string().uuid(),
-            productId: z.string().uuid(),
+            templateId: z.guid(),
+            productId: z.guid(),
           }))
           .query(({ ctx, input }) =>
             this.printerService.generateJewelryLabel(ctx.tenantId, input.templateId, input.productId),
@@ -280,7 +280,7 @@ export class HardwareTrpcRouter {
           ),
 
         clear: this.trpc.authedProcedure
-          .input(z.object({ deviceId: z.string().uuid() }))
+          .input(z.object({ deviceId: z.guid() }))
           .mutation(({ ctx, input }) =>
             this.displayService.clearDisplay(ctx.tenantId, input.deviceId),
           ),
@@ -303,7 +303,7 @@ export class HardwareTrpcRouter {
         getSummary: this.trpc.authedProcedure
           .input(z.object({
             date: IsoDateSchema,
-            deviceId: z.string().uuid().optional(),
+            deviceId: z.guid().optional(),
           }))
           .query(({ ctx, input }) =>
             this.biometricService.getAttendanceSummary(ctx.tenantId, input.date, input.deviceId),

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens, apiFetch } from "@/lib/api";
+import { normalizeIndianPhone } from "@/lib/utils";
 
 // API OtpPurpose enum: LOGIN | REGISTRATION | PASSWORD_RESET | TRANSACTION_2FA.
 const PHONE_OTP_PURPOSE = "REGISTRATION";
@@ -72,8 +73,12 @@ export default function RegisterPage() {
             const raw = otpData?.error?.message ?? otpData?.message;
             throw new Error((Array.isArray(raw) ? raw.join(", ") : raw) || "Could not send OTP");
           }
+          // The API has no delivery receipt; honour an explicit delivered:false if present.
+          const notDelivered = otpData?.data?.delivered === false;
           router.push(
-            `/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=${PHONE_OTP_PURPOSE}`,
+            `/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=${PHONE_OTP_PURPOSE}${
+              notDelivered ? "&delivered=0" : ""
+            }`,
           );
           return;
         } catch (otpErr) {
@@ -149,10 +154,10 @@ export default function RegisterPage() {
                 <input
                   type="tel"
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                  onChange={(e) => setForm({ ...form, phone: normalizeIndianPhone(e.target.value) })}
                   required
                   placeholder="98765 43210"
-                  maxLength={10}
+                  maxLength={16}
                   className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
                 />
               </div>

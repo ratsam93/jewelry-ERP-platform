@@ -73,8 +73,8 @@ export type PassbookType = z.infer<typeof PassbookTypeEnum>;
 // ─── Customer Profile (kept for backward compat) ───────────────
 
 export const CustomerProfileSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.guid(),
+  tenantId: z.guid(),
   firstName: z.string(),
   lastName: z.string(),
   loyaltyPoints: z.number().int().nonnegative(),
@@ -86,7 +86,7 @@ export type CustomerProfile = z.infer<typeof CustomerProfileSchema>;
 // ─── Notification Request (kept for backward compat) ───────────
 
 export const NotificationRequestSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   channel: z.nativeEnum(NotificationType),
   templateId: z.string(),
   variables: z.record(z.string(), z.string()),
@@ -114,18 +114,18 @@ export const LoyaltyProgramInputSchema = z.object({
 export type LoyaltyProgramInput = z.infer<typeof LoyaltyProgramInputSchema>;
 
 export const LoyaltyTransactionInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   transactionType: LoyaltyTransactionTypeEnum,
   points: z.number().int(),
   referenceType: z.string().max(50).optional(),
-  referenceId: z.string().uuid().optional(),
+  referenceId: z.guid().optional(),
   description: z.string().max(500).optional(),
   expiresAt: z.coerce.date().optional(),
 });
 export type LoyaltyTransactionInput = z.infer<typeof LoyaltyTransactionInputSchema>;
 
 export const LoyaltyBalanceResponseSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   currentPoints: z.number().int(),
   tier: z.string().optional(),
   tierMultiplier: z.number().optional(),
@@ -140,7 +140,7 @@ export type LoyaltyBalanceResponse = z.infer<typeof LoyaltyBalanceResponseSchema
 // ─── Customer Occasion ─────────────────────────────────────────
 
 export const CustomerOccasionInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   occasionType: OccasionTypeEnum,
   date: z.coerce.date(),
   description: z.string().max(500).optional(),
@@ -151,12 +151,12 @@ export type CustomerOccasionInput = z.infer<typeof CustomerOccasionInputSchema>;
 // ─── Customer Interaction ──────────────────────────────────────
 
 export const CustomerInteractionInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   interactionType: InteractionTypeEnum,
   direction: InteractionDirectionEnum,
   subject: z.string().max(255).optional(),
   content: z.string().optional(),
-  userId: z.string().uuid().optional(),
+  userId: z.guid().optional(),
   attachments: z.array(z.object({
     name: z.string(),
     url: z.string().url(),
@@ -166,13 +166,13 @@ export const CustomerInteractionInputSchema = z.object({
 export type CustomerInteractionInput = z.infer<typeof CustomerInteractionInputSchema>;
 
 export const InteractionResponseSchema = z.object({
-  id: z.string().uuid(),
-  customerId: z.string().uuid(),
+  id: z.guid(),
+  customerId: z.guid(),
   interactionType: InteractionTypeEnum,
   direction: InteractionDirectionEnum,
   subject: z.string().nullable(),
   content: z.string().nullable(),
-  userId: z.string().uuid().nullable(),
+  userId: z.guid().nullable(),
   attachments: z.unknown().nullable(),
   createdAt: z.coerce.date(),
 });
@@ -192,8 +192,8 @@ export const NotificationTemplateInputSchema = z.object({
 export type NotificationTemplateInput = z.infer<typeof NotificationTemplateInputSchema>;
 
 export const SendNotificationInputSchema = z.object({
-  customerId: z.string().uuid(),
-  templateId: z.string().uuid().optional(),
+  customerId: z.guid(),
+  templateId: z.guid().optional(),
   channel: NotificationChannelEnum,
   subject: z.string().max(500).optional(),
   body: z.string().optional(),
@@ -202,8 +202,8 @@ export const SendNotificationInputSchema = z.object({
 export type SendNotificationInput = z.infer<typeof SendNotificationInputSchema>;
 
 export const NotificationLogResponseSchema = z.object({
-  id: z.string().uuid(),
-  customerId: z.string().uuid(),
+  id: z.guid(),
+  customerId: z.guid(),
   channel: NotificationChannelEnum,
   subject: z.string().nullable(),
   body: z.string(),
@@ -223,7 +223,7 @@ export const EmailTestInputSchema = z.object({
 export type EmailTestInput = z.infer<typeof EmailTestInputSchema>;
 
 export const EmailSendInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   subject: z.string().min(1).max(500),
   html: z.string().min(1),
   text: z.string().optional(),
@@ -239,7 +239,7 @@ export const SmsTestInputSchema = z.object({
 export type SmsTestInput = z.infer<typeof SmsTestInputSchema>;
 
 export const SmsSendInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   body: z.string().min(1).max(1600),
 });
 export type SmsSendInput = z.infer<typeof SmsSendInputSchema>;
@@ -254,7 +254,7 @@ export const AudienceFilterCriteriaSchema = z.object({
   maxPurchaseAmountPaise: z.number().int().optional(),
   lastPurchaseWithinDays: z.number().int().optional(),
   tags: z.array(z.string()).optional(),
-  segmentId: z.string().uuid().optional(),
+  segmentId: z.guid().optional(),
 });
 export type AudienceFilterCriteria = z.infer<typeof AudienceFilterCriteriaSchema>;
 
@@ -262,19 +262,19 @@ export const CampaignInputSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   channel: NotificationChannelEnum,
-  templateId: z.string().uuid().optional(),
+  templateId: z.guid().optional(),
   audienceFilter: AudienceFilterCriteriaSchema.optional(),
   scheduledAt: z.coerce.date().optional(),
 });
 export type CampaignInput = z.infer<typeof CampaignInputSchema>;
 
 export const CampaignResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string(),
   description: z.string().nullable(),
   status: CampaignStatusEnum,
   channel: NotificationChannelEnum,
-  templateId: z.string().uuid().nullable(),
+  templateId: z.guid().nullable(),
   audienceFilter: z.unknown().nullable(),
   scheduledAt: z.coerce.date().nullable(),
   startedAt: z.coerce.date().nullable(),
@@ -290,13 +290,13 @@ export type CampaignResponse = z.infer<typeof CampaignResponseSchema>;
 // ─── Lead ──────────────────────────────────────────────────────
 
 export const LeadInputSchema = z.object({
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   phone: z.string().max(20).optional(),
   email: z.string().email().max(255).optional(),
   source: LeadSourceEnum,
-  assignedTo: z.string().uuid().optional(),
+  assignedTo: z.guid().optional(),
   estimatedValuePaise: z.number().int().nonnegative().optional(),
   notes: z.string().optional(),
   nextFollowUpDate: z.coerce.date().optional(),
@@ -304,8 +304,8 @@ export const LeadInputSchema = z.object({
 export type LeadInput = z.infer<typeof LeadInputSchema>;
 
 export const LeadResponseSchema = z.object({
-  id: z.string().uuid(),
-  customerId: z.string().uuid().nullable(),
+  id: z.guid(),
+  customerId: z.guid().nullable(),
   firstName: z.string(),
   lastName: z.string(),
   phone: z.string().nullable(),
@@ -323,7 +323,7 @@ export const LeadResponseSchema = z.object({
 export type LeadResponse = z.infer<typeof LeadResponseSchema>;
 
 export const LeadActivityInputSchema = z.object({
-  leadId: z.string().uuid(),
+  leadId: z.guid(),
   activityType: LeadActivityTypeEnum,
   description: z.string().optional(),
   scheduledAt: z.coerce.date().optional(),
@@ -332,7 +332,7 @@ export const LeadActivityInputSchema = z.object({
 export type LeadActivityInput = z.infer<typeof LeadActivityInputSchema>;
 
 export const LeadStatusUpdateSchema = z.object({
-  leadId: z.string().uuid(),
+  leadId: z.guid(),
   status: LeadStatusEnum,
   lostReason: z.string().max(500).optional(),
 });
@@ -341,17 +341,17 @@ export type LeadStatusUpdate = z.infer<typeof LeadStatusUpdateSchema>;
 // ─── Feedback ──────────────────────────────────────────────────
 
 export const FeedbackInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   feedbackType: FeedbackTypeEnum,
   rating: z.number().int().min(1).max(5),
   comment: z.string().optional(),
-  saleId: z.string().uuid().optional(),
+  saleId: z.guid().optional(),
 });
 export type FeedbackInput = z.infer<typeof FeedbackInputSchema>;
 
 export const FeedbackResponseSchema = z.object({
-  id: z.string().uuid(),
-  customerId: z.string().uuid(),
+  id: z.guid(),
+  customerId: z.guid(),
   feedbackType: FeedbackTypeEnum,
   rating: z.number().int(),
   comment: z.string().nullable(),
@@ -396,13 +396,13 @@ export const VideoConsultationStatusEnum = z.enum([
 export type VideoConsultationStatus = z.infer<typeof VideoConsultationStatusEnum>;
 
 export const VideoConsultationProductInterestSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.guid(),
   notes: z.string().max(500).optional(),
 });
 export type VideoConsultationProductInterest = z.infer<typeof VideoConsultationProductInterestSchema>;
 
 export const VideoConsultationInputSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   productsOfInterest: z.array(VideoConsultationProductInterestSchema).optional(),
   preferredLang: z.string().min(2).max(10).default('en'),
   customerPhone: z.string().max(20).optional(),
@@ -411,36 +411,36 @@ export const VideoConsultationInputSchema = z.object({
 export type VideoConsultationInput = z.infer<typeof VideoConsultationInputSchema>;
 
 export const VideoConsultationUpdateSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   status: VideoConsultationStatusEnum.optional(),
   scheduledAt: z.coerce.date().optional(),
-  consultantId: z.string().uuid().optional(),
+  consultantId: z.guid().optional(),
   meetingUrl: z.string().url().max(500).optional(),
   notes: z.string().max(2000).optional(),
 });
 export type VideoConsultationUpdate = z.infer<typeof VideoConsultationUpdateSchema>;
 
 export const VideoConsultationScheduleSchema = z.object({
-  id: z.string().uuid(),
-  consultantId: z.string().uuid(),
+  id: z.guid(),
+  consultantId: z.guid(),
   scheduledAt: z.coerce.date(),
 });
 export type VideoConsultationSchedule = z.infer<typeof VideoConsultationScheduleSchema>;
 
 export const VideoConsultationFilterSchema = z.object({
   status: VideoConsultationStatusEnum.optional(),
-  consultantId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
+  consultantId: z.guid().optional(),
+  customerId: z.guid().optional(),
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(100).default(20),
 });
 export type VideoConsultationFilter = z.infer<typeof VideoConsultationFilterSchema>;
 
 export const VideoConsultationResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  customerId: z.string().uuid(),
-  consultantId: z.string().uuid().nullable(),
+  id: z.guid(),
+  tenantId: z.guid(),
+  customerId: z.guid(),
+  consultantId: z.guid().nullable(),
   requestedAt: z.coerce.date(),
   scheduledAt: z.coerce.date().nullable(),
   startedAt: z.coerce.date().nullable(),
@@ -460,7 +460,7 @@ export type VideoConsultationResponse = z.infer<typeof VideoConsultationResponse
 
 export const Customer360ResponseSchema = z.object({
   profile: z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     firstName: z.string(),
     lastName: z.string(),
     email: z.string().nullable(),
@@ -485,7 +485,7 @@ export const Customer360ResponseSchema = z.object({
     lifetimeEarned: z.number().int(),
     lifetimeRedeemed: z.number().int(),
     recentTransactions: z.array(z.object({
-      id: z.string().uuid(),
+      id: z.guid(),
       transactionType: LoyaltyTransactionTypeEnum,
       points: z.number().int(),
       balanceAfter: z.number().int(),
@@ -494,28 +494,28 @@ export const Customer360ResponseSchema = z.object({
     })),
   }),
   purchaseHistory: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     invoiceNumber: z.string().optional(),
     totalPaise: z.number().int(),
     date: z.coerce.date(),
     itemCount: z.number().int(),
   })),
   occasions: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     occasionType: OccasionTypeEnum,
     date: z.coerce.date(),
     description: z.string().nullable(),
     reminderDaysBefore: z.number().int(),
   })),
   recentInteractions: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     interactionType: InteractionTypeEnum,
     direction: InteractionDirectionEnum,
     subject: z.string().nullable(),
     createdAt: z.coerce.date(),
   })),
   feedback: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     feedbackType: FeedbackTypeEnum,
     rating: z.number().int(),
     comment: z.string().nullable(),
@@ -523,7 +523,7 @@ export const Customer360ResponseSchema = z.object({
     createdAt: z.coerce.date(),
   })),
   schemes: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     type: PassbookTypeEnum,
     schemeName: z.string(),
     currentBalancePaise: z.number().nullable(),
@@ -544,8 +544,8 @@ export const CrmDashboardResponseSchema = z.object({
     pointsRedeemedThisMonth: z.number().int(),
   }),
   upcomingOccasions: z.array(z.object({
-    id: z.string().uuid(),
-    customerId: z.string().uuid(),
+    id: z.guid(),
+    customerId: z.guid(),
     customerName: z.string(),
     occasionType: OccasionTypeEnum,
     date: z.coerce.date(),
@@ -555,7 +555,7 @@ export const CrmDashboardResponseSchema = z.object({
     averageRating: z.number(),
     totalCount: z.number().int(),
     recent: z.array(z.object({
-      id: z.string().uuid(),
+      id: z.guid(),
       customerName: z.string(),
       rating: z.number().int(),
       comment: z.string().nullable(),

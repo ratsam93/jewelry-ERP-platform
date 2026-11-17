@@ -3,7 +3,7 @@ import { getHome, type HomeData } from "@/lib/catalog";
 
 // Regenerate the home page at most once a minute so a build-time or
 // transient API failure never gets stuck in the cache.
-export const revalidate = 60;
+export const revalidate = 15;
 
 export default async function HomePage() {
   let data: HomeData | null = null;

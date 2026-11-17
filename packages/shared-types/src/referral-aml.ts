@@ -84,7 +84,7 @@ export type ApplyReferralInput = z.infer<typeof ApplyReferralInputSchema>;
 // ─── Referral Stats ───────────────────────────────────────────
 
 export const ReferralStatsResponseSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   referralCode: z.string(),
   totalReferrals: z.number().int(),
   successfulReferrals: z.number().int(),
@@ -97,7 +97,7 @@ export type ReferralStatsResponse = z.infer<typeof ReferralStatsResponseSchema>;
 // ─── Referral Leaderboard Entry ───────────────────────────────
 
 export const ReferralLeaderboardEntrySchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   customerName: z.string(),
   referralCount: z.number().int(),
   totalRewardsPaise: z.number().int(),
@@ -130,7 +130,7 @@ export type AmlRuleInput = z.infer<typeof AmlRuleInputSchema>;
 // ─── AML Alert Review Input ───────────────────────────────────
 
 export const AmlAlertReviewInputSchema = z.object({
-  alertId: z.string().uuid(),
+  alertId: z.guid(),
   status: AmlAlertStatusEnum,
   reviewNotes: z.string().max(2000).optional(),
 });
@@ -139,8 +139,8 @@ export type AmlAlertReviewInput = z.infer<typeof AmlAlertReviewInputSchema>;
 // ─── AML SAR Report Input ─────────────────────────────────────
 
 export const AmlSarReportInputSchema = z.object({
-  alertId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  alertId: z.guid(),
+  customerId: z.guid(),
   reportType: AmlReportTypeEnum,
   reportData: z.record(z.string(), z.unknown()),
   notes: z.string().optional(),
@@ -155,7 +155,7 @@ export const AmlDashboardResponseSchema = z.object({
   pendingReviews: z.number().int(),
   riskDistribution: z.record(AmlRiskLevelEnum, z.number().int()),
   recentHighValueTransactions: z.array(z.object({
-    customerId: z.string().uuid(),
+    customerId: z.guid(),
     customerName: z.string(),
     amountPaise: z.number().int(),
     date: z.coerce.date(),
@@ -170,7 +170,7 @@ export type AmlDashboardResponse = z.infer<typeof AmlDashboardResponseSchema>;
 // ─── AML Customer Risk Response ───────────────────────────────
 
 export const AmlCustomerRiskResponseSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   customerName: z.string(),
   riskScore: z.number().int(),
   riskLevel: AmlRiskLevelEnum,
