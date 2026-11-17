@@ -1,5 +1,7 @@
 # CaratFlow Deployment Guide
 
+> Hosting CaratFlow on your own server with Docker and GitHub Actions? See [DEPLOYMENT-DOCKER.md](./DEPLOYMENT-DOCKER.md). This page covers local development setup.
+
 ## Prerequisites
 
 | Software     | Version  | Purpose                    |
