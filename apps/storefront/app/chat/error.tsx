@@ -29,7 +29,7 @@ export default function ChatError({
         Chat is unavailable right now
       </h2>
       <p className="text-sm text-navy/60 mb-2 max-w-md mx-auto">
-        We couldn't connect you to an advisor. Please try again, or reach us on WhatsApp or email.
+        We couldn't connect you to an advisor. Please try again, or reach us by email.
       </p>
       {error?.digest && (
         <p className="text-xs text-navy/30 font-mono mb-6">Reference: {error.digest}</p>

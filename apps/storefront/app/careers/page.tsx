@@ -1,3 +1,5 @@
+import { CONTACT } from "@/lib/contact-info";
+
 export const metadata = { title: "Careers" };
 
 export default function CareersPage() {
@@ -25,7 +27,7 @@ export default function CareersPage() {
           <h2 className="text-lg font-semibold text-navy mb-2">How to apply</h2>
           <p>
             Email your CV and a short note to{" "}
-            <a href="mailto:careers@caratflow.com" className="text-gold">careers@caratflow.com</a>. Tell us
+            <a href={`mailto:${CONTACT.careersEmail}`} className="text-gold">{CONTACT.careersEmail}</a>. Tell us
             what you would build or design here, and link to anything you are proud of.
           </p>
         </section>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CRM_API, TENANT_ID } from "@/lib/constants";
+import { CONTACT } from "@/lib/contact-info";
 import { validateContact, contactErrorText as errorTextFor } from "@/lib/contact";
 
 export default function ContactPage() {
@@ -52,25 +53,37 @@ export default function ContactPage() {
         Contact Us
       </h1>
       <p className="text-navy/60 text-sm mb-8">
-        We typically reply within one business day. For urgent order issues please call.
+        We typically reply within one business day.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gold mb-1">Customer care</p>
-          <p className="text-sm text-navy"><a href="tel:+918000800800" className="hover:text-gold">+91 80 0080 0800</a></p>
-          <p className="text-xs text-navy/40 mt-1">Mon - Sat, 09:00 - 21:00</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-gold mb-1">Email</p>
-          <p className="text-sm text-navy"><a href="mailto:hello@caratflow.com" className="hover:text-gold">hello@caratflow.com</a></p>
+          <p className="text-sm text-navy"><a href={`mailto:${CONTACT.email}`} className="hover:text-gold">{CONTACT.email}</a></p>
           <p className="text-xs text-navy/40 mt-1">For orders, returns, or sizing</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gold mb-1">WhatsApp</p>
-          <p className="text-sm text-navy"><a href="https://wa.me/918000800800" className="hover:text-gold">+91 80 0080 0800</a></p>
-          <p className="text-xs text-navy/40 mt-1">Fastest channel for live help</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-gold mb-1">Support</p>
+          <p className="text-sm text-navy"><a href={`mailto:${CONTACT.supportEmail}`} className="hover:text-gold">{CONTACT.supportEmail}</a></p>
+          <p className="text-xs text-navy/40 mt-1">Account and technical help</p>
         </div>
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gold mb-1">Privacy</p>
+          <p className="text-sm text-navy"><a href={`mailto:${CONTACT.privacyEmail}`} className="hover:text-gold">{CONTACT.privacyEmail}</a></p>
+          <p className="text-xs text-navy/40 mt-1">Data and privacy requests</p>
+        </div>
+        {CONTACT.phone && (
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gold mb-1">Phone</p>
+            <p className="text-sm text-navy"><a href={`tel:${CONTACT.phone.replace(/[^+\d]/g, "")}`} className="hover:text-gold">{CONTACT.phone}</a></p>
+          </div>
+        )}
+        {CONTACT.address && (
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gold mb-1">Address</p>
+            <p className="text-sm text-navy">{CONTACT.address}</p>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
