@@ -7,7 +7,7 @@ follow the steps in order. (`docs/deployment.md` is the older, developer-oriente
 
 ```
 GitHub (push to main) -> CI passes -> "Deploy" workflow
-   builds 4 Docker images -> pushes to GHCR -> SSH to your server
+   builds 6 Docker images -> pushes to GHCR -> SSH to your server
    -> pulls images -> applies DB schema -> restarts -> health check (rollback on failure)
 ```
 
@@ -22,6 +22,15 @@ What runs on the server (all in Docker, only ports 80/443 are open):
 | `https://files.YOURDOMAIN` | File storage (MinIO S3 API; used for upload/download links) |
 
 Plus MySQL 8, Redis 7 and MinIO, which are private (not reachable from the internet).
+
+> **MinIO is built from source.** MinIO no longer publishes its community images on Docker
+> Hub or Quay, so `docker/minio.Dockerfile` and `docker/mc.Dockerfile` compile the pinned
+> releases (see `MINIO_TAG` / `MC_TAG`, each also pinned by commit) and the workflow pushes
+> them as `caratflow-minio` and `caratflow-mc` next to the app images. MinIO and mc are
+> AGPL-3.0 software; they are unmodified and only used over the network. There is no
+> behavioural change for the app. The first build compiles MinIO (about 5-10 minutes);
+> later builds reuse the GitHub Actions cache. Redeploying an image tag built before this
+> change (rollback/`image_tag`) will fail to pull `caratflow-minio`/`caratflow-mc`.
 
 ## 1. What to rent / prepare
 

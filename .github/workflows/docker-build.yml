@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [api, web, storefront, website]
+        image: [api, web, storefront, website, minio, mc]
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
