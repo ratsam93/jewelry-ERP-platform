@@ -1,3 +1,5 @@
+import { ApiError, extractErrorCode, extractErrorMessage } from './api-error';
+
 const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000');
 
 async function fetchApi<T>(path: string, options: RequestInit & { data?: unknown } = {}): Promise<T> {
@@ -19,13 +21,23 @@ async function fetchApi<T>(path: string, options: RequestInit & { data?: unknown
     ...rest,
   });
 
-  const json = await response.json();
-
-  if (!response.ok) {
-    throw new Error(json.message ?? json.error ?? 'Request failed');
+  let json: unknown = null;
+  try {
+    json = await response.json();
+  } catch {
+    json = null;
   }
 
-  return json;
+  if (!response.ok) {
+    throw new ApiError(
+      extractErrorMessage(json, `Request failed (${response.status})`),
+      response.status,
+      extractErrorCode(json),
+      json,
+    );
+  }
+
+  return json as T;
 }
 
 export const api = {

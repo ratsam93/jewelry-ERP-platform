@@ -127,6 +127,7 @@ jobs:
             case "$IMAGE" in
               web)
                 echo "NEXT_PUBLIC_API_URL=https://api.$DOMAIN"
+                echo "NEXT_PUBLIC_TENANT_SLUG=${TENANT_SLUG}"
                 ;;
               storefront)
                 echo "NEXT_PUBLIC_API_URL=https://api.$DOMAIN"
