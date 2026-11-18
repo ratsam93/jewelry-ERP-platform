@@ -1,6 +1,6 @@
 name: Deploy
 
-# Builds the four container images, pushes them to GHCR and deploys them to the
+# Builds the six container images (api, web, storefront, website + minio and mc, built from source), pushes them to GHCR and deploys them to the
 # production server over SSH. Everything is skipped (green) unless the repository
 # VARIABLE DEPLOY_ENABLED is set to "true". Setup: docs/DEPLOYMENT-DOCKER.md.
 #
@@ -99,7 +99,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        image: [api, web, storefront, website]
+        image: [api, web, storefront, website, minio, mc]
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
     steps:
