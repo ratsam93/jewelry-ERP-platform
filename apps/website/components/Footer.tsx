@@ -1,7 +1,6 @@
 const footerLinks = {
   Product: [
     { label: "Features", href: "/features" },
-    { label: "Pricing", href: "/pricing" },
     { label: "Mobile Apps", href: "/features#mobile" },
     { label: "Integrations", href: "/features#integrations" },
     { label: "Security", href: "/about#security" },

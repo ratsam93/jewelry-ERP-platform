@@ -16,7 +16,7 @@ const sections = [
   },
   {
     h: "3. Subscriptions and fees",
-    t: "Paid plans are billed as described on the pricing page or in your order form. Fees, taxes, renewal and cancellation terms are set out in your agreement with us.",
+    t: "Paid subscriptions are billed as described in your order form or agreement with us. Fees, taxes, renewal and cancellation terms are set out in your agreement with us.",
   },
   {
     h: "4. Your data",
