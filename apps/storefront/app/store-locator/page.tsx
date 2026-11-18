@@ -1,30 +1,30 @@
-export const metadata = { title: "Store Locator | CaratFlow" };
+export const metadata = { title: "Store Locator" };
 
 const stores = [
   {
     city: "Mumbai",
-    name: "CaratFlow Bandra",
+    name: "TechBeyond Bandra",
     address: "Linking Road, Bandra West, Mumbai 400050",
     phone: "+91 22 4000 1100",
     hours: "11:00 - 21:00 (closed Tuesday)",
   },
   {
     city: "Delhi NCR",
-    name: "CaratFlow South Extension",
+    name: "TechBeyond South Extension",
     address: "South Extension Part 2, New Delhi 110049",
     phone: "+91 11 4000 1200",
     hours: "11:00 - 21:00 (closed Sunday)",
   },
   {
     city: "Bengaluru",
-    name: "CaratFlow Indiranagar",
+    name: "TechBeyond Indiranagar",
     address: "100 Feet Road, Indiranagar, Bengaluru 560038",
     phone: "+91 80 4000 1300",
     hours: "11:00 - 21:00 (open all days)",
   },
   {
     city: "Jaipur",
-    name: "CaratFlow Flagship Workshop",
+    name: "TechBeyond Flagship Workshop",
     address: "Johari Bazaar, Jaipur 302003",
     phone: "+91 141 400 1400",
     hours: "10:30 - 20:30 (closed Sunday)",

@@ -15,7 +15,7 @@ describe("Contact Page", () => {
     render(<ContactPage />);
     expect(screen.getByText("Head Office -- Mumbai")).toBeInTheDocument();
     expect(screen.getByText(/Andheri East, Mumbai 400069/)).toBeInTheDocument();
-    expect(screen.getByText(/Globussoft Technologies/)).toBeTruthy();
+    expect(screen.getByText(/TechBeyond\s*Andheri East/)).toBeTruthy();
   });
 
   it("renders phone and email contact details", () => {

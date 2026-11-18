@@ -10,12 +10,12 @@ test.describe('Admin Login E2E', () => {
     expect(hasStylesheet).toBeGreaterThan(0);
   });
 
-  test('Admin login page shows CaratFlow branding', async ({ page }) => {
+  test('Admin login page shows TechBeyond branding', async ({ page }) => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
     const html = await page.content();
-    expect(html).toContain('CaratFlow');
+    expect(html).toContain('TechBeyond');
   });
 
   // Credentials are no longer printed on / pre-filled into the login page (security hardening);

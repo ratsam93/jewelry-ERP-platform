@@ -7,11 +7,12 @@ import CompareBar from "@/components/CompareBar";
 import ChatWidget from "@/components/ChatWidget";
 import Footer from "@/components/Footer";
 import "./globals.css";
+import { BRAND_NAME, DEFAULT_SITE_URL } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: {
-    default: "CaratFlow | Premium Jewelry Online Store",
-    template: "%s | CaratFlow Jewelry",
+    default: `${BRAND_NAME} | Premium Jewelry Online Store`,
+    template: `%s | ${BRAND_NAME}`,
   },
   description:
     "Shop certified gold, diamond, silver & platinum jewelry online. BIS Hallmarked, IGI Certified. Free shipping, 15-day returns. Trusted by 50,000+ customers across India.",
@@ -28,17 +29,17 @@ export const metadata: Metadata = {
     "platinum rings",
   ],
   openGraph: {
-    title: "CaratFlow | Premium Jewelry Online Store",
+    title: `${BRAND_NAME} | Premium Jewelry Online Store`,
     description:
       "Shop BIS Hallmarked gold, IGI certified diamonds, and exquisite silver jewelry. Free shipping on all orders.",
-    url: "https://caratflow.globusdemos.com",
-    siteName: "CaratFlow",
+    url: DEFAULT_SITE_URL,
+    siteName: BRAND_NAME,
     type: "website",
     locale: "en_IN",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CaratFlow | Premium Jewelry Online Store",
+    title: `${BRAND_NAME} | Premium Jewelry Online Store`,
     description: "Shop certified jewelry online. Gold, Diamond, Silver & Platinum.",
   },
   robots: {

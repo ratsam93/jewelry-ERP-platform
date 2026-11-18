@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { SITE_URL } from "@/lib/api";
+import { BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "CaratFlow -- The Complete Jewelry ERP Platform",
-    template: "%s | CaratFlow",
+    default: `${BRAND_NAME} -- The Complete Jewelry ERP Platform`,
+    template: `%s | ${BRAND_NAME}`,
   },
   description:
     "Purpose-built jewelry ERP covering inventory, manufacturing, POS, accounting, CRM, e-commerce, and compliance. Trusted by 500+ jewelers across India.",
@@ -25,19 +26,19 @@ export const metadata: Metadata = {
     "Indian jewelry ERP",
   ],
   openGraph: {
-    title: "CaratFlow -- The Complete Jewelry ERP Platform",
+    title: `${BRAND_NAME} -- The Complete Jewelry ERP Platform`,
     description:
       "From inventory and manufacturing to retail POS and CRM -- one platform for your entire jewelry business.",
     url: SITE_URL,
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "CaratFlow jewelry ERP" }],
-    siteName: "CaratFlow",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: `${BRAND_NAME} jewelry ERP` }],
+    siteName: BRAND_NAME,
     type: "website",
     locale: "en_IN",
   },
   twitter: {
     card: "summary_large_image",
     images: ["/og.png"],
-    title: "CaratFlow -- The Complete Jewelry ERP Platform",
+    title: `${BRAND_NAME} -- The Complete Jewelry ERP Platform`,
     description:
       "Purpose-built ERP for jewelers. Inventory, manufacturing, POS, accounting, CRM, and more.",
   },

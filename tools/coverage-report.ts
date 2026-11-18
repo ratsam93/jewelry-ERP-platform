@@ -52,7 +52,7 @@ function padNum(num: number, len: number): string {
 }
 
 function main(): void {
-  console.log('\n=== CaratFlow Coverage Report ===\n');
+  console.log('\n=== TechBeyond Coverage Report ===\n');
 
   const header = `${pad('Package', 22)} ${pad('Lines', 10)} ${pad('Functions', 10)} ${pad('Branches', 10)} ${pad('Statements', 10)} Status`;
   console.log(header);

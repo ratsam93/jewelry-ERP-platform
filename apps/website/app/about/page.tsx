@@ -5,7 +5,7 @@ import Button from "@/components/Button";
 export const metadata: Metadata = {
   title: "About Us",
   description:
-    "Learn about CaratFlow's mission to empower jewelers with technology that understands their craft.",
+    "Learn about TechBeyond's mission to empower jewelers with technology that understands their craft.",
 };
 
 const values = [
@@ -52,7 +52,7 @@ const values = [
 ];
 
 const team = [
-  { name: "Globussoft Technologies", role: "Engineering & Design", initials: "GT" },
+  { name: "TechBeyond", role: "Engineering & Design", initials: "TB" },
   { name: "Product Team", role: "Jewelry Industry Experts", initials: "PT" },
   { name: "Support Team", role: "Customer Success", initials: "ST" },
 ];
@@ -69,7 +69,7 @@ export default function AboutPage() {
             <span className="text-gold">That Understands Their Craft</span>
           </h1>
           <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-            CaratFlow exists because the jewelry industry deserves software
+            TechBeyond exists because the jewelry industry deserves software
             built specifically for its unique workflows, not generic ERPs
             with bolt-on adaptations.
           </p>
@@ -96,13 +96,13 @@ export default function AboutPage() {
               9-stage job order workflows with tunch and wastage calculations.
             </p>
             <p>
-              CaratFlow was born to solve this. We assembled a team of engineers
+              TechBeyond was born to solve this. We assembled a team of engineers
               and jewelry industry consultants to build an ERP from scratch --
               one that treats karat purity, making charges, girvi lending, kitty
               schemes, and HUID tracking as first-class features, not afterthoughts.
             </p>
             <p>
-              Today, CaratFlow covers the entire jewelry business lifecycle across
+              Today, TechBeyond covers the entire jewelry business lifecycle across
               14 integrated modules and 100+ features. From raw metal procurement
               and manufacturing through retail POS and e-commerce -- all in one
               platform, purpose-built for jewelers.
@@ -141,7 +141,7 @@ export default function AboutPage() {
       <section className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <SectionHeader
-            title="The Team Behind CaratFlow"
+            title="The Team Behind TechBeyond"
             subtitle="A passionate team of engineers, designers, and jewelry industry experts."
           />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
@@ -163,7 +163,7 @@ export default function AboutPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
           <SectionHeader
             title="Built with Modern Technology"
-            subtitle="CaratFlow is built on a battle-tested, enterprise-grade tech stack."
+            subtitle="TechBeyond is built on a battle-tested, enterprise-grade tech stack."
           />
           <div className="flex flex-wrap items-center justify-center gap-4">
             {[
@@ -195,11 +195,11 @@ export default function AboutPage() {
       <section className="py-16 bg-navy text-center">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <h2 className="text-3xl font-bold text-white mb-4">
-            Join the CaratFlow Community
+            Join the TechBeyond Community
           </h2>
           <p className="text-gray-300 mb-8">
             Whether you run a single retail store or a chain of jewelry outlets,
-            we&apos;d love to show you how CaratFlow can transform your business.
+            we&apos;d love to show you how TechBeyond can transform your business.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button variant="primary" size="lg" href="/contact">

@@ -21,7 +21,7 @@ export default function HeroSection() {
         </h1>
         <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed">
           From raw metal procurement and manufacturing to retail sales and
-          customer management -- CaratFlow handles the full lifecycle of your
+          customer management -- TechBeyond handles the full lifecycle of your
           jewelry business.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

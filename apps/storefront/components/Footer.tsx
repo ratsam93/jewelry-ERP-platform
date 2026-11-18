@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CRM_API, TENANT_ID } from "@/lib/constants";
 import { useNavCategories } from "./MegaMenu";
+import { BRAND_NAME, BRAND_PREFIX, BRAND_SUFFIX } from "@/lib/brand";
 
 const footerLinks = {
   "Customer Service": [
@@ -15,7 +16,7 @@ const footerLinks = {
     { label: "Jewelry Care", href: "/jewelry-care" },
   ],
   Company: [
-    { label: "About CaratFlow", href: "/about" },
+    { label: `About ${BRAND_NAME}`, href: "/about" },
     { label: "Store Locator", href: "/store-locator" },
     { label: "BIS Hallmark", href: "/bis-hallmark" },
     { label: "Gold Savings Scheme", href: "/account/schemes" },
@@ -117,7 +118,7 @@ export default function Footer() {
                 </svg>
               </div>
               <span className="text-xl font-bold">
-                Carat<span className="text-gold">Flow</span>
+                {BRAND_PREFIX}<span className="text-gold">{BRAND_SUFFIX}</span>
               </span>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed mb-4 max-w-xs">
@@ -195,7 +196,7 @@ export default function Footer() {
               <span>&middot;</span>
               <Link href="/terms" className="hover:text-gold transition-colors">Terms</Link>
               <span className="hidden sm:inline">&middot;</span>
-              <span>&copy; {new Date().getFullYear()} CaratFlow by Globussoft Technologies</span>
+              <span>&copy; {new Date().getFullYear()} {BRAND_NAME}</span>
             </div>
           </div>
         </div>

@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Terms governing use of the CaratFlow website and services.",
+  description: "Terms governing use of the TechBeyond website and services.",
 };
 
 const sections = [
   {
     h: "1. Acceptance of terms",
-    t: "By accessing this website or using CaratFlow services you agree to these terms. If you do not agree, please do not use the site or services.",
+    t: "By accessing this website or using TechBeyond services you agree to these terms. If you do not agree, please do not use the site or services.",
   },
   {
     h: "2. Use of the service",
@@ -20,7 +20,7 @@ const sections = [
   },
   {
     h: "4. Your data",
-    t: "You retain ownership of the business data you store in CaratFlow. We process it to provide the service as described in our Privacy Policy.",
+    t: "You retain ownership of the business data you store in TechBeyond. We process it to provide the service as described in our Privacy Policy.",
   },
   {
     h: "5. Liability",

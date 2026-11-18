@@ -113,9 +113,9 @@ describe('responsive shell: off-canvas drawer below lg, static sidebar at lg+', 
   it('shows labels in the open drawer even when desktop collapse is on', async () => {
     const user = userEvent.setup();
     render(<Shell collapsed />);
-    expect(screen.queryByText('CaratFlow')).toBeNull();
+    expect(screen.queryByText('TechBeyond')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Open menu' }));
-    expect(screen.getByText('CaratFlow')).toBeInTheDocument();
+    expect(screen.getByText('TechBeyond')).toBeInTheDocument();
     expect(aside().className).toContain('lg:w-16'); // desktop width untouched
   });
 

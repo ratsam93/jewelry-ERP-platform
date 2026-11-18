@@ -42,6 +42,7 @@ import {
   VideoConsultationScheduleSchema,
   VideoConsultationFilterSchema,
 } from '@caratflow/shared-types';
+import { BRAND_NAME } from '../../common/brand';
 
 @Injectable()
 export class CrmTrpcRouter {
@@ -473,9 +474,9 @@ export class CrmTrpcRouter {
           .mutation(async ({ ctx, input }) => {
             return this.emailService.sendEmail(ctx.tenantId, {
               to: input.to,
-              subject: 'CaratFlow email gateway test',
-              html: '<p>This is a test email from CaratFlow.</p>',
-              text: 'This is a test email from CaratFlow.',
+              subject: `${BRAND_NAME} email gateway test`,
+              html: `<p>This is a test email from ${BRAND_NAME}.</p>`,
+              text: `This is a test email from ${BRAND_NAME}.`,
             });
           }),
         send: authed
@@ -510,7 +511,7 @@ export class CrmTrpcRouter {
           .mutation(async ({ ctx, input }) => {
             return this.smsService.sendSms(ctx.tenantId, {
               to: input.to,
-              body: 'CaratFlow SMS gateway test',
+              body: `${BRAND_NAME} SMS gateway test`,
             });
           }),
         send: authed
@@ -607,7 +608,7 @@ export class CrmTrpcRouter {
             const result = await this.whatsappService.sendTextMessage(
               ctx.tenantId,
               input.to,
-              'CaratFlow test message - WhatsApp integration is working.',
+              `${BRAND_NAME} test message - WhatsApp integration is working.`,
             );
             return { success: true, messageId: result.messageId, waId: result.waId };
           }),

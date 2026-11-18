@@ -11,7 +11,7 @@ export default function CheckoutError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Checkout error:", error);
+    console.error("[TechBeyond] Checkout error:", error);
   }, [error]);
 
   return (

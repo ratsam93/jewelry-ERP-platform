@@ -858,12 +858,12 @@ describe('CrmNotificationService (coverage)', () => {
       });
     });
 
-    it('defaults the title to CaratFlow and keeps externalId null when multicast_id is absent', async () => {
+    it('defaults the title to TechBeyond and keeps externalId null when multicast_id is absent', async () => {
       configurePush();
       fetchMock.mockResolvedValue(fcmResponse(200, { success: 2, failure: 0, results: [{ message_id: 'a' }, { message_id: 'b' }] }));
       await sendPush();
       const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
-      expect(sent.notification.title).toBe('CaratFlow');
+      expect(sent.notification.title).toBe('TechBeyond');
       expect(prisma.notificationLog.update.mock.calls[0][0].data.metadata.externalId).toBeNull();
       expect(prisma.customer.update).not.toHaveBeenCalled();
     });

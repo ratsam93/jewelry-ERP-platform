@@ -71,6 +71,7 @@ import { useStore } from "@/lib/store";
 import { CRM_API, TENANT_ID } from "@/lib/constants";
 import type { CatalogProduct } from "@/lib/catalog";
 import { COLLECTION_IMAGES, HERO_IMAGES, applyFallbackImage, CATEGORY_PLACEHOLDER } from "@/lib/images";
+import { BRAND_NAME } from "@/lib/brand";
 
 // ─── Imagery ─────────────────────────────────────────────────
 // All photography is bundled with the app (public/images, credits in
@@ -208,7 +209,7 @@ export default function HomeView({ data }: HomeViewProps) {
       <section className="relative h-[600px] w-full overflow-hidden">
         <img
           src={IMG.hero}
-          alt="CaratFlow luxury jewelry"
+          alt={`${BRAND_NAME} luxury jewelry`}
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/60 to-navy/20" />
@@ -559,7 +560,7 @@ export default function HomeView({ data }: HomeViewProps) {
             className="mb-3 text-3xl font-bold text-white md:text-4xl"
             style={{ fontFamily: "var(--font-serif)" }}
           >
-            Join the CaratFlow Circle
+            Join the {BRAND_NAME} Circle
           </h2>
           <p className="mb-8 text-sm text-white/60 md:text-base">
             Early access to new collections, private sale invitations, and

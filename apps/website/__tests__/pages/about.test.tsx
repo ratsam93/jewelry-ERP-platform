@@ -22,8 +22,8 @@ describe("About Page", () => {
 
   it("renders the team section", () => {
     render(<AboutPage />);
-    expect(screen.getByText("The Team Behind CaratFlow")).toBeInTheDocument();
-    expect(screen.getByText("Globussoft Technologies")).toBeInTheDocument();
+    expect(screen.getByText("The Team Behind TechBeyond")).toBeInTheDocument();
+    expect(screen.getByText("TechBeyond")).toBeInTheDocument();
     expect(screen.getByText("Product Team")).toBeInTheDocument();
     expect(screen.getByText("Support Team")).toBeInTheDocument();
   });

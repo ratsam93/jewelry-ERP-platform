@@ -11,7 +11,7 @@ export default function CartError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Cart error:", error);
+    console.error("[TechBeyond] Cart error:", error);
   }, [error]);
 
   return (

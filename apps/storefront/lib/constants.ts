@@ -1,6 +1,7 @@
+import { BRAND_NAME } from "@/lib/brand";
 // ─── Storefront Constants ────────────────────────────────────
 
-export const STORE_NAME = "CaratFlow";
+export const STORE_NAME = BRAND_NAME;
 export const STORE_TAGLINE = "Crafting Elegance, Delivering Trust";
 
 // The API listens on API_PORT (default 4000). Override with NEXT_PUBLIC_API_URL.

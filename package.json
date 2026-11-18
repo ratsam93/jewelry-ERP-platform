@@ -2,7 +2,7 @@
   "name": "caratflow",
   "version": "0.1.0",
   "private": true,
-  "description": "CaratFlow - Jewelry ERP System",
+  "description": "TechBeyond - Jewelry ERP System",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

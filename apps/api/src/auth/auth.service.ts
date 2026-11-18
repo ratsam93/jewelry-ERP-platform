@@ -18,6 +18,7 @@ import type { JwtPayload } from '../common/tenant.middleware';
 import { EmailService } from '../modules/crm/email.service';
 import { AccessTokenDenylistService } from './access-token-denylist.service';
 import { getJwtSecret } from '../common/jwt-secret';
+import { BRAND_NAME } from '../common/brand';
 
 interface TokenPair {
   accessToken: string;
@@ -234,7 +235,7 @@ export class AuthService {
       if (this.emailService) {
         await this.emailService.sendEmail(tenant.id, {
           to: user.email,
-          subject: 'Reset your CaratFlow password',
+          subject: `Reset your ${BRAND_NAME} password`,
           text:
             `Hi ${user.firstName},\n\n` +
             `We received a request to reset your password. Click the link below within 1 hour to choose a new one:\n\n` +

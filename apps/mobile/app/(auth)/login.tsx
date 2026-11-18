@@ -60,7 +60,7 @@ export default function LoginScreen() {
           {/* Header */}
           <View className="items-center mb-10">
             <Text className="text-primary-400 text-3xl font-bold">
-              CaratFlow
+              TechBeyond
             </Text>
             <Text className="text-surface-500 text-sm mt-1">
               Sign in to your account

@@ -1,9 +1,10 @@
 import { Providers } from '@/providers/providers';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { BRAND_TITLE_DEFAULT, BRAND_TITLE_TEMPLATE } from '@/lib/brand';
 import './globals.css';
 
 export const metadata = {
-  title: { default: 'CaratFlow - Jewelry ERP', template: '%s | CaratFlow' },
+  title: { default: BRAND_TITLE_DEFAULT, template: BRAND_TITLE_TEMPLATE },
   description: 'Complete jewelry business management system',
 };
 

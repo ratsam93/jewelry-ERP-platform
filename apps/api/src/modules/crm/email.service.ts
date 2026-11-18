@@ -4,6 +4,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
+import { BRAND_NAME } from '../../common/brand';
 
 export interface EmailAttachment {
   /** Base64-encoded content */
@@ -121,7 +122,7 @@ export class EmailService {
       personalizations: [personalization],
       from: {
         email: input.from ?? cfg.fromEmail,
-        name: input.fromName ?? cfg.fromName,
+        name: input.fromName ?? cfg.fromName ?? BRAND_NAME,
       },
     };
 

@@ -1,4 +1,4 @@
-export const metadata = { title: "Jewelry Care | CaratFlow" };
+export const metadata = { title: "Jewelry Care" };
 
 export default function JewelryCarePage() {
   return (
@@ -36,7 +36,7 @@ export default function JewelryCarePage() {
         <section>
           <h2 className="text-lg font-semibold text-navy mb-2">Lifetime Service</h2>
           <p>
-            Bring or ship any CaratFlow piece back to us once a year for a free polish, prong-tightening,
+            Bring or ship any TechBeyond piece back to us once a year for a free polish, prong-tightening,
             and ultrasonic cleaning. If you bought through the storefront just request it from your account.
           </p>
         </section>

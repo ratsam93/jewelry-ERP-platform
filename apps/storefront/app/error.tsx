@@ -11,7 +11,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Unhandled error:", error);
+    console.error("[TechBeyond] Unhandled error:", error);
   }, [error]);
 
   return (

@@ -1,4 +1,4 @@
-export const metadata = { title: "Terms of Service | CaratFlow" };
+export const metadata = { title: "Terms of Service" };
 
 export default function TermsPage() {
   return (
@@ -12,7 +12,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-navy mb-2">1. Acceptance</h2>
           <p>
-            By using caratflow.com you agree to these terms and to our Privacy Policy. If you do not agree,
+            By using this website you agree to these terms and to our Privacy Policy. If you do not agree,
             please do not use the site.
           </p>
         </section>
@@ -35,7 +35,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-navy mb-2">4. Liability</h2>
           <p>
-            CaratFlow's total liability for any claim is limited to the amount you paid for the piece in
+            TechBeyond's total liability for any claim is limited to the amount you paid for the piece in
             question. We are not liable for indirect or consequential damages.
           </p>
         </section>

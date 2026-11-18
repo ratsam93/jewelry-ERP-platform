@@ -11,7 +11,7 @@ export default function SearchError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Search error:", error);
+    console.error("[TechBeyond] Search error:", error);
   }, [error]);
 
   return (

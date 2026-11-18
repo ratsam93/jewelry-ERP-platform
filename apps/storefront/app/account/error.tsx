@@ -11,7 +11,7 @@ export default function AccountError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Account error:", error);
+    console.error("[TechBeyond] Account error:", error);
   }, [error]);
 
   return (

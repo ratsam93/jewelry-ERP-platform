@@ -2,7 +2,7 @@
   "name": "@caratflow/utils",
   "version": "0.1.0",
   "private": true,
-  "description": "CaratFlow utility functions - money, weight, purity, tax, validation",
+  "description": "TechBeyond utility functions - money, weight, purity, tax, validation",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

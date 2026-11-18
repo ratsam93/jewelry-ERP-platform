@@ -5,8 +5,8 @@ import Navbar from "../Navbar";
 describe("Navbar", () => {
   it("renders the logo", () => {
     render(<Navbar />);
-    expect(screen.getByText("Carat")).toBeTruthy();
-    expect(screen.getByText("Flow")).toBeTruthy();
+    expect(screen.getByText("Tech")).toBeTruthy();
+    expect(screen.getByText("Beyond")).toBeTruthy();
   });
 
   it("renders all navigation links", () => {

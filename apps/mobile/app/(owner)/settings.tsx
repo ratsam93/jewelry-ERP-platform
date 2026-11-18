@@ -198,7 +198,7 @@ export default function SettingsScreen() {
           <Text className="text-xs text-surface-500 uppercase tracking-wide mb-2">
             About
           </Text>
-          <Text className="text-sm text-surface-700">CaratFlow Mobile</Text>
+          <Text className="text-sm text-surface-700">TechBeyond Mobile</Text>
           <Text className="text-xs text-surface-400">Version 0.1.0</Text>
         </Card>
 

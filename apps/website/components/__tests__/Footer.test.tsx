@@ -17,7 +17,7 @@ describe("Footer", () => {
     render(<Footer />);
     const year = new Date().getFullYear();
     expect(
-      screen.getByText(`© ${year} CaratFlow by Globussoft Technologies. All rights reserved.`)
+      screen.getByText(`© ${year} TechBeyond. All rights reserved.`)
     ).toBeInTheDocument();
   });
 

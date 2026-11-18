@@ -18,6 +18,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { TenantAwareService } from '../../common/base.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import { v4 as uuidv4 } from 'uuid';
+import { BRAND_NAME } from '../../common/brand';
 
 @Injectable()
 export class ExportDocumentService extends TenantAwareService {
@@ -46,7 +47,7 @@ export class ExportDocumentService extends TenantAwareService {
       issuedDate: d.issuedDate
         ? new Date(d.issuedDate).toISOString().slice(0, 10)
         : '',
-      exporterName: d.exporterName ?? 'CaratFlow Tenant',
+      exporterName: d.exporterName ?? BRAND_NAME,
       exporterAddress: d.exporterAddress ?? '',
       exporterGstin: d.exporterGstin ?? '',
       iecCode: d.iecCode ?? '',

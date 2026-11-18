@@ -87,7 +87,7 @@ const industryFeatures = [
 const testimonials = [
   {
     quote:
-      "CaratFlow replaced three separate systems we were using. Our inventory accuracy went from 85% to 99.5%, and our karigars love the transparent metal balance tracking.",
+      "TechBeyond replaced three separate systems we were using. Our inventory accuracy went from 85% to 99.5%, and our karigars love the transparent metal balance tracking.",
     name: "Amit Sharma",
     company: "Sharma Jewellers, Mumbai",
     role: "Managing Director",
@@ -168,7 +168,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <SectionHeader
             title="Go Live in 3 Simple Steps"
-            subtitle="Getting started with CaratFlow is straightforward. Our team guides you every step of the way."
+            subtitle="Getting started with TechBeyond is straightforward. Our team guides you every step of the way."
           />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
@@ -208,7 +208,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <SectionHeader
             title="Built for Jewelry, Not Adapted"
-            subtitle="Generic ERPs force jewelers to work around limitations. CaratFlow was designed from the ground up for the jewelry industry."
+            subtitle="Generic ERPs force jewelers to work around limitations. TechBeyond was designed from the ground up for the jewelry industry."
             light
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -230,7 +230,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <SectionHeader
             title="Loved by Jewelers"
-            subtitle="See why jewelry businesses across India trust CaratFlow to run their operations."
+            subtitle="See why jewelry businesses across India trust TechBeyond to run their operations."
           />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((t) => (
@@ -247,7 +247,7 @@ export default function HomePage() {
             Ready to Transform Your Jewelry Business?
           </h2>
           <p className="text-gray-300 mb-8 text-lg">
-            Join 500+ jewelers who have modernized their operations with CaratFlow.
+            Join 500+ jewelers who have modernized their operations with TechBeyond.
             Start your free 14-day trial today -- no credit card needed.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

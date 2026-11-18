@@ -15,6 +15,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { EventBusService } from '../../event-bus/event-bus.service';
 import { EmailService } from '../crm/email.service';
 import type { PaginatedResult, AuditMeta } from '@caratflow/shared-types';
+import { BRAND_NAME } from '../../common/brand';
 
 interface InviteUserInput {
   email: string;
@@ -154,17 +155,17 @@ export class PlatformUserService extends TenantAwareService {
     ).replace(/\/$/, '');
     const loginUrl = `${webUrl}/auth/login`;
 
-    const subject = 'You have been invited to CaratFlow';
+    const subject = `You have been invited to ${BRAND_NAME}`;
     const text =
       `Hi ${firstName},\n\n` +
-      `You have been invited to CaratFlow. Use the temporary password below to sign in — you will be asked to set a new one on first login.\n\n` +
+      `You have been invited to ${BRAND_NAME}. Use the temporary password below to sign in — you will be asked to set a new one on first login.\n\n` +
       `Login URL: ${loginUrl}\n` +
       `Email: ${email}\n` +
       `Temporary password: ${tempPassword}\n\n` +
       `If you did not expect this invitation, please ignore this email.\n`;
     const html =
       `<p>Hi ${firstName},</p>` +
-      `<p>You have been invited to <strong>CaratFlow</strong>. Use the temporary password below to sign in — you will be asked to set a new one on first login.</p>` +
+      `<p>You have been invited to <strong>${BRAND_NAME}</strong>. Use the temporary password below to sign in — you will be asked to set a new one on first login.</p>` +
       `<ul>` +
       `<li>Login URL: <a href="${loginUrl}">${loginUrl}</a></li>` +
       `<li>Email: <code>${email}</code></li>` +

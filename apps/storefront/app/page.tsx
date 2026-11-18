@@ -10,7 +10,7 @@ export default async function HomePage() {
   try {
     data = await getHome();
   } catch (err) {
-    console.error("[CaratFlow] Failed to load home page catalog:", err);
+    console.error("[TechBeyond] Failed to load home page catalog:", err);
   }
   return <HomeView data={data} />;
 }

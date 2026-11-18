@@ -8,6 +8,7 @@ import { formatRupees, cn } from "@/lib/utils";
 import AddressForm from "@/components/AddressForm";
 import { apiFetch, ApiError, getAccessToken } from "@/lib/api";
 import type { Address } from "@/lib/types";
+import { BRAND_NAME } from "@/lib/brand";
 
 declare global {
   interface Window {
@@ -261,7 +262,7 @@ export default function CheckoutPage() {
         amount: amountPaise,
         currency: order.payment?.currency ?? "INR",
         order_id: razorpayOrderId,
-        name: "CaratFlow",
+        name: BRAND_NAME,
         description: order.orderNumber ? `Order ${order.orderNumber}` : "Order",
         prefill: {
           name: selectedAddress?.fullName,

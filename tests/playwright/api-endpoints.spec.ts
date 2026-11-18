@@ -150,7 +150,7 @@ test.describe('API - Swagger & Health', () => {
     if (res.status() !== 200) return;
     const body = await res.json();
     expect(body.openapi || body.swagger).toBeTruthy();
-    expect(body.info.title).toContain('CaratFlow');
+    expect(body.info.title).toContain('TechBeyond');
   });
 });
 

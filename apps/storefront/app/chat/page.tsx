@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, type ReactNode } from "react"
 import Link from "next/link";
 import { startChat, getChatSession, sendChatMessage, readStoredSession } from "@/lib/chat-client";
 import { formatPrice } from "@/lib/utils";
+import { BRAND_NAME } from "@/lib/brand";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -89,7 +90,7 @@ export default function ChatPage() {
         setMessages([{
           id: "fallback",
           role: "ASSISTANT",
-          content: "Welcome to CaratFlow! How can I help you find the perfect jewelry today?",
+          content: `Welcome to ${BRAND_NAME}! How can I help you find the perfect jewelry today?`,
           messageType: "TEXT",
           metadata: null,
           timestamp: new Date().toISOString(),
@@ -167,7 +168,7 @@ export default function ChatPage() {
               </svg>
             </div>
             <div>
-              <h1 className="font-semibold text-navy">CaratFlow Assistant</h1>
+              <h1 className="font-semibold text-navy">{BRAND_NAME} Assistant</h1>
               <p className="text-xs text-navy/50">Your personal jewelry expert</p>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { api } from '@/lib/api';
 import { loginErrorMessage } from '@/lib/api-error';
+import { BRAND_NAME } from '@/lib/brand';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,7 +67,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-brand-700">CaratFlow</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-brand-700">{BRAND_NAME}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Sign in to your jewelry management system
           </p>

@@ -1,4 +1,4 @@
-export const metadata = { title: "Careers | CaratFlow" };
+export const metadata = { title: "Careers" };
 
 export default function CareersPage() {
   return (
@@ -32,7 +32,7 @@ export default function CareersPage() {
         <section>
           <h2 className="text-lg font-semibold text-navy mb-2">Our Promise</h2>
           <p>
-            Honest hours, transparent pay, learning budget, lifetime jewelry-care benefit on your CaratFlow
+            Honest hours, transparent pay, learning budget, lifetime jewelry-care benefit on your TechBeyond
             purchases, and a small, focused team.
           </p>
         </section>

@@ -3,6 +3,7 @@ import { authenticator } from 'otplib';
 import { HashAlgorithms } from 'otplib/core';
 import * as QRCode from 'qrcode';
 import { PrismaService } from '../common/prisma.service';
+import { BRAND_NAME } from '../common/brand';
 
 // TOTP constants (RFC 6238 defaults)
 const TOTP_PERIOD = 30;
@@ -13,7 +14,7 @@ const TOTP_WINDOW = 1;
 @Injectable()
 export class TwoFactorAuthService {
   private readonly logger = new Logger(TwoFactorAuthService.name);
-  private readonly issuer = 'CaratFlow';
+  private readonly issuer = BRAND_NAME;
 
   constructor(private readonly prisma: PrismaService) {
     // Configure otplib authenticator defaults once

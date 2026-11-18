@@ -63,13 +63,13 @@ describe('TwoFactorAuthService', () => {
       await expect(service.enable2FA(auth.id)).rejects.toThrow(BadRequestException);
     });
 
-    it('should include issuer CaratFlow in otpAuthUrl', async () => {
+    it('should include issuer TechBeyond in otpAuthUrl', async () => {
       const auth = createMockCustomerAuth({ twoFactorEnabled: false, twoFactorSecret: null });
       prisma.customerAuth.findUnique.mockResolvedValue(auth as any);
       prisma.customerAuth.update.mockResolvedValue(auth as any);
 
       const result = await service.enable2FA(auth.id);
-      expect(result.otpAuthUrl).toContain('CaratFlow');
+      expect(result.otpAuthUrl).toContain('TechBeyond');
     });
   });
 

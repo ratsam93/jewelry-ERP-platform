@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { BRAND_NAME } from '@/lib/brand';
 
 export default function RegisterPage() {
   const [form, setForm] = React.useState({
@@ -31,7 +32,7 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-navy-50 px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-brand-700">CaratFlow</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-brand-700">{BRAND_NAME}</h1>
           <p className="mt-2 text-sm text-muted-foreground">Create your account</p>
         </div>
 

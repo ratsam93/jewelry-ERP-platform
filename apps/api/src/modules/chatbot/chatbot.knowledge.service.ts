@@ -11,6 +11,7 @@ import type {
   ChatTemplateInput,
   ChatTemplateResponse,
 } from '@caratflow/shared-types';
+import { BRAND_NAME } from '../../common/brand';
 
 @Injectable()
 export class ChatbotKnowledgeService extends TenantAwareService {
@@ -262,7 +263,7 @@ export class ChatbotKnowledgeService extends TenantAwareService {
     }> = [
       {
         triggerKeywords: ['hi', 'hello', 'hey', 'namaste'],
-        responseTemplate: 'Namaste! Welcome to CaratFlow. I can help you find the perfect jewelry piece. What are you looking for today?',
+        responseTemplate: `Namaste! Welcome to ${BRAND_NAME}. I can help you find the perfect jewelry piece. What are you looking for today?`,
         category: 'GREETING',
       },
       {

@@ -62,6 +62,7 @@ describe("Footer", () => {
     render(<Footer />);
     expect(screen.getByText("Visa")).toBeInTheDocument();
     expect(screen.getByText("UPI")).toBeInTheDocument();
-    expect(screen.getByText(/CaratFlow by Globussoft/)).toBeInTheDocument();
+    expect(screen.getByText(`© ${new Date().getFullYear()} TechBeyond`)).toBeInTheDocument();
+    expect(screen.queryByText(/Globussoft/)).toBeNull();
   });
 });

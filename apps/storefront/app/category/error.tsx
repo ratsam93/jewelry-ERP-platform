@@ -11,7 +11,7 @@ export default function CategoryError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Category error:", error);
+    console.error("[TechBeyond] Category error:", error);
   }, [error]);
 
   return (

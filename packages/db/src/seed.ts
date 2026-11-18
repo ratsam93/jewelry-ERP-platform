@@ -10,7 +10,7 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 async function main() {
-  console.warn('Seeding CaratFlow database...');
+  console.warn('Seeding TechBeyond database...');
 
   // ─── Currencies ────────────────────────────────────────────
   const currencies = [

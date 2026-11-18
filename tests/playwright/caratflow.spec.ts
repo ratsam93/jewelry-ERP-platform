@@ -84,7 +84,7 @@ test.describe('B2C Storefront', () => {
 test.describe('Admin Dashboard', () => {
   test('Admin login page with demo credentials', async ({ page }) => {
     await page.goto('/admin/login');
-    await expect(page.locator('body')).toContainText(/Demo Credentials|CaratFlow|Sign in/i);
+    await expect(page.locator('body')).toContainText(/Demo Credentials|TechBeyond|Sign in/i);
   });
 
   test('Dashboard loads', async ({ page }) => {

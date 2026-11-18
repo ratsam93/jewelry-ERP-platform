@@ -8,6 +8,7 @@ import {
   getCategoryProducts,
 } from "@/lib/catalog";
 import type { FilterState } from "@/lib/types";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const revalidate = 60;
 
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (!resolved) return { title: "Category Not Found" };
     return {
       title: resolved.title,
-      description: resolved.category?.description || `Shop ${resolved.title} jewelry online at CaratFlow.`,
+      description: resolved.category?.description || `Shop ${resolved.title} jewelry online at ${BRAND_NAME}.`,
     };
   } catch {
     return { title: "Jewelry" };

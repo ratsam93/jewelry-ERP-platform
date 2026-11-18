@@ -213,6 +213,8 @@ interface SidebarProps {
   currentPath?: string;
   /** Overrides the link renderer from LinkProvider for this sidebar only. */
   renderLink?: RenderLink;
+  /** Brand text shown beside the logo icon. */
+  brandName?: string;
 }
 
 export function Sidebar({
@@ -221,6 +223,7 @@ export function Sidebar({
   items = defaultNavItems,
   currentPath = '',
   renderLink,
+  brandName = 'TechBeyond',
 }: SidebarProps) {
   const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
   const asideRef = React.useRef<HTMLElement>(null);
@@ -287,7 +290,7 @@ export function Sidebar({
         {/* Logo */}
         <div className="flex h-14 shrink-0 items-center border-b px-4">
           <Gem className="h-6 w-6 shrink-0 text-brand-500" />
-          {!collapsed && <span className="ml-2 text-lg font-bold text-brand-700">CaratFlow</span>}
+          {!collapsed && <span className="ml-2 text-lg font-bold text-brand-700">{brandName}</span>}
           <button
             type="button"
             onClick={closeMobile}

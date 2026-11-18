@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { startChat, getChatSession, sendChatMessage, readStoredSession, storeSession } from "@/lib/chat-client";
 import { formatPrice } from "@/lib/utils";
+import { BRAND_NAME } from "@/lib/brand";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -104,7 +105,7 @@ export default function ChatWidget() {
         setMessages([{
           id: "fallback-greeting",
           role: "ASSISTANT",
-          content: "Welcome to CaratFlow! I'm here to help you find beautiful jewelry. How can I assist you today?",
+          content: `Welcome to ${BRAND_NAME}! I'm here to help you find beautiful jewelry. How can I assist you today?`,
           messageType: "TEXT",
           metadata: null,
           timestamp: new Date().toISOString(),
@@ -231,7 +232,7 @@ export default function ChatWidget() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-white font-semibold text-sm">CaratFlow Assistant</h3>
+                <h3 className="text-white font-semibold text-sm">{BRAND_NAME} Assistant</h3>
                 <p className="text-white/60 text-xs">Jewelry Expert</p>
               </div>
             </div>
@@ -327,7 +328,7 @@ export default function ChatWidget() {
               </button>
             </div>
             <p className="text-[10px] text-navy/30 text-center mt-1.5">
-              Powered by CaratFlow AI
+              Powered by {BRAND_NAME} AI
             </p>
           </div>
         </div>

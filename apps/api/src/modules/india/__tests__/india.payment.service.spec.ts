@@ -64,7 +64,7 @@ describe('IndiaPaymentService (Unit)', () => {
         amountPaise: 10000,
       });
 
-      expect(result.transactionNote).toBe('Payment to CaratFlow');
+      expect(result.transactionNote).toBe('Payment to TechBeyond');
     });
 
     it('generates referenceId when not provided', () => {
@@ -146,7 +146,7 @@ describe('IndiaPaymentService (Unit)', () => {
         transferType: 'NEFT',
       } as any);
 
-      expect(result.remarks).toContain('CaratFlow payment');
+      expect(result.remarks).toContain('TechBeyond payment');
     });
   });
 

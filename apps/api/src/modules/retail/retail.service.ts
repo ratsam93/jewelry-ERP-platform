@@ -16,6 +16,7 @@ import { RetailOldGoldService } from './retail.old-gold.service';
 import type { Prisma } from '@caratflow/db';
 import { assertHuidForSale } from '../../common/huid-gate';
 import { v4 as uuidv4 } from 'uuid';
+import { BRAND_NAME } from '../../common/brand';
 
 @Injectable()
 export class RetailService extends TenantAwareService {
@@ -64,7 +65,7 @@ export class RetailService extends TenantAwareService {
 
     const firstPayment = s.payments?.[0];
     return this.pdfService.renderTemplate('sale-receipt', {
-      tenantName: s.tenantName ?? 'CaratFlow Jewellery',
+      tenantName: s.tenantName ?? `${BRAND_NAME} Jewellery`,
       tenantAddress: s.tenantAddress ?? '',
       tenantGstin: s.tenantGstin ?? '',
       tenantContact: s.tenantContact ?? '',
