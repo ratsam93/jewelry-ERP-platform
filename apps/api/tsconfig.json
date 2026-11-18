@@ -16,5 +16,5 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts", "src/__tests__/**"]
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts", "src/__tests__/**", "src/**/__tests__/demo-full.fakedb.ts"]
 }

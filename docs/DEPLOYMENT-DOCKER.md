@@ -298,6 +298,33 @@ phone +919820000001, verified e-mail/phone, one address, KYC, 500 loyalty points
 > customer and the demo products (SKUs starting with `TB-`) before real launch, and replace the
 > demo images with your own photography.
 
+### Full demo data (all modules)
+
+After the catalog seed you can fill the whole admin (customers, CRM, retail sales and returns,
+finance, stock movements, manufacturing, wholesale, HR and commerce) with a busy, fictional
+jewellery business. Dates are relative to the day you run it (mostly the last 90 days):
+
+```bash
+cd ~/caratflow
+/opt/caratflow/backup.sh        # 1. ALWAYS take a backup first
+TENANT_SLUG=your-slug DOMAIN=your.domain   docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --rm seed-demo-full
+```
+
+> **Warning:** this fills the **LIVE** database with fictional data (people, invoices, sales,
+> ledger entries). Do not run it on a database that holds real business records, and never
+> before the real launch data is loaded.
+
+- Requires the tenant and the catalog (`seed-demo-catalog` first); otherwise it refuses.
+- Insert-only and idempotent: a second run inserts 0 rows. Only the catalog stock quantities are
+  reduced once, to match the fictional sales.
+- `DRY_RUN=true` prints would-insert counts per module and table and writes nothing.
+- `ONLY=crm,retail` or `SKIP=finance` limit the modules (`crm`, `retail`, `finance`, `ops`,
+  `peopleCommerce`); each module is one database transaction.
+- `DEMO_STAFF_PASSWORD='...'` (min 8 characters, never printed) also creates four staff logins
+  `sales.demo@`, `accounts.demo@`, `store.demo@`, `karigar.demo@example.com` with matching roles.
+- **Going back:** restore the backup (`/opt/caratflow/restore.sh <backup file>`), or wipe the
+  database and run `bootstrap-tenant` again (then `seed-demo-catalog` if you want the catalog).
+
 ## 9. Daily operations
 
 All commands run on the server in `/opt/caratflow` as `deploy`. Shorthand:
