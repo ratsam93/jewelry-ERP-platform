@@ -48,7 +48,7 @@ nl=$'\n'
 
 for img in "${IMAGES[@]}"; do
   repo="$REGISTRY/$OWNER/caratflow-$img"
-  want_hash="$("$here/build-args.sh" "$img" | sha256sum | cut -d' ' -f1)"
+  want_hash="$(bash "$here/build-args.sh" "$img" | sha256sum | cut -d' ' -f1)"
   action="build"; reason=""; digest=""
 
   if [ "$REBUILD_ALL" = "true" ]; then
@@ -67,7 +67,7 @@ for img in "${IMAGES[@]}"; do
     elif ! [[ "$base" =~ ^[0-9a-f]{40}$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
       reason="base commit ${base:0:12} not available"
     else
-      hit="$(git diff --no-renames --name-only "$base" "$SHA" | "$here/changed-images.sh")"
+      hit="$(git diff --no-renames --name-only "$base" "$SHA" | bash "$here/changed-images.sh")"
       if [[ " $hit " == *" $img "* ]]; then
         reason="inputs changed since ${base:0:12}"
       else
