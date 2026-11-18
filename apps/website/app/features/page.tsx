@@ -362,8 +362,8 @@ export default function FeaturesPage() {
             <Button variant="primary" size="lg" href="/contact">
               Book a Demo
             </Button>
-            <Button variant="secondary" size="lg" href="/pricing">
-              View Pricing
+            <Button variant="secondary" size="lg" href="/contact">
+              Contact Us
             </Button>
           </div>
         </div>

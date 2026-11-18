@@ -42,6 +42,9 @@ shop.{$DOMAIN} {
 # Marketing website (apex + www).
 {$DOMAIN}, www.{$DOMAIN} {
 	import common
+	# The pricing page was removed; the static export cannot redirect, so do it here.
+	redir /pricing / permanent
+	redir /pricing/ / permanent
 	reverse_proxy website:8080
 }
 

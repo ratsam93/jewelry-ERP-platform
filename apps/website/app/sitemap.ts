@@ -4,7 +4,7 @@ import { posts } from "@/lib/posts";
 
 export const dynamic = "force-static";
 
-const routes = ["", "/features", "/pricing", "/about", "/blog", "/contact", "/careers", "/privacy", "/terms"];
+const routes = ["", "/features", "/about", "/blog", "/contact", "/careers", "/privacy", "/terms"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();

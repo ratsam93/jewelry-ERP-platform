@@ -11,7 +11,7 @@ describe("Navbar", () => {
 
   it("renders all navigation links", () => {
     render(<Navbar />);
-    const expectedLinks = ["Features", "Pricing", "About", "Blog", "Contact"];
+    const expectedLinks = ["Features", "About", "Blog", "Contact"];
     for (const label of expectedLinks) {
       const links = screen.getAllByText(label);
       expect(links.length).toBeGreaterThan(0);
