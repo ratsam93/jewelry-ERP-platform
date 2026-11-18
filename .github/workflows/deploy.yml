@@ -4,17 +4,35 @@ name: Deploy
 # production server over SSH. Everything is skipped (green) unless the repository
 # VARIABLE DEPLOY_ENABLED is set to "true". Setup: docs/DEPLOYMENT-DOCKER.md.
 #
+# Flow (see "How deploys work and how fast they are" in docs/DEPLOYMENT-DOCKER.md)
+#   push to main -> this workflow starts at once, in PARALLEL with the CI workflow of the same push
+#     prepare ........ resolves the commit, decides per image: BUILD or RE-TAG (nothing changed)
+#     build / retag .. builds only what changed; unchanged images get the new commit-SHA tag
+#                      (same digest) so every image still exists under the commit tag
+#     wait-for-ci .... polls until CI for the SAME commit finished; fails unless it succeeded
+#     deploy ......... only when the gate AND all builds/re-tags succeeded (SSH, migrate, health
+#                      check, automatic rollback on failure)
+#     promote-latest . after a successful deploy, :latest := this commit's images
+#   A failing test can therefore never reach the server, and a failed health check still
+#   rolls back on the server.
+#
 # Triggers
-#   - workflow_run: after the "CI" workflow finished successfully for a push to main
-#     (so a deploy never starts from a commit whose CI failed)
+#   - push to main (docs-only pushes are ignored: they change no image and no deploy file)
 #   - workflow_dispatch: manual run; optionally deploy a specific ref, redeploy an
-#     already-built image tag (rollback) and/or run the one-time demo seed
+#     already-built image tag (rollback), force a full rebuild, run the one-time demo seed
+#
+# Concurrency: ONE run at a time for the whole workflow (builds read :latest and the
+# deploy is a single server). GitHub keeps only the newest *pending* run, so if several
+# pushes arrive while a deploy is running, the older pending ones are cancelled and the
+# newest commit deploys (it contains the older ones). Do not add a job-level concurrency
+# block with the same group name: it would deadlock against this one.
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   workflow_dispatch:
     inputs:
       ref:
@@ -22,14 +40,28 @@ on:
         required: false
         default: ""
       image_tag:
-        description: "Redeploy an already-built image tag (e.g. a previous commit SHA) and skip the build."
+        description: "Redeploy an already-built image tag (e.g. a previous commit SHA) and skip build and CI gate (rollback)."
         required: false
         default: ""
+      rebuild_all:
+        description: "Rebuild all six images even if nothing changed (e.g. to pick up fresh base images)."
+        type: boolean
+        required: false
+        default: false
+      skip_ci_gate:
+        description: "EMERGENCY ONLY: deploy without requiring a successful CI run for this commit."
+        type: boolean
+        required: false
+        default: false
       run_seed:
         description: "Run the demo seed once after the schema is applied (first install only)"
         type: boolean
         required: false
         default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -41,57 +73,92 @@ jobs:
   prepare:
     name: Prepare
     runs-on: ubuntu-latest
-    # No-op unless explicitly enabled. For workflow_run also require a successful CI
-    # run for a *push* (not a pull request that happens to come from a branch named main).
-    if: >-
-      vars.DEPLOY_ENABLED == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    # No-op unless explicitly enabled.
+    if: vars.DEPLOY_ENABLED == 'true'
+    permissions:
+      contents: read
+      packages: read
     outputs:
       sha: ${{ steps.vars.outputs.sha }}
       tag: ${{ steps.vars.outputs.tag }}
       owner: ${{ steps.vars.outputs.owner }}
-      build: ${{ steps.vars.outputs.build }}
       domain: ${{ steps.vars.outputs.domain }}
+      gate: ${{ steps.vars.outputs.gate }}
+      build_images: ${{ steps.plan.outputs.build_images }}
+      retag: ${{ steps.plan.outputs.retag }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          # push: the pushed commit; dispatch: the requested ref (or the selected branch).
+          ref: ${{ inputs.ref || github.sha }}
+          # Full history: the change detection diffs against the commit of the last deployed image.
+          fetch-depth: 0
+
       - name: Resolve what to deploy
         id: vars
         env:
-          EVENT: ${{ github.event_name }}
-          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
-          INPUT_REF: ${{ inputs.ref }}
           INPUT_TAG: ${{ inputs.image_tag }}
-          DISPATCH_SHA: ${{ github.sha }}
+          SKIP_GATE: ${{ inputs.skip_ci_gate == true && 'true' || 'false' }}
           OWNER: ${{ github.repository_owner }}
           DOMAIN: ${{ vars.DOMAIN }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" = "workflow_run" ]; then
-            ref="$RUN_SHA"
-          else
-            ref="${INPUT_REF:-$DISPATCH_SHA}"
-          fi
+          sha="$(git rev-parse HEAD)"
           if [ -z "$DOMAIN" ]; then
             echo "::error::Repository variable DOMAIN is not set (Settings > Secrets and variables > Actions > Variables)."
             exit 1
           fi
+          # A rollback (image_tag) redeploys an image that was already deployed once: no build,
+          # no CI gate (it must work even while CI is red). Everything else needs green CI.
           if [ -n "$INPUT_TAG" ]; then
-            tag="$INPUT_TAG"; build=false
+            tag="$INPUT_TAG"; gate=false
           else
-            tag=""; build=true
+            tag=""; gate=true
+            if [ "$SKIP_GATE" = "true" ]; then
+              gate=false
+              echo "::warning::skip_ci_gate is set: deploying $sha WITHOUT requiring a successful CI run."
+            fi
           fi
           {
-            echo "sha=$ref"
+            echo "sha=$sha"
             echo "tag=$tag"
-            echo "build=$build"
+            echo "gate=$gate"
             echo "owner=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')"
             echo "domain=$DOMAIN"
           } >> "$GITHUB_OUTPUT"
 
-  build-push:
+      - uses: docker/login-action@v3
+        if: inputs.image_tag == ''
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide which images to build or re-tag
+        id: plan
+        env:
+          OWNER: ${{ steps.vars.outputs.owner }}
+          SHA: ${{ steps.vars.outputs.sha }}
+          IMAGE_TAG_INPUT: ${{ inputs.image_tag }}
+          REBUILD_ALL: ${{ inputs.rebuild_all == true && 'true' || 'false' }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          TENANT_ID: ${{ vars.TENANT_ID }}
+          TENANT_SLUG: ${{ vars.TENANT_SLUG }}
+          IMAGE_HOSTS: ${{ vars.NEXT_PUBLIC_IMAGE_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [ -n "$IMAGE_TAG_INPUT" ]; then
+            # Redeploy of an existing tag: nothing to build.
+            { echo 'build_images=[]'; echo 'retag=[]'; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          bash .github/scripts/plan-images.sh
+
+  # Builds only the images whose inputs changed (or all of them, see plan-images.sh).
+  build:
     name: Build ${{ matrix.image }}
     needs: prepare
-    if: needs.prepare.outputs.build == 'true'
+    if: needs.prepare.outputs.build_images != '[]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -99,49 +166,35 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        image: [api, web, storefront, website, minio, mc]
-    outputs:
-      sha: ${{ steps.meta.outputs.sha }}
+        image: ${{ fromJSON(needs.prepare.outputs.build_images) }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.sha }}
 
-      - name: Compute image tag and build args
+      - name: Compute build args and labels
         id: meta
         env:
           IMAGE: ${{ matrix.image }}
+          SHA: ${{ needs.prepare.outputs.sha }}
           DOMAIN: ${{ needs.prepare.outputs.domain }}
           TENANT_ID: ${{ vars.TENANT_ID }}
           TENANT_SLUG: ${{ vars.TENANT_SLUG }}
           IMAGE_HOSTS: ${{ vars.NEXT_PUBLIC_IMAGE_HOSTS }}
         run: |
           set -euo pipefail
-          sha="$(git rev-parse HEAD)"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          tenant_id="${TENANT_ID:-69544f8e-fa3c-40b4-8975-643825600ce7}"
-          tenant_slug="${TENANT_SLUG:-sharma-jewellers}"
+          args="$(bash .github/scripts/build-args.sh "$IMAGE")"
+          # Same script and same input as plan-images.sh, so the hashes are comparable.
+          hash="$(bash .github/scripts/build-args.sh "$IMAGE" | sha256sum | cut -d' ' -f1)"
           {
             echo "args<<__ARGS__"
-            echo "GIT_SHA=$sha"
-            case "$IMAGE" in
-              web)
-                echo "NEXT_PUBLIC_API_URL=https://api.$DOMAIN"
-                echo "NEXT_PUBLIC_TENANT_SLUG=${TENANT_SLUG}"
-                ;;
-              storefront)
-                echo "NEXT_PUBLIC_API_URL=https://api.$DOMAIN"
-                echo "NEXT_PUBLIC_TENANT_ID=$tenant_id"
-                echo "NEXT_PUBLIC_TENANT_SLUG=$tenant_slug"
-                echo "NEXT_PUBLIC_IMAGE_HOSTS=$IMAGE_HOSTS"
-                ;;
-              website)
-                echo "NEXT_PUBLIC_API_URL=https://api.$DOMAIN"
-                echo "NEXT_PUBLIC_TENANT_ID=$tenant_id"
-                echo "NEXT_PUBLIC_SITE_URL=https://$DOMAIN"
-                ;;
-            esac
+            echo "GIT_SHA=$SHA"
+            if [ -n "$args" ]; then echo "$args"; fi
             echo "__ARGS__"
+            echo "labels<<__LABELS__"
+            echo "org.opencontainers.image.revision=$SHA"
+            echo "cf.build-args-hash=$hash"
+            echo "__LABELS__"
           } >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
@@ -158,25 +211,112 @@ jobs:
           file: docker/${{ matrix.image }}.Dockerfile
           push: true
           build-args: ${{ steps.meta.outputs.args }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ needs.prepare.outputs.owner }}/caratflow-${{ matrix.image }}:${{ steps.meta.outputs.sha }}
-            ${{ env.REGISTRY }}/${{ needs.prepare.outputs.owner }}/caratflow-${{ matrix.image }}:latest
+          labels: ${{ steps.meta.outputs.labels }}
+          # Only the commit tag here; :latest is moved after a successful deploy (promote-latest).
+          tags: ${{ env.REGISTRY }}/${{ needs.prepare.outputs.owner }}/caratflow-${{ matrix.image }}:${{ needs.prepare.outputs.sha }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,scope=${{ matrix.image }},mode=max
           provenance: false
 
+  # Unchanged images: add the commit tag to the already-pushed image (same digest, no rebuild).
+  retag:
+    name: Re-tag ${{ matrix.image }}
+    needs: prepare
+    if: needs.prepare.outputs.retag != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.retag) }}
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag the existing image with the commit SHA
+        env:
+          REPO: ${{ env.REGISTRY }}/${{ needs.prepare.outputs.owner }}/caratflow-${{ matrix.image }}
+          DIGEST: ${{ matrix.digest }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create -t "$REPO:$SHA" "$REPO@$DIGEST"
+          docker buildx imagetools inspect "$REPO:$SHA" > /dev/null
+          echo "Re-tagged $REPO@$DIGEST as $SHA"
+
+  # The gate: CI for the SAME commit must have finished successfully before anything is deployed.
+  wait-for-ci:
+    name: Wait for CI
+    needs: prepare
+    if: needs.prepare.outputs.gate == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Wait for a successful CI run on this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          set -euo pipefail
+          timeout_s=1500        # 25 minutes
+          poll_s=20
+          no_run_grace_s=300    # CI normally starts within seconds of a push
+          start=$SECONDS
+          echo "Waiting for the CI workflow (push event) on $SHA ..."
+          while :; do
+            # Only `push` runs count: a pull_request run tests the merge ref, not this commit.
+            runs="$(gh run list --repo "$REPO" --workflow ci.yml --commit "$SHA" --event push \
+                      --limit 20 --json databaseId,status,conclusion)"
+            read -r total ok pending <<< "$(printf '%s' "$runs" | node -e '
+              let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+                const r = JSON.parse(s);
+                const ok = r.filter(x => x.status === "completed" && x.conclusion === "success").length;
+                const pending = r.filter(x => x.status !== "completed").length;
+                console.log(r.length, ok, pending);
+              });')"
+            if [ "$ok" -ge 1 ]; then
+              echo "CI succeeded for $SHA."
+              exit 0
+            fi
+            if [ "$total" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              echo "::error::CI finished for $SHA without success. Not deploying. Runs: $runs"
+              exit 1
+            fi
+            elapsed=$((SECONDS - start))
+            if [ "$total" -eq 0 ] && [ "$elapsed" -ge "$no_run_grace_s" ]; then
+              echo "::error::No CI run (push event) exists for $SHA. Deploying a commit that CI never ran on requires the emergency input skip_ci_gate=true."
+              exit 1
+            fi
+            if [ "$elapsed" -ge "$timeout_s" ]; then
+              echo "::error::Timed out after ${elapsed}s waiting for CI on $SHA."
+              exit 1
+            fi
+            echo "  ... ${elapsed}s: runs=$total pending=$pending; next check in ${poll_s}s"
+            sleep "$poll_s"
+          done
+
   deploy:
     name: Deploy to server
-    needs: [prepare, build-push]
-    # Run after a successful build, or when the build was skipped (redeploy of an existing tag).
+    needs: [prepare, build, retag, wait-for-ci]
+    # Every predecessor must have succeeded. "skipped" is only accepted where the skip is
+    # legitimate (nothing to build / nothing to re-tag / gate not required) and is decided
+    # from prepare's outputs, so a skipped gate can never slip through when it is required.
     if: >-
       !cancelled() && needs.prepare.result == 'success' &&
-      (needs.build-push.result == 'success' || needs.build-push.result == 'skipped')
+      (needs.build.result == 'success' || (needs.build.result == 'skipped' && needs.prepare.outputs.build_images == '[]')) &&
+      (needs.retag.result == 'success' || (needs.retag.result == 'skipped' && needs.prepare.outputs.retag == '[]')) &&
+      (needs.wait-for-ci.result == 'success' || (needs.wait-for-ci.result == 'skipped' && needs.prepare.outputs.gate != 'true'))
     runs-on: ubuntu-latest
     environment: production
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false
     permissions:
       contents: read
       packages: read
@@ -194,11 +334,10 @@ jobs:
         id: tag
         env:
           INPUT_TAG: ${{ needs.prepare.outputs.tag }}
-          BUILT_SHA: ${{ needs.build-push.outputs.sha }}
           REF: ${{ needs.prepare.outputs.sha }}
         run: |
           set -euo pipefail
-          tag="${INPUT_TAG:-${BUILT_SHA:-$REF}}"
+          tag="${INPUT_TAG:-$REF}"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Deploying image tag: $tag"
 
@@ -287,3 +426,36 @@ jobs:
       - name: Clean up SSH material
         if: always()
         run: rm -rf ~/.ssh/deploy_key ~/.ssh/config
+
+  # :latest means "the images of the last successful deploy". The next run diffs against the
+  # revision label of these images to decide what to rebuild. If this step fails nothing is
+  # lost: the next run simply rebuilds more.
+  promote-latest:
+    name: Promote :latest
+    needs: [prepare, deploy]
+    if: needs.deploy.result == 'success' && needs.prepare.outputs.tag == ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Point :latest at the deployed images
+        env:
+          OWNER: ${{ needs.prepare.outputs.owner }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          set -uo pipefail
+          for img in api web storefront website minio mc; do
+            repo="$REGISTRY/$OWNER/caratflow-$img"
+            if docker buildx imagetools create -t "$repo:latest" "$repo:$SHA"; then
+              echo "$repo:latest -> $SHA"
+            else
+              echo "::warning::Could not move $repo:latest (the next deploy will rebuild this image)."
+            fi
+          done

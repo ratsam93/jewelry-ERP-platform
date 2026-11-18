@@ -6,17 +6,52 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Pull requests: a new push to the same PR cancels the previous run. Pushes to main/develop are
+# NEVER cancelled or queued behind each other (each commit gets its own group): the Deploy
+# workflow gates on the CI result of the exact commit it deploys.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: "22"
   PNPM_VERSION: "9.15.0"
 
 jobs:
+  # Pull requests that only touch documentation (docs/**, *.md) skip the heavy jobs. Done at
+  # job level (skipped jobs count as passed for required checks). Pushes always run everything:
+  # the Deploy workflow requires a successful CI run for the exact commit. Secret Scan always runs.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          code=true
+          if [ "$EVENT" = "pull_request" ] && files="$(git diff --no-renames --name-only HEAD^1 HEAD 2>/dev/null)" && [ -n "$files" ]; then
+            code=false
+            while IFS= read -r f; do
+              case "$f" in
+                docs/*|*.md) ;;
+                *) code=true ;;
+              esac
+            done <<< "$files"
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "code changed: $code"
+
   lint:
     name: Lint
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -37,6 +72,8 @@ jobs:
 
   typecheck:
     name: Type Check
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -59,6 +96,8 @@ jobs:
 
   test-utils:
     name: Test Utils
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -86,6 +125,8 @@ jobs:
 
   test-api:
     name: Test API
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -147,6 +188,8 @@ jobs:
 
   audit:
     name: Dependency Audit (non-blocking)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:

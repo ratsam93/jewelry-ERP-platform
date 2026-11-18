@@ -6,8 +6,9 @@ over HTTPS, updated automatically from GitHub. No Docker knowledge is required; 
 follow the steps in order. (`docs/deployment.md` is the older, developer-oriented guide.)
 
 ```
-GitHub (push to main) -> CI passes -> "Deploy" workflow
-   builds 6 Docker images -> pushes to GHCR -> SSH to your server
+GitHub (push to main) -> "Deploy" workflow starts at once, in parallel with CI
+   builds only the Docker images that changed (the rest are re-tagged) -> pushes to GHCR
+   -> waits until CI for the same commit is green -> SSH to your server
    -> pulls images -> applies DB schema -> restarts -> health check (rollback on failure)
 ```
 
@@ -149,8 +150,12 @@ images, which is why they are repository variables and not part of the server `.
 Derived automatically: `NEXT_PUBLIC_API_URL=https://api.DOMAIN`,
 `NEXT_PUBLIC_SITE_URL=https://DOMAIN`.
 
-> Changing `DOMAIN`, `TENANT_ID` or `TENANT_SLUG` later needs a new deploy (the images
-> are rebuilt with the new values).
+> Changing `DOMAIN`, `TENANT_ID`, `TENANT_SLUG` or `NEXT_PUBLIC_IMAGE_HOSTS` later needs a new
+> deploy: push anything, or run the Deploy workflow. The affected images (web, storefront,
+> website) are detected automatically and rebuilt with the new values: every image carries
+> a fingerprint of its build values (label `cf.build-args-hash`) and the workflow rebuilds
+> any image whose fingerprint differs. If you are ever in doubt, run the workflow with
+> `rebuild_all` ticked.
 
 ## 6. Package visibility (one-time)
 
@@ -174,7 +179,55 @@ waits until `https://api.DOMAIN/health` answers. If it fails it rolls back to th
 previous version (on the very first deploy there is nothing to roll back to; read the
 log, fix the cause, run again).
 
-After this, every push to `main` whose CI passes deploys automatically.
+After this, every push to `main` whose CI passes deploys automatically (see
+"How deploys work and how fast they are" below).
+
+### How deploys work and how fast they are
+
+On every push to `main` (pushes that only change `docs/**` or `*.md` files are ignored) the
+**Deploy** workflow and the **CI** workflow start together:
+
+1. **Prepare** looks at the image currently tagged `:latest` for each of the six images. It
+   records on every image the commit it was built from and a fingerprint of its build
+   variables. An image is **rebuilt** only if a file it is built from changed since then
+   (for example the website image ignores API changes), if its build variables changed, or if
+   anything is unclear (no `:latest`, unknown commit). Otherwise it is **re-tagged**: the
+   already pushed image gets the new commit tag in a few seconds, with no rebuild.
+2. **Build** (changed images, in parallel) and **Re-tag** (unchanged images).
+3. **Wait for CI** polls until the CI run for **the same commit** has finished and fails the
+   deploy unless it succeeded (up to 25 minutes). This runs in parallel with step 2.
+4. **Deploy** runs only when steps 2 and 3 all succeeded: copy files, pull, apply the schema,
+   restart, health check, automatic rollback on failure (unchanged).
+5. **Promote :latest** moves `:latest` to the images that were just deployed. `:latest` therefore
+   always means "what is running" (a commit whose tests failed never becomes `:latest`).
+
+Every image still exists under the commit-SHA tag, so rolling back by tag works as before.
+Only one Deploy run executes at a time; if several pushes arrive during a deploy, GitHub keeps
+only the newest waiting run (older waiting runs show as cancelled), and that newest commit
+includes the others.
+
+Expected duration after a push (CI itself takes about 4 minutes and now overlaps the builds):
+
+| What changed | About |
+| --- | --- |
+| Only the API (`apps/api`, `packages/db`) | 6-7 minutes |
+| Only website text/pages, storefront or web | about 3 minutes plus the server work (1-3 minutes) |
+| Only docs / markdown files | no deploy at all (CI still runs) |
+| Shared packages, lockfile or root config | all four app images rebuild in parallel: 7-9 minutes |
+| `rebuild_all`, first run after this change, or MinIO/mc Dockerfile change | longest: 10-15 minutes |
+
+**Manual run inputs** (Actions, Deploy, Run workflow):
+
+| Input | Meaning |
+| --- | --- |
+| `ref` | Branch, tag or SHA to build and deploy (default: the selected branch). Needs a successful CI **push** run for that exact commit, or `skip_ci_gate`. |
+| `image_tag` | Redeploy an existing tag (rollback). Nothing is built and the CI gate is skipped, so it works even while CI is red. |
+| `rebuild_all` | Rebuild all six images even if nothing changed (fresh base images, or if you suspect a stale image). Default off. |
+| `skip_ci_gate` | **Emergency only.** Deploys without requiring green CI for that commit. A warning is logged. Default off. |
+| `run_seed` | Demo seed after the schema (first install only). |
+
+Not covered automatically: security updates of base images (node, nginx, ...) are only picked
+up when an image is rebuilt, so run the workflow with `rebuild_all` about monthly.
 
 ## 8. Create your real company (tenant) and first admin
 
@@ -334,7 +387,9 @@ Webhook URLs to give the providers use `https://api.YOURDOMAIN/...`.
 
 | Symptom | What to check |
 | --- | --- |
-| Workflow shows everything "skipped" | Repository variable `DEPLOY_ENABLED` is not exactly `true`; or CI was not green for the push. |
+| Workflow shows everything "skipped" | Repository variable `DEPLOY_ENABLED` is not exactly `true`. |
+| The "Wait for CI" job fails | CI failed (or was cancelled) for that commit, or no CI push run exists for it (a manual `ref` that CI never ran on needs `skip_ci_gate`). Fix CI and push again, or re-run the failed jobs of the CI run and then the Deploy run. |
+| A docs-only push did not deploy | By design: docs-only pushes are ignored. |
 | `Missing repository/environment secrets` | Add `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`. |
 | `Permission denied (publickey)` | Public key not in `/home/deploy/.ssh/authorized_keys`, or the wrong private key in the secret (include the `-----BEGIN` / `-----END` lines). |
 | `Host key verification failed` | `SSH_KNOWN_HOSTS` is wrong or the server was reinstalled: re-run `ssh-keyscan` and update the secret. |
