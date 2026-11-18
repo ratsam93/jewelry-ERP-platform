@@ -62,6 +62,8 @@ RUN cd /out/node_modules/@caratflow/db \
     && /repo/packages/db/node_modules/.bin/prisma generate --schema prisma/schema
 
 # 3. Operational tools (Prisma CLI for `db push`, tsx for the seed scripts)
+#    The seed scripts (src/seed-demo-catalog.ts, src/seed-demo-full.ts and src/demo-full/*)
+#    ship with the whole @caratflow/db package copied by `pnpm deploy` above.
 FROM base AS tools
 ARG PRISMA_VERSION=6.19.3
 RUN --mount=type=cache,id=npm-cache,target=/root/.npm \

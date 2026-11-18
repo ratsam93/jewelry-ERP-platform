@@ -325,6 +325,30 @@ services:
       mysql:
         condition: service_healthy
 
+  # OPTIONAL full demo data (CRM, sales, finance, stock, manufacturing, HR ...) for a tenant that
+  # already has the demo catalog. Fills the LIVE database with fictional data: back up first
+  # (deploy/backup.sh). See docs/DEPLOYMENT-DOCKER.md, "Demo data and demo customer login".
+  seed-demo-full:
+    profiles: [tools]
+    image: ghcr.io/${GHCR_OWNER}/caratflow-api:${IMAGE_TAG:-latest}
+    restart: "no"
+    working_dir: /app/node_modules/@caratflow/db
+    command: ["/opt/tools/node_modules/.bin/tsx", "src/seed-demo-full.ts"]
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-caratflow}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-caratflow}
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+      IMAGE_BASE_URL:
+      TENANT_SLUG:
+      TENANT_ID:
+      DEMO_STAFF_PASSWORD:
+      ONLY:
+      SKIP:
+      DRY_RUN:
+    networks: [caratflow]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
 networks:
   caratflow: {}
 
