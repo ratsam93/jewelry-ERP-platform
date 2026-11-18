@@ -34,7 +34,7 @@ export default function ForgotPasswordScreen() {
       <View className="flex-1 justify-center px-6">
         <View className="items-center mb-10">
           <Text className="text-primary-400 text-3xl font-bold">
-            CaratFlow
+            TechBeyond
           </Text>
           <Text className="text-surface-500 text-sm mt-1">
             Reset your password

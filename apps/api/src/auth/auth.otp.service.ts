@@ -5,6 +5,7 @@ import type { OtpPurpose } from '@caratflow/db';
 import { SmsService } from '../modules/crm/sms.service';
 import { EmailService } from '../modules/crm/email.service';
 import { WhatsAppService } from '../modules/crm/whatsapp.service';
+import { BRAND_NAME } from '../common/brand';
 
 type OtpChannel = 'SMS' | 'EMAIL' | 'WHATSAPP';
 
@@ -184,7 +185,7 @@ export class OtpService {
       return;
     }
 
-    const message = `Your CaratFlow verification code is ${otpCode}. It expires in ${this.OTP_EXPIRY_MINUTES} minutes.`;
+    const message = `Your ${BRAND_NAME} verification code is ${otpCode}. It expires in ${this.OTP_EXPIRY_MINUTES} minutes.`;
 
     try {
       if (channel === 'EMAIL') {
@@ -194,7 +195,7 @@ export class OtpService {
         }
         await this.emailService.sendEmail(resolvedTenant, {
           to: identifier,
-          subject: 'Your CaratFlow verification code',
+          subject: `Your ${BRAND_NAME} verification code`,
           text: message,
           html: `<p>${message}</p>`,
         });

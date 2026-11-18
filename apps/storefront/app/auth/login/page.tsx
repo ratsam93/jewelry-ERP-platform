@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens } from "@/lib/api";
 import { nextFromWindow, withNext } from "@/lib/auth-next";
+import { BRAND_NAME } from "@/lib/brand";
 
 /** API error text: class-validator sends `message` as a string[]; join it for display. */
 function apiErrorText(data: { error?: { message?: unknown }; message?: unknown } | null): string {
@@ -114,7 +115,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-navy" style={{ fontFamily: "var(--font-serif)" }}>Welcome Back</h1>
-          <p className="text-sm text-navy/50 mt-1">Sign in to your CaratFlow account</p>
+          <p className="text-sm text-navy/50 mt-1">Sign in to your {BRAND_NAME} account</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">

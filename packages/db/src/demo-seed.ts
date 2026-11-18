@@ -142,7 +142,7 @@ const productCategories: Array<{
 const purities = [916, 750, 585]; // 22K, 18K, 14K
 
 async function main() {
-  console.warn('▶ CaratFlow DEMO seed starting...');
+  console.warn('▶ TechBeyond DEMO seed starting...');
 
   // Resolve tenant
   const tenant = await prisma.tenant.findUnique({ where: { slug: 'sharma-jewellers' } });

@@ -15,8 +15,8 @@ describe("Header", () => {
 
   it("renders the logo text", () => {
     renderWithStore(<Header />);
-    expect(screen.getByText("Carat")).toBeInTheDocument();
-    expect(screen.getByText("Flow")).toBeInTheDocument();
+    expect(screen.getByText("Tech")).toBeInTheDocument();
+    expect(screen.getByText("Beyond")).toBeInTheDocument();
   });
 
   it("renders search bar (desktop)", () => {

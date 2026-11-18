@@ -37,10 +37,10 @@ beforeEach(() => {
 });
 
 describe("Chat Flow", () => {
-  it("renders chat page with header showing CaratFlow Assistant", async () => {
+  it("renders chat page with header showing TechBeyond Assistant", async () => {
     render(<ChatPage />);
     await waitFor(() => {
-      expect(screen.getByText("CaratFlow Assistant")).toBeInTheDocument();
+      expect(screen.getByText("TechBeyond Assistant")).toBeInTheDocument();
     });
   });
 
@@ -77,7 +77,7 @@ describe("Chat Flow", () => {
     render(<ChatPage />);
     await waitFor(() => {
       expect(
-        screen.getByText(/welcome to caratflow/i),
+        screen.getByText(/welcome to techbeyond/i),
       ).toBeInTheDocument();
     });
   });

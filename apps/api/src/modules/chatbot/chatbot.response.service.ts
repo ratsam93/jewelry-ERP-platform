@@ -10,6 +10,7 @@ import type {
   QuickReplyOption,
 } from '@caratflow/shared-types';
 import { ChatMessageType } from '@caratflow/shared-types';
+import { BRAND_NAME } from '../../common/brand';
 
 interface GeneratedResponse {
   content: string;
@@ -148,8 +149,8 @@ export class ChatbotResponseService {
     }
 
     const greeting = customerName
-      ? `Welcome back, ${customerName}! I'm your CaratFlow jewelry assistant. How can I help you find the perfect piece today?`
-      : `Namaste! Welcome to CaratFlow. I'm here to help you discover beautiful jewelry. What are you looking for today?`;
+      ? `Welcome back, ${customerName}! I'm your ${BRAND_NAME} jewelry assistant. How can I help you find the perfect piece today?`
+      : `Namaste! Welcome to ${BRAND_NAME}. I'm here to help you discover beautiful jewelry. What are you looking for today?`;
 
     return {
       content: greeting,
@@ -270,7 +271,7 @@ export class ChatbotResponseService {
    */
   generateFarewell(): GeneratedResponse {
     return {
-      content: 'Thank you for visiting CaratFlow! We hope to see you again soon. If you need any help, just start a new chat anytime. Happy jewelry shopping!',
+      content: `Thank you for visiting ${BRAND_NAME}! We hope to see you again soon. If you need any help, just start a new chat anytime. Happy jewelry shopping!`,
       messageType: ChatMessageType.TEXT,
       metadata: {},
     };

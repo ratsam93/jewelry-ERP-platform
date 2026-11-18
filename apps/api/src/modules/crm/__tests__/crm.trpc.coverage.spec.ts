@@ -997,7 +997,7 @@ describe('CrmTrpcRouter procedure coverage', () => {
         TENANT,
         expect.objectContaining({
           to: 'ops@example.com',
-          subject: 'CaratFlow email gateway test',
+          subject: 'TechBeyond email gateway test',
         }),
       );
       expect(result).toEqual({ messageId: 'm-1' });
@@ -1058,7 +1058,7 @@ describe('CrmTrpcRouter procedure coverage', () => {
       await caller.sms.test({ to: '+919876543210' });
       expect(smsService.sendSms).toHaveBeenCalledWith(TENANT, {
         to: '+919876543210',
-        body: 'CaratFlow SMS gateway test',
+        body: 'TechBeyond SMS gateway test',
       });
     });
 
@@ -1178,7 +1178,7 @@ describe('CrmTrpcRouter procedure coverage', () => {
       expect(whatsappService.sendTextMessage).toHaveBeenCalledWith(
         TENANT,
         '+919876543210',
-        'CaratFlow test message - WhatsApp integration is working.',
+        'TechBeyond test message - WhatsApp integration is working.',
       );
       expect(result).toEqual({ success: true, messageId: 'wamid.1', waId: '919876543210' });
     });

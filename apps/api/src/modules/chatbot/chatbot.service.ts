@@ -15,6 +15,7 @@ import type {
   ChatSessionResponse,
   DetectedIntent,
 } from '@caratflow/shared-types';
+import { BRAND_NAME } from '../../common/brand';
 
 interface ProcessedResponse {
   messages: ChatMessageResponse[];
@@ -205,7 +206,7 @@ export class ChatbotService extends TenantAwareService {
       data: {
         chatSessionId: session.id,
         role: 'SYSTEM',
-        content: 'Chat session ended. Thank you for chatting with CaratFlow!',
+        content: `Chat session ended. Thank you for chatting with ${BRAND_NAME}!`,
         messageType: 'TEXT',
       },
     });

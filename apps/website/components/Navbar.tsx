@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Button from "./Button";
+import { APP_LOGIN_URL, BRAND_PREFIX, BRAND_SUFFIX } from "@/lib/brand";
 
 const navLinks = [
   { label: "Features", href: "/features" },
@@ -35,7 +36,7 @@ export default function Navbar() {
             </svg>
           </div>
           <span className={`text-xl font-bold transition-colors ${scrolled ? "text-navy" : "text-white"}`}>
-            Carat<span className="text-gold">Flow</span>
+            {BRAND_PREFIX}<span className="text-gold">{BRAND_SUFFIX}</span>
           </span>
         </a>
 
@@ -57,7 +58,7 @@ export default function Navbar() {
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="https://caratflow.globusdemos.com/login"
+            href={APP_LOGIN_URL}
             className={`text-sm font-medium transition-colors hover:text-gold ${
               scrolled ? "text-navy/70" : "text-white/80"
             }`}
@@ -108,7 +109,7 @@ export default function Navbar() {
               </a>
             ))}
             <hr className="border-gray-100" />
-            <a href="https://caratflow.globusdemos.com/login" className="block text-navy/70 py-2">
+            <a href={APP_LOGIN_URL} className="block text-navy/70 py-2">
               Login
             </a>
             <Button variant="primary" size="md" href="/contact" className="w-full">

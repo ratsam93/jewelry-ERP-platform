@@ -4,7 +4,7 @@ import ContactForm from "@/components/ContactForm";
 export const metadata: Metadata = {
   title: "Contact Us",
   description:
-    "Get in touch with the CaratFlow team. Book a demo, ask a question, or request a custom quote for your jewelry business.",
+    "Get in touch with the TechBeyond team. Book a demo, ask a question, or request a custom quote for your jewelry business.",
 };
 
 export default function ContactPage() {
@@ -55,7 +55,7 @@ export default function ContactPage() {
                         Head Office -- Mumbai
                       </h3>
                       <p className="text-gray-600 text-sm leading-relaxed">
-                        Globussoft Technologies
+                        TechBeyond
                         <br />
                         Andheri East, Mumbai 400069
                         <br />
@@ -110,7 +110,7 @@ export default function ContactPage() {
                   Prefer a Live Demo?
                 </h3>
                 <p className="text-gray-300 text-sm mb-4">
-                  See CaratFlow in action with a personalized walkthrough
+                  See TechBeyond in action with a personalized walkthrough
                   tailored to your business.
                 </p>
                 <a

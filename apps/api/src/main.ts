@@ -9,6 +9,7 @@ import { GlobalExceptionFilter } from './common/global-exception.filter';
 import { LoggingInterceptor } from './common/logging.interceptor';
 import { getJwtSecret } from './common/jwt-secret';
 import { installBigIntJson } from './common/bigint-json';
+import { BRAND_NAME } from './common/brand';
 
 // Swagger is served at /api/docs (ignoreGlobalPrefix). The gate also covers the
 // global-prefixed variants so no docs path is left unprotected.
@@ -38,7 +39,7 @@ function safeEqual(a: string, b: string): boolean {
 function swaggerBasicAuthGate(user: string, password: string) {
   return (req: Request, res: Response, next: NextFunction) => {
     const challenge = () => {
-      res.set('WWW-Authenticate', 'Basic realm="CaratFlow API Docs"');
+      res.set('WWW-Authenticate', `Basic realm="${BRAND_NAME} API Docs"`);
       res.status(401).send('Authentication required');
     };
     const header = req.headers.authorization;
@@ -145,13 +146,13 @@ async function bootstrap() {
     const swaggerPassword = process.env.SWAGGER_PASSWORD;
     if (isProd && (!swaggerUser || !swaggerPassword)) {
       console.warn(
-        '[CARATFLOW] SWAGGER_ENABLED=true in production but SWAGGER_USER/SWAGGER_PASSWORD are not set — refusing to expose docs',
+        '[TECHBEYOND] SWAGGER_ENABLED=true in production but SWAGGER_USER/SWAGGER_PASSWORD are not set — refusing to expose docs',
       );
     } else {
       if (swaggerUser && swaggerPassword) {
         app.use(SWAGGER_GATED_PATHS, swaggerBasicAuthGate(swaggerUser, swaggerPassword));
       } else {
-        console.warn('[CARATFLOW] Swagger enabled without SWAGGER_USER/SWAGGER_PASSWORD (non-production only)');
+        console.warn('[TECHBEYOND] Swagger enabled without SWAGGER_USER/SWAGGER_PASSWORD (non-production only)');
       }
       mountSwagger(app);
       docsMounted = true;
@@ -160,7 +161,7 @@ async function bootstrap() {
 
   const port = process.env.API_PORT ?? 4000;
   await app.listen(port);
-  console.warn(`CaratFlow API running on http://localhost:${port}`);
+  console.warn(`${BRAND_NAME} API running on http://localhost:${port}`);
   if (docsMounted) {
     console.warn(`Swagger docs at http://localhost:${port}/api/docs`);
   }
@@ -168,7 +169,7 @@ async function bootstrap() {
 
 function mountSwagger(app: INestApplication): void {
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('CaratFlow API')
+    .setTitle(`${BRAND_NAME} API`)
     .setDescription('Jewelry ERP System API')
     .setVersion('0.1.0')
     .addBearerAuth()

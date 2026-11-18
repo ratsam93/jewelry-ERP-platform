@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import SearchBar from "./SearchBar";
 import MegaMenu, { useNavCategories } from "./MegaMenu";
 import { cn } from "@/lib/utils";
+import { BRAND_PREFIX, BRAND_SUFFIX } from "@/lib/brand";
 
 export default function Header() {
   const { cartCount, wishlistCount, setCartDrawerOpen } = useStore();
@@ -55,7 +56,7 @@ export default function Header() {
                 </svg>
               </div>
               <span className="text-xl font-bold text-navy hidden sm:block">
-                Carat<span className="text-gold">Flow</span>
+                {BRAND_PREFIX}<span className="text-gold">{BRAND_SUFFIX}</span>
               </span>
             </Link>
 

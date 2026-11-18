@@ -98,7 +98,7 @@ describe("HomePage", () => {
 
   it("renders newsletter signup form", async () => {
     await renderHome();
-    expect(screen.getByText("Join the CaratFlow Circle")).toBeInTheDocument();
+    expect(screen.getByText("Join the TechBeyond Circle")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("your@email.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Subscribe" })).toBeInTheDocument();
   });

@@ -1,10 +1,10 @@
 // Browser-side API helper. The marketing site is a static export, so forms
-// call the CaratFlow API directly from the browser.
+// call the TechBeyond API directly from the browser.
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
 export const TENANT_ID =
   process.env.NEXT_PUBLIC_TENANT_ID || "69544f8e-fa3c-40b4-8975-643825600ce7";
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002").replace(/\/+$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === "production" ? "https://erp.techbeyondsolution.com" : "http://localhost:3002")).replace(/\/+$/, "");
 
 export const GENERIC_ERROR = "Something went wrong. Please try again in a moment.";
 

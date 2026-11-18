@@ -7,6 +7,7 @@ import { nextFromWindow, withNext } from "@/lib/auth-next";
 import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens, apiFetch } from "@/lib/api";
 import { normalizeIndianPhone } from "@/lib/utils";
+import { BRAND_NAME } from "@/lib/brand";
 
 // API OtpPurpose enum: LOGIN | REGISTRATION | PASSWORD_RESET | TRANSACTION_2FA.
 const PHONE_OTP_PURPOSE = "REGISTRATION";
@@ -115,7 +116,7 @@ export default function RegisterPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-navy" style={{ fontFamily: "var(--font-serif)" }}>Create Account</h1>
-          <p className="text-sm text-navy/50 mt-1">Join CaratFlow for exclusive jewelry offers</p>
+          <p className="text-sm text-navy/50 mt-1">Join {BRAND_NAME} for exclusive jewelry offers</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">

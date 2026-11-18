@@ -171,7 +171,7 @@ function fmtMs(n) {
 function renderReport(runs) {
   const date = new Date().toISOString();
   const lines = [];
-  lines.push(`# CaratFlow Performance Benchmarks`);
+  lines.push(`# TechBeyond Performance Benchmarks`);
   lines.push('');
   lines.push(`- Generated: ${date}`);
   lines.push(`- API target: \`${API_URL}\``);
@@ -232,7 +232,7 @@ function renderReport(runs) {
 }
 
 async function main() {
-  console.log(`CaratFlow perf runner -> ${API_URL}`);
+  console.log(`TechBeyond perf runner -> ${API_URL}`);
   console.log(`  duration=${DURATION}s connections=${CONNECTIONS}`);
 
   let token;

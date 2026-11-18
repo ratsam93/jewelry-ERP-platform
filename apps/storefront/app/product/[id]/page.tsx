@@ -8,6 +8,7 @@ import {
   type CatalogProduct,
 } from "@/lib/catalog";
 import { calculateProductPrice } from "@/lib/utils";
+import { BRAND_NAME } from "@/lib/brand";
 
 // Keep in step with CATALOG_REVALIDATE_SECONDS: price data must not go stale.
 export const revalidate = 15;
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Jewelry" };
   }
   if (!product) return { title: "Product Not Found" };
-  const description = product.shortDescription || product.description || `${product.name} at CaratFlow`;
+  const description = product.shortDescription || product.description || `${product.name} at ${BRAND_NAME}`;
   const image = product.images[0]?.url;
   return {
     title: product.name,
@@ -49,7 +50,7 @@ function buildJsonLd(product: CatalogProduct): string {
     description: product.description,
     sku: product.sku,
     ...(images.length > 0 ? { image: images } : {}),
-    brand: { "@type": "Brand", name: "CaratFlow" },
+    brand: { "@type": "Brand", name: BRAND_NAME },
     offers: {
       "@type": "Offer",
       price: (price.total / 100).toFixed(2),

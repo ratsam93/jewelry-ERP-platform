@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Shipping Policy | CaratFlow",
+  title: "Shipping Policy",
 };
 
 export default function ShippingPage() {

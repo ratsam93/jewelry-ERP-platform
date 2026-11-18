@@ -40,7 +40,7 @@ export default function SplashScreen() {
   return (
     <View className="flex-1 bg-[#1a1a2e] items-center justify-center">
       <Text className="text-primary-400 text-4xl font-bold mb-2">
-        CaratFlow
+        TechBeyond
       </Text>
       <Text className="text-surface-400 text-sm mb-8">
         Jewelry ERP System

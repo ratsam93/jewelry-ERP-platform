@@ -86,14 +86,14 @@ test.describe('Admin Login Flow E2E', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     const body = await page.locator('body').textContent();
-    expect(body?.toLowerCase()).toContain('caratflow');
+    expect(body?.toLowerCase()).toContain('techbeyond');
   });
 
   test('Admin login page returns valid HTML', async ({ page }) => {
     const res = await page.goto('/admin/login');
     expect(res?.status()).toBe(200);
     const html = await page.content();
-    expect(html).toContain('CaratFlow');
+    expect(html).toContain('TechBeyond');
   });
 });
 

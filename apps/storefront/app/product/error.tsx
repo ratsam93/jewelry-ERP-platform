@@ -11,7 +11,7 @@ export default function ProductError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Product error:", error);
+    console.error("[TechBeyond] Product error:", error);
   }, [error]);
 
   return (

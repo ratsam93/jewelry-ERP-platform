@@ -2,7 +2,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'CaratFlow',
+  name: 'TechBeyond',
   slug: 'caratflow',
   version: '0.1.0',
   orientation: 'portrait',
@@ -20,7 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: 'com.caratflow.mobile',
     infoPlist: {
       NSCameraUsageDescription:
-        'CaratFlow needs camera access to scan barcodes on jewelry items.',
+        'TechBeyond needs camera access to scan barcodes on jewelry items.',
     },
   },
   android: {
@@ -38,7 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-camera',
       {
         cameraPermission:
-          'CaratFlow needs camera access to scan barcodes on jewelry items.',
+          'TechBeyond needs camera access to scan barcodes on jewelry items.',
       },
     ],
     [

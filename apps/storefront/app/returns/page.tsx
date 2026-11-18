@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Returns & Exchange | CaratFlow",
+  title: "Returns & Exchange",
 };
 
 export default function ReturnsPage() {

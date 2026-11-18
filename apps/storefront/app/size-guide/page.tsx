@@ -1,4 +1,4 @@
-export const metadata = { title: "Size Guide | CaratFlow" };
+export const metadata = { title: "Size Guide" };
 
 const ringSizes = [
   { in: "5", uk: "J", us: "5", mm: 49.3 },

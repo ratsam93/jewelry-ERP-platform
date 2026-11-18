@@ -21,6 +21,7 @@ import {
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { BRAND_NAME } from '../../common/brand';
 
 // We intentionally keep puppeteer as loose `unknown` types here.
 // The real type surface is only needed inside the launcher.
@@ -240,7 +241,7 @@ export class PlatformPdfService implements OnModuleDestroy {
    */
   fillTemplate(template: string, data: Record<string, unknown>): string {
     return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_m, key: string) => {
-      const val = data[key];
+      const val = key === 'brandName' && data[key] == null ? BRAND_NAME : data[key];
       if (val === null || val === undefined) return '';
       const str = String(val);
       return RAW_HTML_PLACEHOLDERS.has(key) ? str : this.escapeHtml(str);

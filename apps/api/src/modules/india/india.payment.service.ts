@@ -17,6 +17,7 @@ import type {
   BankTransferTemplate,
 } from '@caratflow/shared-types';
 import { PrismaService } from '../../common/prisma.service';
+import { BRAND_NAME } from '../../common/brand';
 
 export interface RazorpayOrderResult {
   orderId: string;
@@ -46,7 +47,7 @@ export class IndiaPaymentService {
    */
   generateUpiQrData(input: UpiPaymentInput): UpiQrData {
     const amountRupees = (input.amountPaise / 100).toFixed(2);
-    const transactionNote = input.transactionNote ?? 'Payment to CaratFlow';
+    const transactionNote = input.transactionNote ?? `Payment to ${BRAND_NAME}`;
     const referenceId = input.referenceId ?? `CF${Date.now()}`;
 
     const params = new URLSearchParams({
@@ -115,7 +116,7 @@ export class IndiaPaymentService {
       ifscCode: input.ifscCode,
       amountRupees,
       referenceFormat,
-      remarks: input.remarks ?? `CaratFlow payment ${referenceFormat}`,
+      remarks: input.remarks ?? `${BRAND_NAME} payment ${referenceFormat}`,
     };
   }
 

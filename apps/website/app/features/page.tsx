@@ -5,7 +5,7 @@ import Button from "@/components/Button";
 export const metadata: Metadata = {
   title: "Features",
   description:
-    "Explore CaratFlow's 100+ features across 14 modules -- inventory, manufacturing, POS, accounting, CRM, e-commerce, compliance, and more.",
+    "Explore TechBeyond's 100+ features across 14 modules -- inventory, manufacturing, POS, accounting, CRM, e-commerce, compliance, and more.",
 };
 
 interface Module {
@@ -355,7 +355,7 @@ export default function FeaturesPage() {
       <section className="py-16 bg-white text-center">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <SectionHeader
-            title="See CaratFlow in Action"
+            title="See TechBeyond in Action"
             subtitle="Book a personalized demo and see how these features work together for your jewelry business."
           />
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

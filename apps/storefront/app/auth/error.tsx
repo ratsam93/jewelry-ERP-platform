@@ -11,7 +11,7 @@ export default function AuthError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Auth error:", error);
+    console.error("[TechBeyond] Auth error:", error);
   }, [error]);
 
   return (

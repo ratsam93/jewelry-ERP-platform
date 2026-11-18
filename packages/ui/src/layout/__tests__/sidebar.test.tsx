@@ -51,6 +51,15 @@ describe('Sidebar', () => {
     render(<Sidebar collapsed={true} onToggle={vi.fn()} />);
     // When collapsed, labels are visually hidden (sr-only, so links keep an accessible name)
     expect(screen.getByText('Dashboard').className).toContain('sr-only');
-    expect(screen.queryByText('CaratFlow')).not.toBeInTheDocument();
+    expect(screen.queryByText('TechBeyond')).not.toBeInTheDocument();
+  });
+});
+
+describe('Sidebar brand', () => {
+  it('shows TechBeyond by default and accepts a custom brandName', () => {
+    const { rerender } = render(<Sidebar collapsed={false} onToggle={vi.fn()} />);
+    expect(screen.getByText('TechBeyond')).toBeInTheDocument();
+    rerender(<Sidebar collapsed={false} onToggle={vi.fn()} brandName="Acme" />);
+    expect(screen.getByText('Acme')).toBeInTheDocument();
   });
 });

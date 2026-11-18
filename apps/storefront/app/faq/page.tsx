@@ -1,4 +1,4 @@
-export const metadata = { title: "FAQ | CaratFlow" };
+export const metadata = { title: "FAQ" };
 
 const faqs = [
   {

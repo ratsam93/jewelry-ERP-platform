@@ -19,6 +19,7 @@ import { AccessTokenDenylistService } from './access-token-denylist.service';
 import { getJwtSecret } from '../common/jwt-secret';
 import type { SocialProvider, LoginProvider } from '@caratflow/db';
 import type { B2CJwtPayload, B2CCustomerProfile, B2CAuthResponse, B2CTokenPair } from '@caratflow/shared-types';
+import { BRAND_NAME } from '../common/brand';
 
 interface B2CTokenPairInternal {
   accessToken: string;
@@ -598,15 +599,15 @@ export class B2CAuthService {
     ).replace(/\/$/, '');
     const verifyUrl = `${webUrl}/verify-email?token=${rawToken}&uid=${customerAuthId}`;
 
-    const subject = 'Welcome to CaratFlow — please verify your email';
+    const subject = `Welcome to ${BRAND_NAME} — please verify your email`;
     const text =
       `Hi ${firstName},\n\n` +
-      `Welcome to CaratFlow! Please verify your email by clicking the link below (valid for 24 hours):\n\n` +
+      `Welcome to ${BRAND_NAME}! Please verify your email by clicking the link below (valid for 24 hours):\n\n` +
       `${verifyUrl}\n\n` +
       `If you did not sign up, you can safely ignore this message.\n`;
     const html =
       `<p>Hi ${firstName},</p>` +
-      `<p>Welcome to <strong>CaratFlow</strong>! Please verify your email by clicking the link below (valid for 24 hours):</p>` +
+      `<p>Welcome to <strong>${BRAND_NAME}</strong>! Please verify your email by clicking the link below (valid for 24 hours):</p>` +
       `<p><a href="${verifyUrl}">${verifyUrl}</a></p>` +
       `<p>If you did not sign up, you can safely ignore this message.</p>`;
 

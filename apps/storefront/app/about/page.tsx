@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "About CaratFlow",
-  description: "CaratFlow is India's trusted online jewelry house, crafting BIS hallmarked gold, diamond, and gemstone jewelry since 1952.",
+  title: "About Us",
+  description: "TechBeyond Jewellers is India's trusted online jewelry house, crafting BIS hallmarked gold, diamond, and gemstone jewelry since 1952.",
 };
 
 export default function AboutPage() {
@@ -15,7 +15,7 @@ export default function AboutPage() {
 
       <div className="prose prose-navy max-w-none space-y-5 text-navy/80 text-base leading-relaxed">
         <p>
-          CaratFlow began as a single workshop in old Jaipur in 1952, where master karigars hand-cut every
+          TechBeyond Jewellers began as a single workshop in old Jaipur in 1952, where master karigars hand-cut every
           stone and pulled every gold wire by lamplight. Today we operate across India and ship worldwide,
           but the craft remains the same -- one piece, one artisan, one signature.
         </p>

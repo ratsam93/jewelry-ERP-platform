@@ -80,7 +80,7 @@ describe("Shopping Flow", () => {
   it("displays testimonials and newsletter sections", async () => {
     renderWithStore(await HomePage());
     expect(screen.getByText("What Our Clients Say")).toBeInTheDocument();
-    expect(screen.getByText("Join the CaratFlow Circle")).toBeInTheDocument();
+    expect(screen.getByText("Join the TechBeyond Circle")).toBeInTheDocument();
   });
 
   it("displays live gold rate strip", async () => {

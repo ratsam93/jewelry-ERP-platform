@@ -19,6 +19,7 @@ import type {
   GstComputationInput,
   GstComputationResult,
 } from '@caratflow/shared-types';
+import { BRAND_NAME } from '../../common/brand';
 
 type AccountTypeValue = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
 
@@ -82,7 +83,7 @@ export class FinancialService extends TenantAwareService {
     ]);
 
     return this.pdfService.renderTemplate('invoice', {
-      tenantName: inv.tenantName ?? 'CaratFlow Jewellery',
+      tenantName: inv.tenantName ?? `${BRAND_NAME} Jewellery`,
       tenantAddress: inv.tenantAddress ?? '',
       tenantGstin: inv.tenantGstin ?? '',
       tenantPan: inv.tenantPan ?? '',

@@ -111,12 +111,12 @@ test.describe('Admin Dashboard - All Pages', () => {
 });
 
 test.describe('Admin Dashboard - Content Checks', () => {
-  test('Admin login has CaratFlow branding', async ({ page }) => {
+  test('Admin login has TechBeyond branding', async ({ page }) => {
     await page.goto('/admin/login');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     const body = await page.locator('body').textContent();
-    expect(body?.toLowerCase()).toContain('caratflow');
+    expect(body?.toLowerCase()).toContain('techbeyond');
   });
 
   test('Admin login has tenant/email/password fields and does not leak demo credentials', async ({ page }) => {
@@ -133,7 +133,7 @@ test.describe('Admin Dashboard - Content Checks', () => {
     const res = await page.goto('/admin/login');
     expect(res?.status()).toBe(200);
     const html = await page.content();
-    expect(html).toContain('CaratFlow');
+    expect(html).toContain('TechBeyond');
   });
 
   test('Admin login has submit button', async ({ page }) => {

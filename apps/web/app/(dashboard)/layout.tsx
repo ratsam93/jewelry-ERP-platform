@@ -15,6 +15,7 @@ import {
 import { useUiStore } from '@/store/ui-store';
 import { useAuthStore } from '@/store/auth-store';
 import { applyTheme } from '@/lib/theme';
+import { BRAND_NAME } from '@/lib/brand';
 import { trpc } from '@/lib/trpc';
 import { buildCommandItems } from '@/features/shell/command-items';
 import { useCurrentUserId } from '@/features/shell/current-user';
@@ -106,6 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onToggle={toggleSidebar}
           currentPath={pathname}
           renderLink={renderLink}
+          brandName={BRAND_NAME}
         />
       }
       topbar={

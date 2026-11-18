@@ -16,7 +16,7 @@ export default function BlogPage() {
       <section className="bg-gradient-to-br from-navy via-navy-light to-navy pt-32 pb-16 md:pt-40 md:pb-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            The CaratFlow <span className="text-gold">Blog</span>
+            The TechBeyond <span className="text-gold">Blog</span>
           </h1>
           <p className="text-lg text-gray-300 max-w-2xl mx-auto">
             Insights, guides, and best practices for running a modern jewelry

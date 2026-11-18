@@ -11,7 +11,7 @@ export default function ConsultationError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Consultation error:", error);
+    console.error("[TechBeyond] Consultation error:", error);
   }, [error]);
 
   return (

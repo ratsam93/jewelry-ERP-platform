@@ -25,7 +25,7 @@ describe("ChatWidget", () => {
     render(<ChatWidget />);
     await user.click(screen.getByLabelText("Open chat"));
     await waitFor(() => {
-      expect(screen.getByText("CaratFlow Assistant")).toBeInTheDocument();
+      expect(screen.getByText("TechBeyond Assistant")).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 
@@ -61,7 +61,7 @@ describe("ChatWidget", () => {
     render(<ChatWidget />);
     await user.click(screen.getByLabelText("Open chat"));
     await waitFor(() => {
-      expect(screen.getByText(/Welcome to CaratFlow/)).toBeInTheDocument();
+      expect(screen.getByText(/Welcome to TechBeyond/)).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 });

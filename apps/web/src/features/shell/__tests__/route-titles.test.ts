@@ -20,7 +20,7 @@ function titleOf(dir: string): string | null {
   return /title: '([^']*)'/.exec(fs.readFileSync(f, 'utf8'))?.[1] ?? null;
 }
 
-describe('route titles (<Page> | CaratFlow via the root template)', () => {
+describe('route titles (<Page> | brand via the root template)', () => {
   const dirs = pageDirs(root);
 
   it('every non-dynamic page route has its own titled layout', () => {

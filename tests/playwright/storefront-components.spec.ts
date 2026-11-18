@@ -101,7 +101,7 @@ test.describe('MegaMenu Component', () => {
     await page.waitForLoadState('networkidle');
     // MegaMenu renders category links like Rings, Necklaces, etc.
     const body = await page.locator('header, nav').first().textContent();
-    // At minimum, the header/nav area should reference categories or CaratFlow
+    // At minimum, the header/nav area should reference categories or TechBeyond
     expect(body).toBeTruthy();
   });
 });
@@ -242,8 +242,8 @@ test.describe('Footer Component', () => {
 
   test('footer has copyright text', async ({ page }) => {
     const footer = page.locator('footer');
-    await expect(footer).toContainText(/CaratFlow/i);
-    // Footer now reads "© <year> CaratFlow by Globussoft Technologies" (no "All rights reserved").
+    await expect(footer).toContainText(/TechBeyond/i);
+    // Footer now reads "© <year> TechBeyond" (no "All rights reserved").
     await expect(footer).toContainText(/©\s*\d{4}/);
   });
 });
@@ -482,8 +482,8 @@ test.describe('ChatWidget Component', () => {
     await page.waitForLoadState('networkidle');
     const chatBtn = page.locator('button[aria-label="Open chat"]');
     await chatBtn.click();
-    // Chat panel should appear with "CaratFlow Assistant" header
-    await expect(page.locator('text=CaratFlow Assistant')).toBeVisible({ timeout: 10000 });
+    // Chat panel should appear with "TechBeyond Assistant" header
+    await expect(page.locator('text=TechBeyond Assistant')).toBeVisible({ timeout: 10000 });
   });
 
   test('message input is visible in open chat', async ({ page }) => {

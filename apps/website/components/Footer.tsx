@@ -1,3 +1,4 @@
+import { BRAND_LEGAL, BRAND_PREFIX, BRAND_SUFFIX } from "@/lib/brand";
 const footerLinks = {
   Product: [
     { label: "Features", href: "/features" },
@@ -49,7 +50,7 @@ export default function Footer() {
                 </svg>
               </div>
               <span className="text-xl font-bold">
-                Carat<span className="text-gold">Flow</span>
+                {BRAND_PREFIX}<span className="text-gold">{BRAND_SUFFIX}</span>
               </span>
             </a>
             <p className="text-gray-400 text-sm leading-relaxed mb-4">
@@ -96,7 +97,7 @@ export default function Footer() {
 
         <div className="border-t border-white/10 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-gray-500 text-sm">
-            &copy; {new Date().getFullYear()} CaratFlow by Globussoft Technologies. All rights reserved.
+            &copy; {new Date().getFullYear()} {BRAND_LEGAL}. All rights reserved.
           </p>
           <div className="flex gap-6">
             <a href="/terms" className="text-gray-500 text-sm hover:text-gold transition-colors">

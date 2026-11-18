@@ -1,4 +1,4 @@
-export const metadata = { title: "BIS Hallmark | CaratFlow" };
+export const metadata = { title: "BIS Hallmark" };
 
 export default function BISHallmarkPage() {
   return (
@@ -31,7 +31,7 @@ export default function BISHallmarkPage() {
         <section>
           <h2 className="text-lg font-semibold text-navy mb-2">Verify your piece</h2>
           <p>
-            Every CaratFlow invoice prints the HUID printed on the piece. You can verify it independently at{" "}
+            Every TechBeyond invoice prints the HUID printed on the piece. You can verify it independently at{" "}
             <a href="https://bis.gov.in/" className="text-gold" rel="noopener noreferrer" target="_blank">
               bis.gov.in
             </a>{" "}
@@ -41,7 +41,7 @@ export default function BISHallmarkPage() {
         <section>
           <h2 className="text-lg font-semibold text-navy mb-2">If purity is below standard</h2>
           <p>
-            In the unlikely event a CaratFlow piece tests below its declared purity, we will refund twice the
+            In the unlikely event a TechBeyond piece tests below its declared purity, we will refund twice the
             difference in addition to a full refund of the piece. This commitment is backed by our public
             insurance policy.
           </p>

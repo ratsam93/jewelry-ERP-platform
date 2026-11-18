@@ -325,6 +325,24 @@ TENANT_SLUG=your-slug DOMAIN=your.domain   docker compose -f docker-compose.prod
 - **Going back:** restore the backup (`/opt/caratflow/restore.sh <backup file>`), or wipe the
   database and run `bootstrap-tenant` again (then `seed-demo-catalog` if you want the catalog).
 
+## Rebrand text (CaratFlow -> TechBeyond) in an already-seeded tenant
+
+The product name is now **TechBeyond** (set in one place per app: `apps/*/lib/brand.ts`,
+`apps/web/src/lib/brand.ts`, `apps/api/src/common/brand.ts`; optional overrides
+`NEXT_PUBLIC_BRAND_NAME` at image build time and `BRAND_NAME` for the API). Text that was
+already written to the database (FAQ, CMS pages, blog posts, banners, announcements, chatbot and
+notification templates, reviews, settings JSON) is not changed by a deploy. Patch it once:
+
+```bash
+cd /opt/caratflow
+TENANT_SLUG=techbeyond-jewellers DRY_RUN=true docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --rm rebrand-text   # preview counts
+TENANT_SLUG=techbeyond-jewellers docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --rm rebrand-text
+```
+
+It replaces the case-sensitive text `CaratFlow` only inside visible text/JSON columns of that
+one tenant, in a single transaction. Keys, slugs, emails and URLs are never touched. It is
+idempotent: a second run reports 0 rows. `TENANT_SLUG` defaults to `techbeyond-jewellers`.
+
 ## 9. Daily operations
 
 All commands run on the server in `/opt/caratflow` as `deploy`. Shorthand:

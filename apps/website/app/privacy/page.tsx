@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How CaratFlow collects, uses and protects personal information.",
+  description: "How TechBeyond collects, uses and protects personal information.",
 };
 
 const sections = [

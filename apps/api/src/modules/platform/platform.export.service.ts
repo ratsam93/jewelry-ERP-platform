@@ -11,6 +11,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { maskSensitiveDeep } from '../../common/pii-mask';
 import type { AuditMeta } from '@caratflow/shared-types';
 import { PlatformPdfService } from './platform.pdf.service';
+import { BRAND_NAME } from '../../common/brand';
 
 type ExportEntityType = 'customer' | 'product' | 'supplier' | 'invoice' | 'stock';
 type ExportFormatType = 'CSV' | 'XLSX' | 'PDF';
@@ -102,7 +103,7 @@ export class PlatformExportService extends TenantAwareService {
             documentType: `${input.entityType.toUpperCase()} EXPORT`,
             documentNumber: `EXP-${Date.now()}`,
             issuedDate: new Date().toISOString().slice(0, 10),
-            exporterName: 'CaratFlow Tenant',
+            exporterName: BRAND_NAME,
             exporterAddress: '',
             consigneeName: '',
             consigneeAddress: '',

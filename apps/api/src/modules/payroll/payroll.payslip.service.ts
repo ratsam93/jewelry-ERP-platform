@@ -8,6 +8,7 @@ import { PrismaService } from '../../common/prisma.service';
 import { maskSensitiveDeep } from '../../common/pii-mask';
 import { PlatformPdfService, PdfTemplateName } from '../platform/platform.pdf.service';
 import { EmailService } from '../crm/email.service';
+import { BRAND_NAME } from '../../common/brand';
 
 export interface PayslipQuery {
   payrollPeriodId?: string;
@@ -290,7 +291,7 @@ export class PayrollPayslipService extends TenantAwareService {
       // Tenant header placeholders — real tenant lookup is owned by
       // platform.settings; leaving safe defaults so the template
       // always renders even if settings are unset.
-      tenantName: p._tenantName ?? 'CaratFlow',
+      tenantName: p._tenantName ?? BRAND_NAME,
       tenantAddress: p._tenantAddress ?? '',
       tenantGstin: p._tenantGstin ?? '',
       tenantPan: p._tenantPan ?? '',

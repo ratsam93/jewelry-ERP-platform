@@ -325,6 +325,28 @@ services:
       mysql:
         condition: service_healthy
 
+  # OPTIONAL one-off data patch after the TechBeyond rebrand: replaces the visible text
+  # 'CaratFlow' -> 'TechBeyond' in the content tables (FAQ, CMS, blog, banners, templates,
+  # reviews, settings JSON) of ONE tenant. Idempotent (a second run changes 0 rows);
+  # DRY_RUN=true only prints per-table counts. See docs/DEPLOYMENT-DOCKER.md, "Rebrand text".
+  rebrand-text:
+    profiles: [tools]
+    image: ghcr.io/${GHCR_OWNER}/caratflow-api:${IMAGE_TAG:-latest}
+    restart: "no"
+    working_dir: /app/node_modules/@caratflow/db
+    command: ["/opt/tools/node_modules/.bin/tsx", "src/rebrand-text.ts"]
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-caratflow}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-caratflow}
+      TENANT_SLUG:
+      TENANT_ID:
+      FROM_TEXT:
+      TO_TEXT:
+      DRY_RUN:
+    networks: [caratflow]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
   # OPTIONAL full demo data (CRM, sales, finance, stock, manufacturing, HR ...) for a tenant that
   # already has the demo catalog. Fills the LIVE database with fictional data: back up first
   # (deploy/backup.sh). See docs/DEPLOYMENT-DOCKER.md, "Demo data and demo customer login".

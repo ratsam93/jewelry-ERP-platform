@@ -470,7 +470,7 @@ export const mockReviews: Review[] = [
     userName: "Meera P.",
     rating: 5,
     title: "Best online jewelry purchase",
-    comment: "I was hesitant to buy jewelry online but CaratFlow exceeded my expectations. The product matches the description perfectly. Fast delivery with tamper-proof packaging. Will buy again!",
+    comment: "I was hesitant to buy jewelry online but TechBeyond exceeded my expectations. The product matches the description perfectly. Fast delivery with tamper-proof packaging. Will buy again!",
     images: [],
     isVerifiedPurchase: true,
     createdAt: "2026-02-14T11:00:00Z",

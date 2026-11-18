@@ -2,7 +2,7 @@
   "name": "@caratflow/ui",
   "version": "0.1.0",
   "private": true,
-  "description": "CaratFlow UI component library built on shadcn/ui + Tailwind CSS",
+  "description": "TechBeyond UI component library built on shadcn/ui + Tailwind CSS",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

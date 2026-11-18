@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { WhatsAppService, WhatsAppNotConfiguredError } from './whatsapp.service';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
+import { BRAND_NAME } from '../../common/brand';
 
 @Injectable()
 export class CrmNotificationService extends TenantAwareService {
@@ -546,7 +547,7 @@ export class CrmNotificationService extends TenantAwareService {
     const requestBody = {
       registration_ids: tokens,
       notification: {
-        title: payload.subject ?? 'CaratFlow',
+        title: payload.subject ?? BRAND_NAME,
         body: payload.body,
       },
       data: {

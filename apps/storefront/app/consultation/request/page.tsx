@@ -12,6 +12,7 @@ import {
   loadConsultationDraft,
   saveConsultationDraft,
 } from "@/lib/consultation-draft";
+import { BRAND_NAME } from "@/lib/brand";
 
 const LANGS = [
   { code: "en", label: "English" },
@@ -162,7 +163,7 @@ function RequestConsultationForm() {
           <p className="text-sm text-navy/70 mt-1">
             {needsSignIn
               ? "You are not signed in, or your session has expired. Your answers are saved: sign in and you will return right here."
-              : "You need a CaratFlow account to book a live consultation. Your answers are saved while you sign in."}
+              : `You need a ${BRAND_NAME} account to book a live consultation. Your answers are saved while you sign in.`}
           </p>
           <div className="mt-3 flex flex-wrap gap-3">
             <Link href={consultationLoginHref} className="h-10 px-5 inline-flex items-center rounded-lg bg-gold text-white text-sm font-medium hover:bg-gold-dark transition-colors">

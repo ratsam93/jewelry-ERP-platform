@@ -11,7 +11,7 @@ export default function ChatError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[CaratFlow] Chat error:", error);
+    console.error("[TechBeyond] Chat error:", error);
   }, [error]);
 
   return (
