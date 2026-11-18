@@ -211,6 +211,35 @@ If you used the demo seed instead, the demo tenant is `sharma-jewellers` with lo
 as `admin@sharmajewellers.com` / `admin123` (see the README). **Never keep demo logins on
 a real server**: change the passwords or recreate the database.
 
+## Demo data and demo customer login
+
+Optional: fill an empty tenant with a demo catalog so the shop is not empty, and create one
+customer who can sign in on the storefront. Run it **on the server**, after step 8:
+
+```bash
+cd ~/caratflow   # the folder with docker-compose.prod.yml and .env
+TENANT_SLUG=your-slug DEMO_CUSTOMER_PASSWORD='choose-a-password'   docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --rm seed-demo-catalog
+```
+
+What it adds (only what is missing, nothing is updated or deleted, a second run adds 0 rows):
+a Main Showroom and a warehouse (only if the tenant has no location), 6 categories with
+sub-categories, 31 products with HUIDs and stock, metal rates (22K about Rs 6,700/g, 18K about
+Rs 5,500/g, 14K about Rs 4,300/g, silver about Rs 90/g) in both the storefront settings and the
+admin rate history, 3 hero banners, FAQs, a few reviews, and the demo customer (Priya Sharma,
+phone +919820000001, verified e-mail/phone, one address, KYC, 500 loyalty points).
+
+- `DEMO_CUSTOMER_PASSWORD` is **required** for the customer login (min 8 characters). Without it
+  only the catalog is seeded. It is never printed or stored.
+- `DEMO_CUSTOMER_EMAIL` defaults to `demo.customer@example.com`.
+- Product and banner images are stored as absolute URLs `https://shop.YOURDOMAIN/images/...`
+  (the images ship inside the storefront image; override with `IMAGE_BASE_URL`).
+- Add `DRY_RUN=true` to see what would be inserted without writing anything.
+- Image sources and licences: `apps/storefront/public/images/CREDITS.md`.
+
+> **Warning:** these are demo products and a demo login with a known e-mail. Remove the demo
+> customer and the demo products (SKUs starting with `TB-`) before real launch, and replace the
+> demo images with your own photography.
+
 ## 9. Daily operations
 
 All commands run on the server in `/opt/caratflow` as `deploy`. Shorthand:

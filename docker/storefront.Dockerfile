@@ -56,6 +56,8 @@ RUN apk add --no-cache tini
 WORKDIR /app
 COPY --from=build --chown=node:node /repo/apps/storefront/.next/standalone ./
 COPY --from=build --chown=node:node /repo/apps/storefront/.next/static ./apps/storefront/.next/static
+# Standalone output does not include /public: ship the bundled images (hero, categories, products).
+COPY --from=build --chown=node:node /repo/apps/storefront/public ./apps/storefront/public
 USER node
 EXPOSE 3003
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \

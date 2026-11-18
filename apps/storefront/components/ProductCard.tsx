@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { calculateProductPrice, formatRupees, cn } from "@/lib/utils";
+import { applyFallbackImage } from "@/lib/images";
 import RatingStars from "./RatingStars";
 import type { Product } from "@/lib/types";
 
@@ -75,6 +76,7 @@ export default function ProductCard({ product, showQuickAdd = true }: ProductCar
           alt={primaryImage?.alt ?? product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
+          onError={applyFallbackImage}
         />
       </Link>
 

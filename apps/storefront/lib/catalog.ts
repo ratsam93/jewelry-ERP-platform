@@ -9,7 +9,7 @@
 
 import { API_BASE_URL, STORE_API, TENANT_ID, PURITY_OPTIONS } from "./constants";
 import { ApiError } from "./api";
-import { placeholderImage } from "./utils";
+import { PRODUCT_PLACEHOLDER, categoryTile, resolveImageUrl as resolveBundledImageUrl } from "./images";
 import type {
   Category,
   FilterState,
@@ -187,8 +187,7 @@ function toMetalType(productType: string): MetalType {
 }
 
 function resolveImageUrl(url: string): string {
-  if (url.startsWith("/") && !url.startsWith("//")) return `${API_BASE_URL}${url}`;
-  return url;
+  return resolveBundledImageUrl(url, API_BASE_URL);
 }
 
 export function mapImages(urls: string[] | null | undefined, name: string): ProductImage[] {
@@ -197,7 +196,7 @@ export function mapImages(urls: string[] | null | undefined, name: string): Prod
     return [
       {
         id: "placeholder",
-        url: placeholderImage(600, 600, name),
+        url: PRODUCT_PLACEHOLDER,
         alt: name,
         isPrimary: true,
         sortOrder: 0,
@@ -335,21 +334,9 @@ export function mapProduct(p: ApiCatalogProduct, opts: { isNew?: boolean } = {})
   };
 }
 
-const CATEGORY_IMAGE_TAGS: Record<string, string> = {
-  gold: "gold,jewelry",
-  silver: "silver,jewelry",
-  diamond: "diamond,jewelry",
-  platinum: "platinum,jewelry",
-  gemstone: "gemstone,jewelry",
-  kundan: "kundan,jewelry",
-};
-
+/** Bundled tile for a category (see lib/images.ts); never an external host. */
 export function categoryImage(name: string): string {
-  const slug = slugify(name);
-  const tags = CATEGORY_IMAGE_TAGS[slug] ?? `gold,${slug.replace(/-/g, ",") || "jewelry"}`;
-  let hash = 0;
-  for (const ch of slug) hash = (hash * 31 + ch.charCodeAt(0)) % 1000;
-  return `https://loremflickr.com/600/600/${tags}?lock=${hash}`;
+  return categoryTile(name);
 }
 
 export function mapCategory(c: ApiCategory): Category {

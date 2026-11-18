@@ -301,6 +301,30 @@ services:
       mysql:
         condition: service_healthy
 
+  # OPTIONAL demo data for an existing tenant: categories, ~31 products, stock, rates, banners
+  # and a demo customer login (see docs/DEPLOYMENT-DOCKER.md, "Demo data and demo customer login").
+  seed-demo-catalog:
+    profiles: [tools]
+    image: ghcr.io/${GHCR_OWNER}/caratflow-api:${IMAGE_TAG:-latest}
+    restart: "no"
+    working_dir: /app/node_modules/@caratflow/db
+    command: ["/opt/tools/node_modules/.bin/tsx", "src/seed-demo-catalog.ts"]
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-caratflow}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-caratflow}
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+      IMAGE_BASE_URL:
+      TENANT_SLUG:
+      TENANT_ID:
+      DEMO_CUSTOMER_EMAIL:
+      DEMO_CUSTOMER_PASSWORD:
+      DEMO_CUSTOMER_FIRST_NAME:
+      DEMO_CUSTOMER_LAST_NAME:
+      DRY_RUN:
+    networks: [caratflow]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
 networks:
   caratflow: {}
 

@@ -70,32 +70,15 @@ import { calculateProductPrice, formatRupees, cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
 import { CRM_API, TENANT_ID } from "@/lib/constants";
 import type { CatalogProduct } from "@/lib/catalog";
+import { COLLECTION_IMAGES, HERO_IMAGES, applyFallbackImage, CATEGORY_PLACEHOLDER } from "@/lib/images";
 
-// ─── Jewelry Photography Library ─────────────────────────────
-// Real jewelry photos sourced from Loremflickr (free Flickr proxy,
-// tag-matched, deterministic via ?lock). Falls back gracefully if
-// Loremflickr is rate-limited — picsum seeds remain in comments.
+// ─── Imagery ─────────────────────────────────────────────────
+// All photography is bundled with the app (public/images, credits in
+// public/images/CREDITS.md); see lib/images.ts. No external image hosts.
 
 const IMG = {
-  hero: "https://loremflickr.com/1920/800/luxury,jewelry,gold?lock=1",
-  collections: {
-    bridal: "https://loremflickr.com/800/600/bridal,jewelry,indian?lock=2",
-    daily: "https://loremflickr.com/800/600/gold,jewelry,elegant?lock=3",
-    festive: "https://loremflickr.com/800/600/diamond,necklace,luxury?lock=4",
-  },
-  categories: {
-    rings: "https://loremflickr.com/600/600/gold,ring,diamond?lock=11",
-    necklaces: "https://loremflickr.com/600/600/gold,necklace?lock=12",
-    earrings: "https://loremflickr.com/600/600/gold,earring?lock=13",
-    bangles: "https://loremflickr.com/600/600/gold,bangle,bracelet?lock=14",
-    pendants: "https://loremflickr.com/600/600/gold,pendant,locket?lock=15",
-    chains: "https://loremflickr.com/600/600/gold,chain,jewelry?lock=16",
-  },
-  avatars: {
-    a1: "https://loremflickr.com/100/100/portrait,woman,indian?lock=21",
-    a2: "https://loremflickr.com/100/100/portrait,woman,smile?lock=22",
-    a3: "https://loremflickr.com/100/100/portrait,man,professional?lock=23",
-  },
+  hero: HERO_IMAGES[0],
+  collections: COLLECTION_IMAGES,
 };
 
 // ─── Featured Collections ────────────────────────────────────
@@ -150,7 +133,6 @@ const TESTIMONIALS = [
     name: "Priya Sharma",
     city: "Mumbai",
     rating: 5,
-    avatar: IMG.avatars.a1,
     quote:
       "The bridal set I bought for my wedding was breathtaking. Craftsmanship is world-class and the BIS hallmark gave me total peace of mind.",
   },
@@ -158,7 +140,6 @@ const TESTIMONIALS = [
     name: "Ananya Iyer",
     city: "Bengaluru",
     rating: 5,
-    avatar: IMG.avatars.a2,
     quote:
       "Ordered a diamond pendant for my mother's 60th. It arrived beautifully packaged, with a certificate and a personal handwritten note.",
   },
@@ -166,7 +147,6 @@ const TESTIMONIALS = [
     name: "Kavita Reddy",
     city: "Hyderabad",
     rating: 5,
-    avatar: IMG.avatars.a3,
     quote:
       "I love that I can book a video consultation before buying. The designer walked me through three options over a call. Bought on the spot.",
   },
@@ -344,6 +324,7 @@ export default function HomeView({ data }: HomeViewProps) {
                   <img
                     src={cat.image}
                     alt={cat.name}
+                    onError={(e) => applyFallbackImage(e, CATEGORY_PLACEHOLDER)}
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
                 </div>
@@ -549,11 +530,16 @@ export default function HomeView({ data }: HomeViewProps) {
                   &ldquo;{t.quote}&rdquo;
                 </p>
                 <div className="flex items-center gap-3 border-t border-gray-100 pt-4">
-                  <img
-                    src={t.avatar}
-                    alt={t.name}
-                    className="h-12 w-12 rounded-full object-cover"
-                  />
+                  <span
+                    aria-hidden="true"
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-gold/15 text-base font-semibold text-gold"
+                  >
+                    {t.name
+                      .split(" ")
+                      .map((w) => w[0])
+                      .join("")
+                      .slice(0, 2)}
+                  </span>
                   <div>
                     <p className="text-sm font-semibold text-navy">{t.name}</p>
                     <p className="text-xs text-navy/50">{t.city}</p>
