@@ -5,13 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { api } from '@/lib/api';
+import { loginErrorMessage } from '@/lib/api-error';
 
 export default function LoginPage() {
   const router = useRouter();
   const { setTokens } = useAuthStore();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
-  const [tenantSlug, setTenantSlug] = React.useState('');
+  // Build-time default (empty when unset): never hard-code a demo business here.
+  const [tenantSlug, setTenantSlug] = React.useState(process.env.NEXT_PUBLIC_TENANT_SLUG ?? '');
   const showDemoHint = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -54,7 +56,7 @@ export default function LoginPage() {
       }
       setLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(loginErrorMessage(err));
       setLoading(false);
     }
   };
@@ -105,7 +107,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="admin@sharmajewellers.com"
+              placeholder="you@yourbusiness.com"
               required
             />
           </div>

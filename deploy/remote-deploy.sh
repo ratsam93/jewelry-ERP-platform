@@ -59,6 +59,25 @@ wait_healthy() {
   return 1
 }
 
+# Caddyfile is a bind mount, so `up -d` never restarts Caddy when only the file changed.
+# Validate the new config inside the running container, then reload it gracefully. If the
+# config is invalid the old config keeps serving and the deploy fails with a clear message.
+reload_caddy() {
+  local cid
+  cid="$(compose ps -q caddy 2>/dev/null || true)"
+  if [ -z "$cid" ] || [ "$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null || echo false)" != "true" ]; then
+    echo "caddy is not running; skipping config reload"
+    return 0
+  fi
+  if ! compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+    echo "!! deploy/Caddyfile failed 'caddy validate'; the previous Caddy config is still active" >&2
+    compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile >&2 || true
+    return 1
+  fi
+  compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+  echo "caddy config reloaded"
+}
+
 rollback() {
   echo "!! deployment of $TAG failed" >&2
   compose ps || true
@@ -96,6 +115,10 @@ if [ "$RUN_SEED" = "true" ]; then
 fi
 
 compose up -d --remove-orphans || rollback
+if ! reload_caddy; then
+  echo "!! deployment of $TAG failed: Caddy config invalid or reload failed (old config kept running)" >&2
+  rollback
+fi
 wait_healthy || rollback
 
 echo "$TAG" > .last_good_tag
