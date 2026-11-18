@@ -6,9 +6,12 @@
  * URLs, stock, metal rates (tenant settings AND metal_rate_history), CMS banners,
  * FAQ entries, a few reviews, and one demo customer who can sign in on the storefront.
  *
- * INSERT-ONLY and idempotent: rows that already exist are never updated or deleted;
- * a second run inserts 0 rows. The only existing row that is touched is
- * tenant.settings, and only to ADD missing metalRates keys.
+ * Insert-only and idempotent, plus a small repair phase: rows that already exist are never
+ * deleted. Existing rows touched: tenant.settings (ADD missing metalRates keys, and add
+ * storefrontBanners when missing/empty) and demo products (SKU prefix TB-) of the featured
+ * set that lack attributes.featured (only that key is added). The storefront home reads
+ * attributes.featured and settings.storefrontBanners, so re-running also repairs a tenant
+ * seeded by an older version. A second run inserts 0 and updates 0 rows.
  *
  * Environment:
  *   TENANT_SLUG | TENANT_ID   which tenant (one is required)
@@ -33,6 +36,10 @@ import {
   DEMO_FAQS,
   DEMO_PRODUCTS,
   DEMO_REVIEWS,
+  DEMO_FEATURED_SKUS,
+  DEMO_SKU_PREFIX,
+  demoStorefrontBanners,
+  isFeaturedSku,
   DEMO_RATE_RUPEES_PER_GRAM,
   ROOT_CATEGORIES,
   SUB_CATEGORIES,
@@ -210,7 +217,12 @@ async function seedProducts(
         sellingPricePaise: selling,
         currencyCode: 'INR',
         images: [productImageUrl(ctx.imageBase, p.file)],
-        attributes: { gender: 'women', occasion: [p.occasion], demo: true },
+        attributes: {
+          gender: 'women',
+          occasion: [p.occasion],
+          demo: true,
+          ...(isFeaturedSku(p.sku) ? { featured: true } : {}),
+        },
         isActive: true,
       },
     });
@@ -282,6 +294,55 @@ async function seedCms(ctx: Ctx, productIds: string[]): Promise<void> {
       },
     });
   }
+}
+
+/**
+ * Repair phase, runs on every execution. Touches only demo products (SKU prefix TB-)
+ * of the planned featured set that lack the `featured` key (only that JSON key is
+ * added; an explicit featured=false is respected), and tenant.settings.storefrontBanners
+ * only when it is missing or empty (only that key is added). Counted as "...Updated".
+ */
+async function ensureHomeData(ctx: Ctx): Promise<void> {
+  const { prisma, tenantId } = ctx;
+
+  const featured = DEMO_FEATURED_SKUS.filter((s) => s.startsWith(DEMO_SKU_PREFIX));
+  const rows = await prisma.product.findMany({
+    where: { tenantId, sku: { in: [...featured] } },
+    select: { id: true, attributes: true },
+  });
+  for (const row of rows) {
+    const attrs = (row.attributes ?? {}) as Record<string, unknown>;
+    if (typeof attrs === 'object' && !Array.isArray(attrs) && 'featured' in attrs) continue;
+    bump(ctx, 'featuredFlagsUpdated');
+    if (ctx.dry) continue;
+    await prisma.$transaction(async (tx) => {
+      const fresh = await tx.product.findFirst({ where: { id: row.id, tenantId }, select: { attributes: true } });
+      const cur = (fresh?.attributes ?? {}) as Record<string, unknown>;
+      if (!fresh || 'featured' in cur) return;
+      await tx.product.update({ where: { id: row.id }, data: { attributes: { ...cur, featured: true } } });
+    });
+  }
+
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } });
+  const settings = (tenant?.settings ?? {}) as Record<string, unknown>;
+  const have = settings.storefrontBanners;
+  if (!Array.isArray(have) || have.length === 0) {
+    bump(ctx, 'storefrontBannersUpdated');
+    if (!ctx.dry) {
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { settings: { ...settings, storefrontBanners: demoStorefrontBanners(ctx.imageBase, tenantId) } },
+      });
+    }
+  }
+}
+
+/** Split counts into inserted rows and "...Updated" repairs. */
+export function splitCounts(counts: Counts): { inserted: Counts; updated: Counts } {
+  const inserted: Counts = {};
+  const updated: Counts = {};
+  for (const [k, v] of Object.entries(counts)) (k.endsWith('Updated') ? updated : inserted)[k] = v;
+  return { inserted, updated };
 }
 
 async function seedCustomer(ctx: Ctx, input: { email: string; password: string; firstName: string; lastName: string }): Promise<void> {
@@ -382,6 +443,7 @@ export async function seedDemoCatalog(
   await seedRates(ctx);
   const productIds = await seedProducts(ctx, locationId, cats);
   await seedCms(ctx, productIds);
+  await ensureHomeData(ctx);
 
   const cust = parseDemoCustomerEnv(env);
   if (cust.ok) await seedCustomer(ctx, cust.input);
@@ -415,8 +477,12 @@ async function main() {
     if (!tenant) throw new Error(`Tenant not found: ${id || slug}`);
     const dry = (process.env.DRY_RUN ?? '').toLowerCase() === 'true';
     const counts = await seedDemoCatalog(prisma, tenant.id, process.env);
-    const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    console.warn(`demo catalog seed [${tenant.slug}]${dry ? ' (DRY RUN, nothing written)' : ''}: ${total} ${dry ? 'would be ' : ''}inserted`);
+    const { inserted, updated } = splitCounts(counts);
+    const sum = (c: Counts) => Object.values(c).reduce((a, b) => a + b, 0);
+    const w = dry ? 'would be ' : '';
+    console.warn(
+      `demo catalog seed [${tenant.slug}]${dry ? ' (DRY RUN, nothing written)' : ''}: ${sum(inserted)} ${w}inserted, ${sum(updated)} ${w}updated`,
+    );
     for (const [k, v] of Object.entries(counts)) console.warn(`  ${k}: ${v}`);
   } finally {
     await prisma.$disconnect();

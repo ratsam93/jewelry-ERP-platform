@@ -269,6 +269,44 @@ export const DEMO_BANNERS = [
   { title: 'Diamonds That Sparkle', subtitle: 'Certified solitaires and everyday diamonds', file: 'hero-3.webp', linkUrl: '/category/diamond' },
 ] as const;
 
+/** SKU prefix that identifies products created by this demo seed. */
+export const DEMO_SKU_PREFIX = 'TB-';
+
+/** Products flagged attributes.featured = true (mix of categories). */
+export const DEMO_FEATURED_SKUS: readonly string[] = [
+  'TB-NECK-22K-001', // Gold necklace
+  'TB-EAR-22K-001', // Gold earrings
+  'TB-BNGL-22K-001', // Gold bangles
+  'TB-MNGL-22K-001', // Gold mangalsutra
+  'TB-PEND-S999-001', // Silver
+  'TB-RING-18K-002', // Diamond
+  'TB-RING-PT950-001', // Platinum
+  'TB-EAR-22K-003', // Kundan
+];
+
+export function isFeaturedSku(sku: string): boolean {
+  return DEMO_FEATURED_SKUS.includes(sku);
+}
+
+export type StorefrontBanner = {
+  id: string;
+  imageUrl: string;
+  linkUrl: string;
+  title: string;
+  sortOrder: number;
+};
+
+/** tenant.settings.storefrontBanners, the array the storefront home API reads. */
+export function demoStorefrontBanners(base: string, tenantId: string): StorefrontBanner[] {
+  return DEMO_BANNERS.map((b, i) => ({
+    id: demoId(`demo-sfbanner-${tenantId}-${b.title}`),
+    imageUrl: absoluteImageUrl(base, `images/hero/${b.file}`),
+    linkUrl: b.linkUrl,
+    title: b.title,
+    sortOrder: i,
+  }));
+}
+
 export const DEMO_FAQS = [
   { question: 'Is your gold jewellery hallmarked?', answer: 'Yes. All gold items carry a BIS hallmark with a 6-character HUID.', category: 'Quality' },
   { question: 'How is the price of a gold item calculated?', answer: 'Price = metal weight x live rate, plus making charges and wastage, plus 3% GST.', category: 'Pricing' },

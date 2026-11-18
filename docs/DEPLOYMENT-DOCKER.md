@@ -221,13 +221,18 @@ cd ~/caratflow   # the folder with docker-compose.prod.yml and .env
 TENANT_SLUG=your-slug DEMO_CUSTOMER_PASSWORD='choose-a-password'   docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --rm seed-demo-catalog
 ```
 
-What it adds (only what is missing, nothing is updated or deleted, a second run adds 0 rows):
+What it adds (only what is missing, nothing is deleted, a second run adds 0 rows):
 a Main Showroom and a warehouse (only if the tenant has no location), 6 categories with
 sub-categories, 31 products with HUIDs and stock, metal rates (22K about Rs 6,700/g, 18K about
 Rs 5,500/g, 14K about Rs 4,300/g, silver about Rs 90/g) in both the storefront settings and the
 admin rate history, 3 hero banners, FAQs, a few reviews, and the demo customer (Priya Sharma,
 phone +919820000001, verified e-mail/phone, one address, KYC, 500 loyalty points).
 
+- Re-running the seed also **repairs the home-page data** of an already-seeded tenant: it marks
+  8 demo products (SKUs `TB-...`) with `attributes.featured = true` (only that key is added, an
+  existing `featured` value is kept) and, only if `storefrontBanners` is missing or empty, adds
+  the 3 hero banners to the tenant settings (other settings keys are kept). These show up as
+  `...Updated` counts; the next run reports 0 inserted and 0 updated.
 - `DEMO_CUSTOMER_PASSWORD` is **required** for the customer login (min 8 characters). Without it
   only the catalog is seeded. It is never printed or stored.
 - `DEMO_CUSTOMER_EMAIL` defaults to `demo.customer@example.com`.
