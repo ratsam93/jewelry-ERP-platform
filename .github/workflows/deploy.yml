@@ -433,7 +433,9 @@ jobs:
   promote-latest:
     name: Promote :latest
     needs: [prepare, deploy]
-    if: needs.deploy.result == 'success' && needs.prepare.outputs.tag == ''
+    # !cancelled() replaces the implicit success(): a skipped ancestor (e.g. the re-tag job when
+    # everything was rebuilt) would otherwise skip this job too.
+    if: ${{ !cancelled() && needs.deploy.result == 'success' && needs.prepare.outputs.tag == '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
