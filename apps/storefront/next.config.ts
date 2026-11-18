@@ -21,12 +21,8 @@ const extraImageHosts = (process.env.NEXT_PUBLIC_IMAGE_HOSTS ?? "")
   .map((h) => h.trim())
   .filter(Boolean);
 
-const imageHostnames = [
-  "loremflickr.com",
-  "images.unsplash.com",
-  "picsum.photos",
-  ...extraImageHosts,
-];
+// Bundled images are served from /public and need no remote pattern.
+const imageHostnames = [...extraImageHosts];
 
 const csp = [
   "default-src 'self'",

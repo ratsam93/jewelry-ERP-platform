@@ -74,7 +74,7 @@ describe("mapProduct", () => {
 
     const c = mapProduct(apiProductC);
     expect(c.images).toHaveLength(1);
-    expect(c.images[0]!.url.startsWith("data:image/svg+xml")).toBe(true);
+    expect(c.images[0]!.url).toBe("/images/products/placeholder.webp");
   });
 
   it("maps availability, rating, occasion and specs", () => {
