@@ -10,7 +10,7 @@ fail=0
 
 check() { # name, expected, files...
   local name="$1" expected="$2"; shift 2
-  local got; got="$(printf '%s\n' "$@" | "$here/changed-images.sh")"
+  local got; got="$(printf '%s\n' "$@" | bash "$here/changed-images.sh")"
   if [ "$got" = "$expected" ]; then echo "PASS $name -> [$got]"
   else echo "FAIL $name: expected [$expected] got [$got]"; fail=1; fi
 }
@@ -48,7 +48,7 @@ name="${ref##*caratflow-}"; name="${name%%:*}"
 case "$fmt" in
   *Manifest*) echo '{"digest":"sha256:abc123"}' ;;
   *Image*)
-    h="$("$STUB_SCRIPTS/build-args.sh" "$name" | sha256sum | cut -d' ' -f1)"
+    h="$(bash "$STUB_SCRIPTS/build-args.sh" "$name" | sha256sum | cut -d' ' -f1)"
     [ -n "${STUB_BAD_HASH:-}" ] && [ "$name" = "$STUB_BAD_HASH" ] && h="stale"
     echo "{\"linux/amd64\":{\"config\":{\"Labels\":{\"org.opencontainers.image.revision\":\"$STUB_BASE\",\"cf.build-args-hash\":\"$h\"}}}}" ;;
 esac
@@ -81,7 +81,7 @@ echo "Real commits in this repository (what each would rebuild if :latest were i
 for c in $(git log --format=%H -n 8 --no-merges); do
   files="$(git diff --no-renames --name-only "$c~1" "$c" 2>/dev/null)"
   printf '%s %-62s -> [%s]\n' "$(git rev-parse --short "$c")" "$(git log -1 --format=%s "$c" | cut -c1-62)" \
-    "$(printf '%s\n' "$files" | "$here/changed-images.sh")"
+    "$(printf '%s\n' "$files" | bash "$here/changed-images.sh")"
 done
 
 exit $fail
