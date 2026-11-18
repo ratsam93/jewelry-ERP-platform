@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ContactForm from "@/components/ContactForm";
+import { CONTACT } from "@/lib/contact-info";
 
 export const metadata: Metadata = {
   title: "Contact Us",
@@ -42,7 +43,8 @@ export default function ContactPage() {
                   Get in Touch
                 </h2>
 
-                {/* Office */}
+                {/* Office (only when configured) */}
+                {CONTACT.address && (
                 <div className="bg-white rounded-xl p-6 border border-gray-200 mb-6">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-gold/10 text-gold rounded-lg flex items-center justify-center flex-shrink-0">
@@ -52,20 +54,18 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-navy mb-1">
-                        Head Office -- Mumbai
+                        Office
                       </h3>
                       <p className="text-gray-600 text-sm leading-relaxed">
-                        TechBeyond
-                        <br />
-                        Andheri East, Mumbai 400069
-                        <br />
-                        Maharashtra, India
+                        {CONTACT.address}
                       </p>
                     </div>
                   </div>
                 </div>
+                )}
 
-                {/* Phone */}
+                {/* Phone (only when configured) */}
+                {CONTACT.phone && (
                 <div className="bg-white rounded-xl p-6 border border-gray-200 mb-6">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-gold/10 text-gold rounded-lg flex items-center justify-center flex-shrink-0">
@@ -76,13 +76,12 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-navy mb-1">Phone</h3>
                       <p className="text-gray-600 text-sm">
-                        +91 22 4000 1234
-                        <br />
-                        Mon - Sat, 9:00 AM - 7:00 PM IST
+                        {CONTACT.phone}
                       </p>
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Email */}
                 <div className="bg-white rounded-xl p-6 border border-gray-200 mb-6">
@@ -95,9 +94,11 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-navy mb-1">Email</h3>
                       <p className="text-gray-600 text-sm">
-                        sales@globussoft.com
+                        <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
                         <br />
-                        support@globussoft.com
+                        Sales: <a href={`mailto:${CONTACT.salesEmail}`}>{CONTACT.salesEmail}</a>
+                        <br />
+                        Support: <a href={`mailto:${CONTACT.supportEmail}`}>{CONTACT.supportEmail}</a>
                       </p>
                     </div>
                   </div>
@@ -114,7 +115,7 @@ export default function ContactPage() {
                   tailored to your business.
                 </p>
                 <a
-                  href="mailto:sales@globussoft.com?subject=Demo%20Request"
+                  href={`mailto:${CONTACT.salesEmail}?subject=Demo%20Request`}
                   className="inline-flex items-center justify-center bg-gold text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-gold-dark transition-colors text-sm"
                 >
                   Book a Demo

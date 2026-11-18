@@ -1,3 +1,5 @@
+import { CONTACT } from "@/lib/contact-info";
+
 export const metadata = { title: "Privacy Policy" };
 
 export default function PrivacyPage() {
@@ -39,7 +41,7 @@ export default function PrivacyPage() {
           <h2 className="text-lg font-semibold text-navy mb-2">Your rights</h2>
           <p>
             You can request a copy or deletion of your data at any time by writing to{" "}
-            <a href="mailto:privacy@caratflow.com" className="text-gold">privacy@caratflow.com</a>. You can
+            <a href={`mailto:${CONTACT.privacyEmail}`} className="text-gold">{CONTACT.privacyEmail}</a>. You can
             also delete your account from the My Account page.
           </p>
         </section>
