@@ -93,4 +93,25 @@ describe('mutation audit', () => {
     expect(e?.action).toBe('updated');
     expect(e?.newValues.token).toBeUndefined();
   });
+
+  it('never records password fields and skips password-reset mutations entirely', () => {
+    const created = buildMutationAuditEvent({
+      path: 'platform.users.create',
+      tenantId: 't1',
+      userId: 'u1',
+      rawInput: { email: 'a@b.com', firstName: 'A', password: 'S3cret!Passw0rd', newPassword: 'x', currentPassword: 'y', roleId: 'r1' },
+      output: { id: 'new-user' },
+    });
+    expect(created).not.toBeNull();
+    const dump = JSON.stringify(created);
+    expect(dump).not.toMatch(/S3cret|password|newPassword|currentPassword/i);
+    expect(
+      buildMutationAuditEvent({
+        path: 'platform.users.setPassword',
+        tenantId: 't1',
+        rawInput: { userId: 'u', newPassword: 'S3cret!Passw0rd' },
+        output: { success: true },
+      }),
+    ).toBeNull();
+  });
 });

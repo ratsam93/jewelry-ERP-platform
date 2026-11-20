@@ -7,6 +7,9 @@ import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens } from "@/lib/api";
 import { nextFromWindow, withNext } from "@/lib/auth-next";
 import { BRAND_NAME } from "@/lib/brand";
+import { fetchAuthCapabilities } from "@/lib/auth-config";
+
+const SMS_UNAVAILABLE_HINT = "SMS login is not available yet, use your email and password.";
 
 /** API error text: class-validator sends `message` as a string[]; join it for display. */
 function apiErrorText(data: { error?: { message?: unknown }; message?: unknown } | null): string {
@@ -28,6 +31,18 @@ export default function LoginPage() {
   const showDemoHint = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [phoneOtpAvailable, setPhoneOtpAvailable] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    void fetchAuthCapabilities().then((caps) => {
+      if (!alive || !caps) return;
+      setPhoneOtpAvailable(caps.phoneOtp);
+      if (!caps.phoneOtp) setLoginMethod("email");
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function handleEmailLogin() {
     setLoading(true);
@@ -74,6 +89,10 @@ export default function LoginPage() {
       const data = await res.json().catch(() => null);
       if (!res.ok || (data && data.success === false)) {
         throw new Error(data?.error?.message || data?.message || "Could not send OTP");
+      }
+      if (data?.data?.delivered === false) {
+        setLoginMethod("email");
+        throw new Error(SMS_UNAVAILABLE_HINT);
       }
       router.push(
         withNext(`/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=LOGIN`, nextFromWindow()),
@@ -153,7 +172,8 @@ export default function LoginPage() {
 
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">{error}</div>}
 
-          {/* Login method tabs */}
+          {/* Login method tabs (phone OTP only when the server can deliver SMS) */}
+          {phoneOtpAvailable ? (
           <div className="flex gap-1 bg-warm-gray rounded-lg p-1 mb-5">
             <button
               type="button"
@@ -174,6 +194,9 @@ export default function LoginPage() {
               Phone (OTP)
             </button>
           </div>
+          ) : (
+            <p className="text-xs text-navy/50 mb-4">{SMS_UNAVAILABLE_HINT}</p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {loginMethod === "email" ? (

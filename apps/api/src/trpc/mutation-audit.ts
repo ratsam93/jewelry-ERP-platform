@@ -38,7 +38,7 @@ const UPDATE_VERBS = [
 ];
 
 /** Paths that must never be audited (audit's own procedures, credential changes). */
-const SKIP_PATH = /^(platform\.audit\.|auth\.|platform\.users\.(changePassword|resetPassword))/i;
+const SKIP_PATH = /^(platform\.audit\.|auth\.|platform\.users\.(changePassword|resetPassword|setPassword))/i;
 
 /** Keys whose values must never be copied (secrets, tokens, PAN/Aadhaar etc.). */
 const SENSITIVE_KEY =

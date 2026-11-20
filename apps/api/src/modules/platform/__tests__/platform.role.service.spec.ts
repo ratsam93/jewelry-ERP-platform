@@ -247,6 +247,18 @@ describe('PlatformRoleService (Unit)', () => {
       expect(result.roleId).toBe('r-1');
     });
 
+    it('blocks demoting the last active admin', async () => {
+      mockPrisma.role.findFirst.mockResolvedValue({ id: 'r-2', name: 'Sales' });
+      mockPrisma.user.findFirst
+        .mockResolvedValueOnce({ id: 'u-1' }) // user exists
+        .mockResolvedValueOnce({ isActive: true, role: { name: 'Admin' } }); // guard target
+      mockPrisma.user.count.mockResolvedValue(0);
+      await expect(
+        service.assignRoleToUser(TEST_TENANT_ID, 'u-1', 'r-2', audit),
+      ).rejects.toThrow(/last active administrator/);
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundException if role does not exist', async () => {
       mockPrisma.role.findFirst.mockResolvedValue(null);
 

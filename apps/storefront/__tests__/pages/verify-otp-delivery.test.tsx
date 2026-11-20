@@ -27,6 +27,19 @@ describe("verify-otp delivery honesty", () => {
     search.value = "phone=%2B919876543210&purpose=REGISTRATION&delivered=0";
     render(<VerifyOtpPage />);
     expect(screen.getByText(/we could not send an sms right now/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /skip for now/i })).toHaveAttribute("href", "/account");
+  });
+
+  it("does not offer Skip for now while delivery has not failed", () => {
+    search.value = "phone=%2B919876543210&purpose=REGISTRATION";
+    render(<VerifyOtpPage />);
+    expect(screen.queryByRole("link", { name: /skip for now/i })).toBeNull();
+  });
+
+  it("skip goes back to the page the customer came from", () => {
+    search.value = "phone=%2B919876543210&purpose=REGISTRATION&delivered=0&next=%2Fcheckout";
+    render(<VerifyOtpPage />);
+    expect(screen.getByRole("link", { name: /skip for now/i })).toHaveAttribute("href", "/checkout");
   });
 
   it("does not claim 'sent' when a resend returns delivered:false", async () => {

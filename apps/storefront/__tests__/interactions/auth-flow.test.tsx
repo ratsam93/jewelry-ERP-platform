@@ -86,7 +86,7 @@ describe("Auth Flow - Register", () => {
     render(<RegisterPage />);
     expect(screen.getByPlaceholderText("Priya Sharma")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("98765 43210")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("98765 43210 (optional)")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Min 10 characters")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Confirm your password")).toBeInTheDocument();
   });
@@ -105,7 +105,10 @@ describe("Auth Flow - Register", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     window.localStorage.clear();
+    window.sessionStorage.clear();
+    pushMock.mockClear();
   });
 
   it("submits registration form successfully", async () => {
@@ -123,7 +126,7 @@ describe("Auth Flow - Register", () => {
     render(<RegisterPage />);
     await user.type(screen.getByPlaceholderText("Priya Sharma"), "Test User");
     await user.type(screen.getByPlaceholderText("you@example.com"), "test@example.com");
-    await user.type(screen.getByPlaceholderText("98765 43210"), "9876543210");
+    await user.type(screen.getByPlaceholderText("98765 43210 (optional)"), "9876543210");
     await user.type(screen.getByPlaceholderText("Min 10 characters"), "Password#1234");
     await user.type(screen.getByPlaceholderText("Confirm your password"), "Password#1234");
     // Check the terms checkbox
@@ -137,7 +140,7 @@ describe("Auth Flow - Register", () => {
         expect.objectContaining({ method: "POST" }),
       );
     });
-    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    const body = JSON.parse(fetchMock.mock.calls.find((c) => String(c[0]).includes("/register/email"))![1].body as string);
     expect(body).toMatchObject({
       email: "test@example.com",
       password: "Password#1234",
@@ -153,7 +156,10 @@ describe("Auth Flow - Register", () => {
 describe("Auth Flow - API contract", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     window.localStorage.clear();
+    window.sessionStorage.clear();
+    pushMock.mockClear();
   });
 
   it("login sends tenantSlug with email and password", async () => {
@@ -168,9 +174,10 @@ describe("Auth Flow - API contract", () => {
     await user.type(screen.getByPlaceholderText("you@example.com"), "a@b.co");
     await user.type(screen.getByPlaceholderText("Enter your password"), "Password#1234");
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(fetchMock.mock.calls[0]![0]).toBe(`${AUTH_API}/login/email`);
-    expect(JSON.parse(fetchMock.mock.calls[0]![1].body as string)).toEqual({
+    await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/login/email"))).toBe(true));
+    const loginCall = fetchMock.mock.calls.find((c) => String(c[0]).includes("/login/email"))!;
+    expect(loginCall[0]).toBe(`${AUTH_API}/login/email`);
+    expect(JSON.parse(loginCall[1].body as string)).toEqual({
       email: "a@b.co",
       password: "Password#1234",
       tenantSlug: TENANT_SLUG,
@@ -197,14 +204,15 @@ describe("Auth Flow - API contract", () => {
   async function fillRegister(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByPlaceholderText("Priya Sharma"), "Test User");
     await user.type(screen.getByPlaceholderText("you@example.com"), "test@example.com");
-    await user.type(screen.getByPlaceholderText("98765 43210"), "9876543210");
+    await user.type(screen.getByPlaceholderText("98765 43210 (optional)"), "9876543210");
     await user.type(screen.getByPlaceholderText("Min 10 characters"), "Password#1234");
     await user.type(screen.getByPlaceholderText("Confirm your password"), "Password#1234");
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /create account/i }));
   }
 
-  it("register sends the REGISTRATION otp purpose and saves the phone on the profile", async () => {
+  it("register sends the REGISTRATION otp purpose and saves the phone on the profile (REQUIRE_PHONE_OTP=true)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_REQUIRE_PHONE_OTP", "true");
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
       ok: true,
@@ -227,7 +235,8 @@ describe("Auth Flow - API contract", () => {
     expect(JSON.parse(profileCall[1].body as string)).toEqual({ phone: "+919876543210" });
   });
 
-  it("register surfaces an OTP send failure instead of swallowing it", async () => {
+  it("register surfaces an OTP send failure instead of swallowing it (REQUIRE_PHONE_OTP=true)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_REQUIRE_PHONE_OTP", "true");
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
@@ -256,7 +265,7 @@ describe("Auth Flow - API contract", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
     render(<RegisterPage />);
-    const phone = screen.getByPlaceholderText("98765 43210") as HTMLInputElement;
+    const phone = screen.getByPlaceholderText("98765 43210 (optional)") as HTMLInputElement;
     await user.click(phone);
     await user.paste("+91 98765-43210");
     expect(phone.value).toBe("9876543210");
@@ -266,24 +275,5 @@ describe("Auth Flow - API contract", () => {
     await user.clear(phone);
     await user.paste("+919876543210");
     expect(phone.value).toBe("9876543210");
-  });
-
-  it("register flags an explicit delivered:false OTP response on the verify page link", async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => ({
-        ok: true,
-        status: 200,
-        json: async () =>
-          String(url).includes("/otp/send")
-            ? { success: true, data: { message: "OTP sent successfully", delivered: false } }
-            : { success: true, data: { accessToken: "tok" } },
-      })),
-    );
-    render(<RegisterPage />);
-    await fillRegister(user);
-    await waitFor(() => expect(pushMock).toHaveBeenCalled());
-    expect(String(pushMock.mock.calls.at(-1)![0])).toContain("delivered=0");
   });
 });

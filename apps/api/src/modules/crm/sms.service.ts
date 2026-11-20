@@ -50,6 +50,16 @@ export class SmsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** True when the tenant has a complete SMS provider configuration. */
+  async isConfigured(tenantId: string): Promise<boolean> {
+    try {
+      await this.loadConfig(tenantId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async sendSms(tenantId: string, input: SendSmsInput): Promise<SmsSendResult> {
     if (!input.to) throw new Error('SmsService: "to" is required');
     if (!input.body && !input.templateId) {

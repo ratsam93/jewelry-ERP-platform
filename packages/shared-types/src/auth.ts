@@ -158,3 +158,38 @@ export interface B2CJwtPayload {
   phone: string | null;
   type: 'b2c';
 }
+
+// ─── Staff password policy ────────────────────────────────────
+// Single source of truth for staff/admin passwords (admin-created users,
+// admin password reset, change-own-password): 10-128 characters with at least
+// one uppercase letter, one lowercase letter, one digit and one symbol.
+
+export const STAFF_PASSWORD_MIN_LENGTH = 10;
+export const STAFF_PASSWORD_MAX_LENGTH = 128;
+export const STAFF_PASSWORD_HINT =
+  'At least 10 characters with an uppercase letter, a lowercase letter, a number and a symbol.';
+
+/** Returns a list of human-readable policy violations (empty when valid). */
+export function getStaffPasswordIssues(password: string): string[] {
+  const issues: string[] = [];
+  if (password.length < STAFF_PASSWORD_MIN_LENGTH) {
+    issues.push(`Password must be at least ${STAFF_PASSWORD_MIN_LENGTH} characters`);
+  }
+  if (password.length > STAFF_PASSWORD_MAX_LENGTH) {
+    issues.push(`Password must be at most ${STAFF_PASSWORD_MAX_LENGTH} characters`);
+  }
+  if (!/[A-Z]/.test(password)) issues.push('Password must contain at least one uppercase letter');
+  if (!/[a-z]/.test(password)) issues.push('Password must contain at least one lowercase letter');
+  if (!/\d/.test(password)) issues.push('Password must contain at least one number');
+  if (!/[^A-Za-z0-9]/.test(password)) issues.push('Password must contain at least one symbol');
+  return issues;
+}
+
+export const StaffPasswordSchema = z
+  .string()
+  .max(STAFF_PASSWORD_MAX_LENGTH)
+  .superRefine((value, ctx) => {
+    for (const message of getStaffPasswordIssues(value)) {
+      ctx.addIssue({ code: 'custom', message });
+    }
+  });

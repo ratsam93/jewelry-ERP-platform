@@ -413,6 +413,66 @@ data or staying disabled, until configured):
 
 Webhook URLs to give the providers use `https://api.YOURDOMAIN/...`.
 
+## Users, passwords and email
+
+**Creating staff users (no email needed).** In the admin app go to Settings, Users and
+click **Add user**. Fill in first name, last name, email, role and a password (use
+**Generate strong password** for a random 16-character one). The account is active
+immediately. A panel then shows the business slug, email and password **once**: copy it
+and share it securely, and ask the person to change the password after first login
+(Profile, Change password). Only users with an administrator-level role can create users
+or reset passwords. To reset a forgotten password open the user's page and use
+**Reset password**; the user is signed out everywhere.
+
+Password rule (same everywhere): at least 10 characters with an uppercase letter, a
+lowercase letter, a number and a symbol. The last active Admin of a company cannot be
+deactivated or moved to another role.
+
+**Why "Invite by email" and SMS codes do not work out of the box.** Both need an external
+provider that is configured per company (tenant). Until it is configured:
+
+- *Invite by email* still creates the user, but the app now says "no email could be sent".
+  Use **Add user** with a password instead.
+- *Phone OTP* (SMS/WhatsApp codes) cannot be delivered. The storefront therefore treats the
+  phone number as optional, never blocks sign-up on it, and hides "Phone (OTP)" login
+  (`GET /api/v1/b2c/auth/capabilities` reports `phoneOtp: false`). To require phone
+  verification at sign-up once SMS works, build the storefront with
+  `NEXT_PUBLIC_REQUIRE_PHONE_OTP=true` (default `false`).
+
+**Where the provider keys live.** They are rows in the `settings` table (one row per
+company: `tenant_id`, `setting_key`, `setting_value` as JSON, `category`). There is no
+Settings screen for them yet, so set them with SQL. The API reads them on every send, so
+no restart is needed. Keys read by the code (`EmailService`, `SmsService`,
+`WhatsAppService`):
+
+| Purpose | Required keys |
+| --- | --- |
+| Email (SendGrid) | `sendgrid_api_key`, `sendgrid_from_email` (verified sender), optional `sendgrid_from_name` |
+| SMS via MSG91 (default provider) | `msg91_auth_key`, `msg91_sender_id`, `msg91_flow_id` |
+| SMS via Twilio (set `sms_provider` to `TWILIO`) | `twilio_account_sid`, `twilio_auth_token`, `twilio_from_number` |
+| WhatsApp | `whatsapp_phone_number_id`, `whatsapp_access_token`, `whatsapp_business_account_id` |
+
+Example for SendGrid (run on the server in `/opt/caratflow`; replace `my-jewellers` with
+your company slug and the sender with an address verified in SendGrid). The key is typed
+into a hidden prompt, so it does not land in shell history:
+
+```bash
+read -rsp 'SendGrid API key: ' SG; echo
+dc exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot "$MYSQL_DATABASE"' <<SQL
+SET @t = (SELECT id FROM tenants WHERE slug = 'my-jewellers');
+INSERT INTO settings (id, tenant_id, setting_key, setting_value, category, created_at, updated_at) VALUES
+  (UUID(), @t, 'sendgrid_api_key',    JSON_QUOTE('$SG'), 'notifications', NOW(3), NOW(3)),
+  (UUID(), @t, 'sendgrid_from_email', JSON_QUOTE('noreply@example.com'), 'notifications', NOW(3), NOW(3))
+ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW(3);
+SQL
+unset SG
+```
+
+The same pattern works for the other keys (one row per key). If `OTP_CHANNEL` is set in
+`.env` (`SMS`, `WHATSAPP` or `EMAIL`) it selects which provider sends OTP codes. After
+adding the SMS keys, `GET /api/v1/b2c/auth/capabilities` reports `phoneOtp: true` and the
+storefront shows phone login again.
+
 ## 13. Security checklist
 
 - [ ] All `CHANGE-ME` values replaced with long random secrets; `.env` is `chmod 600`.

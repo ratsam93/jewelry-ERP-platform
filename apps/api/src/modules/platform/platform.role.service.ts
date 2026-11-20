@@ -9,6 +9,7 @@ import { TenantAwareService } from '../../common/base.service';
 import { PrismaService } from '../../common/prisma.service';
 import type { AuditMeta } from '@caratflow/shared-types';
 import { DEFAULT_PERMISSIONS } from '@caratflow/db';
+import { ADMIN_ROLE_NAME, assertNotLastActiveAdmin } from './platform.admin-guard';
 
 interface CreateRoleInput {
   name: string;
@@ -187,6 +188,10 @@ export class PlatformRoleService extends TenantAwareService {
     });
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (role.name !== ADMIN_ROLE_NAME) {
+      await assertNotLastActiveAdmin(this.prisma, tenantId, userId, 'demote');
     }
 
     return this.prisma.user.update({

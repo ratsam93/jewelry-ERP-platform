@@ -56,6 +56,16 @@ export class EmailService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** True when the tenant has a complete SendGrid configuration. */
+  async isConfigured(tenantId: string): Promise<boolean> {
+    try {
+      await this.loadConfig(tenantId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async sendEmail(tenantId: string, input: SendEmailInput): Promise<EmailSendResult> {
     const cfg = await this.loadConfig(tenantId);
 

@@ -41,7 +41,7 @@ describe("RegisterPage", () => {
     render(<RegisterPage />);
     expect(screen.getByText("Full Name *")).toBeInTheDocument();
     expect(screen.getByText("Email *")).toBeInTheDocument();
-    expect(screen.getByText("Phone Number *")).toBeInTheDocument();
+    expect(screen.getByText(/Phone Number/)).toBeInTheDocument();
     expect(screen.getByText("Password *")).toBeInTheDocument();
     expect(screen.getByText("Confirm Password *")).toBeInTheDocument();
   });

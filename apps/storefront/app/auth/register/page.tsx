@@ -8,6 +8,7 @@ import { AUTH_API, TENANT_SLUG } from "@/lib/constants";
 import { setTokens, apiFetch } from "@/lib/api";
 import { normalizeIndianPhone } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/brand";
+import { ACCOUNT_CREATED_NOTICE, requirePhoneOtp, setFlashNotice } from "@/lib/auth-config";
 
 // API OtpPurpose enum: LOGIN | REGISTRATION | PASSWORD_RESET | TRANSACTION_2FA.
 const PHONE_OTP_PURPOSE = "REGISTRATION";
@@ -26,6 +27,10 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (form.phone && form.phone.length !== 10) {
+      setError("Enter a 10-digit phone number or leave it empty");
+      return;
+    }
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -56,49 +61,56 @@ export default function RegisterPage() {
         setTokens(tokens.accessToken, tokens.refreshToken);
       }
       // The register DTO has no phone field, so store the phone on the profile
-      // (best effort) before asking for verification.
-      if (form.phone) {
-        const fullPhone = `+91${form.phone}`;
-        if (tokens?.accessToken) {
-          try {
-            await apiFetch("/api/v1/store/account/profile", { method: "PUT", body: { phone: fullPhone } });
-          } catch {
-            // non-fatal: the account exists, the phone can be added from the profile page
-          }
-        }
+      // (best effort). Phone is optional and never blocks sign-up.
+      if (form.phone && tokens?.accessToken) {
         try {
-          const otpRes = await fetch(`${AUTH_API}/otp/send`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: fullPhone, purpose: PHONE_OTP_PURPOSE }),
-          });
-          const otpData = await otpRes.json().catch(() => null);
-          if (!otpRes.ok || (otpData && otpData.success === false)) {
-            const raw = otpData?.error?.message ?? otpData?.message;
-            throw new Error((Array.isArray(raw) ? raw.join(", ") : raw) || "Could not send OTP");
-          }
-          // The API has no delivery receipt; honour an explicit delivered:false if present.
-          const notDelivered = otpData?.data?.delivered === false;
-          router.push(
-            withNext(
-              `/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=${PHONE_OTP_PURPOSE}${
-                notDelivered ? "&delivered=0" : ""
-              }`,
-              nextFromWindow(),
-            ),
-          );
-          return;
-        } catch (otpErr) {
-          setAccountCreated(true);
-          setError(
-            `Your account was created, but we could not send the verification code: ${
-              otpErr instanceof Error ? otpErr.message : "network error"
-            }`,
-          );
-          return;
+          await apiFetch("/api/v1/store/account/profile", { method: "PUT", body: { phone: `+91${form.phone}` } });
+        } catch {
+          // non-fatal: the account exists, the phone can be added from the profile page
         }
       }
-      router.push(nextFromWindow() ?? "/account");
+      const destination = nextFromWindow() ?? "/account";
+      if (!requirePhoneOtp() || !form.phone) {
+        setFlashNotice(
+          form.phone
+            ? ACCOUNT_CREATED_NOTICE
+            : "Account created. You can add and verify your phone from your profile.",
+        );
+        router.push(destination);
+        return;
+      }
+      // Phone verification is required by this deployment (NEXT_PUBLIC_REQUIRE_PHONE_OTP=true).
+      const fullPhone = `+91${form.phone}`;
+      try {
+        const otpRes = await fetch(`${AUTH_API}/otp/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: fullPhone, purpose: PHONE_OTP_PURPOSE }),
+        });
+        const otpData = await otpRes.json().catch(() => null);
+        if (!otpRes.ok || (otpData && otpData.success === false)) {
+          const raw = otpData?.error?.message ?? otpData?.message;
+          throw new Error((Array.isArray(raw) ? raw.join(", ") : raw) || "Could not send OTP");
+        }
+        if (otpData?.data?.delivered === false) {
+          // Honest outcome: the account exists but no code was sent.
+          setAccountCreated(true);
+          setError("Your account was created, but we could not send an SMS right now. You can verify your phone later from your profile.");
+          return;
+        }
+        router.push(
+          withNext(`/auth/verify-otp?phone=${encodeURIComponent(fullPhone)}&purpose=${PHONE_OTP_PURPOSE}`, nextFromWindow()),
+        );
+        return;
+      } catch (otpErr) {
+        setAccountCreated(true);
+        setError(
+          `Your account was created, but we could not send the verification code: ${
+            otpErr instanceof Error ? otpErr.message : "network error"
+          }`,
+        );
+        return;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error");
     } finally {
@@ -126,7 +138,7 @@ export default function RegisterPage() {
               {accountCreated && (
                 <>
                   {" "}
-                  <Link href="/account" className="font-semibold underline">Continue to my account</Link>
+                  <Link href={nextPath ?? "/account"} className="inline-block mt-2 bg-gold text-white font-semibold px-4 py-2 rounded-lg hover:bg-gold-dark">Continue to my account</Link>
                 </>
               )}
             </div>
@@ -155,15 +167,14 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-navy/60 mb-1">Phone Number *</label>
+              <label className="block text-xs font-medium text-navy/60 mb-1">Phone Number <span className="text-navy/40">(optional)</span></label>
               <div className="flex gap-2">
                 <span className="flex items-center px-3 border border-gray-200 rounded-lg text-sm text-navy/60 bg-warm-gray">+91</span>
                 <input aria-label="Phone number"
                   type="tel"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: normalizeIndianPhone(e.target.value) })}
-                  required
-                  placeholder="98765 43210"
+                  placeholder="98765 43210 (optional)"
                   maxLength={16}
                   className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20"
                 />

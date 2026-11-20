@@ -11,7 +11,7 @@ import { PlatformAuditService } from './platform.audit.service';
 import { PlatformNotificationService } from './platform.notification.service';
 import { PlatformFileService } from './platform.file.service';
 import { PlatformI18nService } from './platform.i18n.service';
-import { PaginationSchema } from '@caratflow/shared-types';
+import { PaginationSchema, StaffPasswordSchema } from '@caratflow/shared-types';
 
 @Injectable()
 export class PlatformTrpc {
@@ -71,6 +71,31 @@ export class PlatformTrpc {
             this.userService.inviteUser(ctx.tenantId, input, { userId: ctx.userId }),
           ),
 
+        getLoginInfo: this.trpc.authedProcedure.query(({ ctx }) =>
+          this.userService.getLoginInfo(ctx.tenantId),
+        ),
+
+        // Admin-only by path (platform.users.* is a sensitive segment, see trpc/rbac.ts).
+        create: this.trpc.authedProcedure
+          .input(
+            z.object({
+              email: z.string().email().max(255),
+              firstName: z.string().min(1).max(100),
+              lastName: z.string().min(1).max(100),
+              roleId: z.guid(),
+              password: StaffPasswordSchema,
+            }),
+          )
+          .mutation(({ ctx, input }) =>
+            this.userService.createUser(ctx.tenantId, input, { userId: ctx.userId }),
+          ),
+
+        setPassword: this.trpc.authedProcedure
+          .input(z.object({ userId: z.guid(), newPassword: StaffPasswordSchema }))
+          .mutation(({ ctx, input }) =>
+            this.userService.setPassword(ctx.tenantId, input.userId, input.newPassword),
+          ),
+
         activate: this.trpc.authedProcedure
           .input(z.object({ userId: z.guid() }))
           .mutation(({ ctx, input }) =>
@@ -101,7 +126,7 @@ export class PlatformTrpc {
           .input(
             z.object({
               currentPassword: z.string().min(1),
-              newPassword: z.string().min(8),
+              newPassword: StaffPasswordSchema,
             }),
           )
           .mutation(({ ctx, input }) =>
