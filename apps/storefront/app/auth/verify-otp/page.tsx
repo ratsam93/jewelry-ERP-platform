@@ -117,14 +117,21 @@ function VerifyOtpPageInner() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-navy" style={{ fontFamily: "var(--font-serif)" }}>Verify OTP</h1>
           <p className="text-sm text-navy/50 mt-1">
-            Enter the 6-digit code sent to {identifier ? <span className="font-medium text-navy/80">{identifier}</span> : "your phone"}
+            {notDelivered || resendUndelivered ? "No code was sent to " : "Enter the 6-digit code sent to "}
+            {identifier ? <span className="font-medium text-navy/80">{identifier}</span> : "your phone"}
           </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           {(notDelivered || resendUndelivered) && (
             <div role="status" className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3 mb-4">
-              We could not send an SMS right now. You can continue to your account and verify later.
+              <p>We could not send an SMS right now. You can continue to your account and verify later.</p>
+              <Link
+                href={safeNextPath(params.get("next")) ?? "/account"}
+                className="mt-3 block w-full text-center bg-gold text-white font-semibold py-2.5 rounded-lg hover:bg-gold-dark transition-colors"
+              >
+                Skip for now
+              </Link>
             </div>
           )}
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">{error}</div>}
@@ -163,7 +170,7 @@ function VerifyOtpPageInner() {
 
         <p className="text-center text-sm text-navy/50 mt-5">
           If you do not receive a code, you can continue and verify later.{" "}
-          <Link href="/account" className="text-gold font-medium hover:text-gold-dark transition-colors">
+          <Link href={safeNextPath(params.get("next")) ?? "/account"} className="text-gold font-medium hover:text-gold-dark transition-colors">
             Continue to my account
           </Link>
         </p>

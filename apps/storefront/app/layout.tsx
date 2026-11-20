@@ -6,6 +6,7 @@ import CartDrawer from "@/components/CartDrawer";
 import CompareBar from "@/components/CompareBar";
 import ChatWidget from "@/components/ChatWidget";
 import Footer from "@/components/Footer";
+import FlashNotice from "@/components/FlashNotice";
 import "./globals.css";
 import { BRAND_NAME, DEFAULT_SITE_URL } from "@/lib/brand";
 
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <StoreProvider>
           <LiveRateTicker />
           <Header />
+          <FlashNotice />
           <main className="min-h-screen">{children}</main>
           <Footer />
           <CartDrawer />
