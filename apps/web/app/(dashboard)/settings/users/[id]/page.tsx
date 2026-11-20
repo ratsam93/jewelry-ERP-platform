@@ -6,6 +6,9 @@ import { PageHeader } from '@caratflow/ui';
 import { Save, ShieldCheck, Key } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { renderDetailState } from '@/components/detail-states';
+import { extractErrorMessage } from '@/lib/api-error';
+import { PasswordField } from '@/features/settings/PasswordField';
+import { validateNewPassword } from '@/features/settings/password-tools';
 
 interface UserDetail {
   id: string;
@@ -33,11 +36,8 @@ export default function UserDetailPage() {
   });
   const [initialProfile, setInitialProfile] = useState(profile);
 
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
+  const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [passwordErrors, setPasswordErrors] = useState<{ password?: string; confirmPassword?: string }>({});
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -63,7 +63,7 @@ export default function UserDetailPage() {
       setInitialProfile(profile);
       void userQuery.refetch();
     },
-    onError: (err) => setBanner({ type: 'error', message: err.message }),
+    onError: (err) => setBanner({ type: 'error', message: extractErrorMessage(err) }),
   });
 
   const assignRoleMutation = trpc.platform.roles.assignToUser.useMutation({
@@ -71,16 +71,20 @@ export default function UserDetailPage() {
       setBanner({ type: 'success', message: 'Role updated.' });
       void userQuery.refetch();
     },
-    onError: (err) => setBanner({ type: 'error', message: err.message }),
+    onError: (err) => setBanner({ type: 'error', message: extractErrorMessage(err) }),
   });
 
-  const changePasswordMutation = trpc.platform.users.changePassword.useMutation({
+  const setPasswordMutation = trpc.platform.users.setPassword.useMutation({
     onSuccess: () => {
-      setBanner({ type: 'success', message: 'Password changed.' });
+      setBanner({
+        type: 'success',
+        message: 'Password reset. The user has been signed out everywhere and must use the new password. Share it securely.',
+      });
       setShowPasswordForm(false);
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordForm({ newPassword: '', confirmPassword: '' });
+      setPasswordErrors({});
     },
-    onError: (err) => setBanner({ type: 'error', message: err.message }),
+    onError: (err) => setBanner({ type: 'error', message: extractErrorMessage(err) }),
   });
 
   const activateMutation = trpc.platform.users.activate.useMutation({
@@ -88,7 +92,7 @@ export default function UserDetailPage() {
       setBanner({ type: 'success', message: 'User activated.' });
       void userQuery.refetch();
     },
-    onError: (err) => setBanner({ type: 'error', message: err.message }),
+    onError: (err) => setBanner({ type: 'error', message: extractErrorMessage(err) }),
   });
 
   const deactivateMutation = trpc.platform.users.deactivate.useMutation({
@@ -96,7 +100,7 @@ export default function UserDetailPage() {
       setBanner({ type: 'success', message: 'User deactivated.' });
       void userQuery.refetch();
     },
-    onError: (err) => setBanner({ type: 'error', message: err.message }),
+    onError: (err) => setBanner({ type: 'error', message: extractErrorMessage(err) }),
   });
 
   const isDirty =
@@ -125,23 +129,11 @@ export default function UserDetailPage() {
     assignRoleMutation.mutate({ userId, roleId });
   };
 
-  const handleChangePassword = () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setBanner({ type: 'error', message: 'Passwords do not match.' });
-      return;
-    }
-    if (passwordForm.newPassword.length < 8) {
-      setBanner({ type: 'error', message: 'Password must be at least 8 characters.' });
-      return;
-    }
-    // NOTE: platform.users.changePassword operates on the current authed user (ctx.userId),
-    // not an arbitrary user ID. The backend does not expose an admin reset-password
-    // procedure today, so this only works if the admin is editing their own profile.
-    // TODO: needs platform.users.adminResetPassword mutation for admins to reset another user's password.
-    changePasswordMutation.mutate({
-      currentPassword: passwordForm.currentPassword,
-      newPassword: passwordForm.newPassword,
-    });
+  const handleResetPassword = () => {
+    const errors = validateNewPassword(passwordForm.newPassword, passwordForm.confirmPassword);
+    setPasswordErrors(errors);
+    if (errors.password || errors.confirmPassword) return;
+    setPasswordMutation.mutate({ userId, newPassword: passwordForm.newPassword });
   };
 
   const handleToggleActive = () => {
@@ -177,6 +169,7 @@ export default function UserDetailPage() {
 
       {banner && (
         <div
+          role={banner.type === 'error' ? 'alert' : 'status'}
           className={`rounded-md border p-3 text-sm ${
             banner.type === 'success'
               ? 'border-green-200 bg-green-50 text-green-700'
@@ -245,42 +238,43 @@ export default function UserDetailPage() {
         </div>
       </div>
 
-      {/* Password Change */}
+      {/* Reset password (admin) */}
       <div className="rounded-lg border bg-card shadow-sm">
         <div className="border-b p-6">
           <div className="flex items-center gap-2">
-            <Key className="h-5 w-5 text-primary" />
+            <Key className="h-5 w-5 text-primary" aria-hidden="true" />
             <h2 className="text-lg font-semibold">Password</h2>
           </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Set a new password for this user. They will be signed out everywhere. To change your own password, use your profile page.
+          </p>
         </div>
         <div className="p-6">
           {!showPasswordForm ? (
-            <button onClick={() => setShowPasswordForm(true)} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">
-              Change Password
+            <button type="button" onClick={() => setShowPasswordForm(true)} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">
+              Reset password
             </button>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium" htmlFor="current-pw">Current Password</label>
-                <input id="current-pw" type="password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} className="mt-1 w-full rounded-md border px-3 py-2 text-sm md:w-1/2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium" htmlFor="new-pw">New Password</label>
-                <input id="new-pw" type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} className="mt-1 w-full rounded-md border px-3 py-2 text-sm md:w-1/2" />
-                <p className="mt-1 text-xs text-muted-foreground">Min 8 characters, must include uppercase, lowercase, number, and special character.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium" htmlFor="confirm-pw">Confirm New Password</label>
-                <input id="confirm-pw" type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} className="mt-1 w-full rounded-md border px-3 py-2 text-sm md:w-1/2" />
-              </div>
+            <div className="max-w-lg space-y-4">
+              <PasswordField
+                label="New password"
+                value={passwordForm.newPassword}
+                onChange={(newPassword) => setPasswordForm((f) => ({ ...f, newPassword }))}
+                confirmLabel="Confirm new password"
+                confirmValue={passwordForm.confirmPassword}
+                onConfirmChange={(confirmPassword) => setPasswordForm((f) => ({ ...f, confirmPassword }))}
+                error={passwordErrors.password}
+                confirmError={passwordErrors.confirmPassword}
+              />
               <div className="flex gap-2">
-                <button onClick={() => setShowPasswordForm(false)} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
+                <button type="button" onClick={() => setShowPasswordForm(false)} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
                 <button
-                  onClick={handleChangePassword}
-                  disabled={changePasswordMutation.isPending}
+                  type="button"
+                  onClick={handleResetPassword}
+                  disabled={setPasswordMutation.isPending}
                   className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {changePasswordMutation.isPending ? 'Updating...' : 'Update Password'}
+                  {setPasswordMutation.isPending ? 'Resetting...' : 'Reset password'}
                 </button>
               </div>
             </div>

@@ -158,6 +158,13 @@ describe('PlatformUserService (Unit)', () => {
     });
   });
 
+  describe('getLoginInfo', () => {
+    it('returns the tenant slug and name', async () => {
+      (mockPrisma as any).tenant.findUnique.mockResolvedValue({ slug: 'acme', name: 'Acme Jewels' });
+      await expect(service.getLoginInfo(TEST_TENANT_ID)).resolves.toEqual({ tenantSlug: 'acme', tenantName: 'Acme Jewels' });
+    });
+  });
+
   describe('setPassword', () => {
     it('hashes, saves and revokes refresh tokens', async () => {
       mockPrisma.user.findFirst.mockResolvedValue({ id: 'u-1' });

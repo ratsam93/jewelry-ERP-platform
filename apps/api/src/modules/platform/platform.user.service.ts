@@ -246,6 +246,18 @@ export class PlatformUserService extends TenantAwareService {
     return user;
   }
 
+  /** Business slug + name shown to a new user as "login details" (the login form needs the slug). */
+  async getLoginInfo(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { slug: true, name: true },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+    return { tenantSlug: tenant.slug, tenantName: tenant.name };
+  }
+
   /** Admin resets another user's password and revokes that user's sessions. */
   async setPassword(tenantId: string, userId: string, newPassword: string) {
     this.enforcePasswordPolicy(newPassword);

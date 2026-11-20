@@ -71,6 +71,10 @@ export class PlatformTrpc {
             this.userService.inviteUser(ctx.tenantId, input, { userId: ctx.userId }),
           ),
 
+        getLoginInfo: this.trpc.authedProcedure.query(({ ctx }) =>
+          this.userService.getLoginInfo(ctx.tenantId),
+        ),
+
         // Admin-only by path (platform.users.* is a sensitive segment, see trpc/rbac.ts).
         create: this.trpc.authedProcedure
           .input(
