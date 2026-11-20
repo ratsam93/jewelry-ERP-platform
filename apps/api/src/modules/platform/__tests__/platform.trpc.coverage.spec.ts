@@ -190,14 +190,14 @@ describe('PlatformTrpc procedure coverage', () => {
   describe('users.changePassword', () => {
     it('changes the caller password', async () => {
       userService.changePassword.mockResolvedValue({ success: true });
-      await caller.users.changePassword({ currentPassword: 'old-pass', newPassword: 'new-pass-123' });
+      await caller.users.changePassword({ currentPassword: 'old-pass', newPassword: 'New-Pass-123!' });
       expect(userService.changePassword).toHaveBeenCalledWith(TENANT, USER, {
         currentPassword: 'old-pass',
-        newPassword: 'new-pass-123',
+        newPassword: 'New-Pass-123!',
       });
     });
 
-    it('rejects a new password shorter than 8 characters', async () => {
+    it('rejects a new password that breaks the staff password policy', async () => {
       await expect(
         caller.users.changePassword({ currentPassword: 'old-pass', newPassword: 'short' }),
       ).rejects.toMatchObject({ code: 'BAD_REQUEST' });

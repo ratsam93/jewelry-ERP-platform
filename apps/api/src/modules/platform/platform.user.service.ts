@@ -16,12 +16,22 @@ import { EventBusService } from '../../event-bus/event-bus.service';
 import { EmailService } from '../crm/email.service';
 import type { PaginatedResult, AuditMeta } from '@caratflow/shared-types';
 import { BRAND_NAME } from '../../common/brand';
+import { getStaffPasswordIssues } from '@caratflow/shared-types';
+import { assertNotLastActiveAdmin } from './platform.admin-guard';
 
 interface InviteUserInput {
   email: string;
   firstName: string;
   lastName: string;
   roleId?: string;
+}
+
+interface CreateUserInput {
+  email: string;
+  firstName: string;
+  lastName: string;
+  roleId: string;
+  password: string;
 }
 
 interface UpdateUserProfileInput {
@@ -43,15 +53,6 @@ interface ListUsersParams {
   search?: string;
   isActive?: boolean;
 }
-
-/** Password policy configuration */
-const PASSWORD_POLICY = {
-  minLength: 8,
-  requireUppercase: true,
-  requireLowercase: true,
-  requireNumbers: true,
-  requireSpecialChars: true,
-} as const;
 
 @Injectable()
 export class PlatformUserService extends TenantAwareService {
@@ -118,17 +119,19 @@ export class PlatformUserService extends TenantAwareService {
       payload: { userId: user.id, email: user.email, roleId: user.roleId ?? '' },
     });
 
-    // Fire-and-forget email dispatch. Failures are logged but do not
-    // undo the user creation — the admin can always re-trigger via
-    // a password-reset flow. The temp password is still returned in
-    // the response so automation/E2E tests can consume it.
-    this.sendInviteEmail(tenantId, user.email, input.firstName, tempPassword).catch((err) => {
+    // Email dispatch is awaited so the caller learns the truth. A failure does
+    // not undo the user creation; the admin can set a password with
+    // platform.users.setPassword. The temp password is never returned or logged.
+    let emailSent = false;
+    try {
+      emailSent = await this.sendInviteEmail(tenantId, user.email, input.firstName, tempPassword);
+    } catch (err) {
       this.logger.error(
         `Failed to dispatch invite email to ${input.email}: ${(err as Error).message}`,
       );
-    });
+    }
 
-    return { ...user, tempPassword };
+    return { ...user, emailSent };
   }
 
   /**
@@ -140,12 +143,10 @@ export class PlatformUserService extends TenantAwareService {
     email: string,
     firstName: string,
     tempPassword: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (!this.emailService) {
-      this.logger.warn(
-        `[Platform] EmailService not wired — invite for ${email} (temp password ${tempPassword}) logged only`,
-      );
-      return;
+      this.logger.warn(`[Platform] EmailService not wired - invite for ${email} was not emailed`);
+      return false;
     }
 
     const webUrl = (
@@ -179,6 +180,90 @@ export class PlatformUserService extends TenantAwareService {
       text,
       html,
     });
+    return true;
+  }
+
+  /**
+   * Create an ACTIVE user with an admin-chosen password (no email needed).
+   * Authorization: platform.users.* is a sensitive router segment, so only
+   * admin-level permission holders can reach this (see trpc/rbac.ts). The role
+   * must exist in the caller's tenant. The password is never returned or logged.
+   */
+  async createUser(tenantId: string, input: CreateUserInput, audit: AuditMeta) {
+    this.enforcePasswordPolicy(input.password);
+
+    const role = await this.prisma.role.findFirst({
+      where: this.tenantWhere(tenantId, { id: input.roleId }),
+      select: { id: true },
+    });
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    const email = input.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({
+      where: { tenantId_email: { tenantId, email } },
+    });
+    if (existing) {
+      throw new ConflictException('A user with this email already exists in this tenant');
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, 12);
+
+    const user = await this.prisma.user.create({
+      data: {
+        id: uuid(),
+        tenantId,
+        email,
+        passwordHash,
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+        roleId: role.id,
+        isActive: true,
+        createdBy: audit.userId,
+        preferences: { requirePasswordChange: true } as Prisma.InputJsonValue,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        roleId: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    await this.eventBus.publish({
+      id: uuid(),
+      tenantId,
+      userId: audit.userId,
+      timestamp: new Date().toISOString(),
+      type: 'platform.user.created',
+      payload: { userId: user.id, email: user.email, roleId: user.roleId ?? '' },
+    });
+
+    return user;
+  }
+
+  /** Admin resets another user's password and revokes that user's sessions. */
+  async setPassword(tenantId: string, userId: string, newPassword: string) {
+    this.enforcePasswordPolicy(newPassword);
+    await this.ensureUserExists(tenantId, userId);
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    return { success: true };
   }
 
   /** List users for a tenant with pagination and search. */
@@ -274,6 +359,7 @@ export class PlatformUserService extends TenantAwareService {
       throw new BadRequestException('Cannot deactivate your own account');
     }
     await this.ensureUserExists(tenantId, userId);
+    await assertNotLastActiveAdmin(this.prisma, tenantId, userId, 'deactivate');
     return this.prisma.user.update({
       where: { id: userId },
       data: { isActive: false, updatedBy: audit.userId },
@@ -328,26 +414,9 @@ export class PlatformUserService extends TenantAwareService {
     return { success: true };
   }
 
-  /** Validate a password against the password policy. */
+  /** Validate a password against the shared staff password policy (10+ chars, upper, lower, digit, symbol). */
   enforcePasswordPolicy(password: string): void {
-    const errors: string[] = [];
-
-    if (password.length < PASSWORD_POLICY.minLength) {
-      errors.push(`Password must be at least ${PASSWORD_POLICY.minLength} characters`);
-    }
-    if (PASSWORD_POLICY.requireUppercase && !/[A-Z]/.test(password)) {
-      errors.push('Password must contain at least one uppercase letter');
-    }
-    if (PASSWORD_POLICY.requireLowercase && !/[a-z]/.test(password)) {
-      errors.push('Password must contain at least one lowercase letter');
-    }
-    if (PASSWORD_POLICY.requireNumbers && !/\d/.test(password)) {
-      errors.push('Password must contain at least one number');
-    }
-    if (PASSWORD_POLICY.requireSpecialChars && !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
-      errors.push('Password must contain at least one special character');
-    }
-
+    const errors = getStaffPasswordIssues(password);
     if (errors.length > 0) {
       throw new BadRequestException(errors.join('; '));
     }

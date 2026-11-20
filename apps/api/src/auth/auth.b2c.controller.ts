@@ -243,6 +243,14 @@ export class B2CAuthController {
 
   // ─── OTP ──────────────────────────────────────────────────
 
+  @Get('capabilities')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Which verification channels (phone OTP, email) are available' })
+  async capabilities() {
+    const data = await this.otpService.getCapabilities();
+    return { success: true, data };
+  }
+
   @Post('otp/send')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })

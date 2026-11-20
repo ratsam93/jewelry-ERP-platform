@@ -77,6 +77,16 @@ export class WhatsAppService extends TenantAwareService {
 
   // ─── Credentials ───────────────────────────────────────────────
 
+  /** True when the tenant has complete WhatsApp credentials. */
+  async isConfigured(tenantId: string): Promise<boolean> {
+    try {
+      await this.getCredentials(tenantId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async getCredentials(tenantId: string): Promise<WhatsAppCredentials> {
     const rows = await this.prisma.setting.findMany({
       where: {

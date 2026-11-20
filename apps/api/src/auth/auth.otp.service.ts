@@ -9,6 +9,20 @@ import { BRAND_NAME } from '../common/brand';
 
 type OtpChannel = 'SMS' | 'EMAIL' | 'WHATSAPP';
 
+export interface OtpSendResult {
+  message: string;
+  /** True only when a provider accepted the message. */
+  delivered: boolean;
+  channel: OtpChannel;
+  /** Only present when ALLOW_DEV_OTP=true. */
+  otp?: string;
+}
+
+export interface AuthCapabilities {
+  phoneOtp: boolean;
+  emailVerification: boolean;
+}
+
 @Injectable()
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
@@ -33,7 +47,7 @@ export class OtpService {
     identifier: string,
     purpose: OtpPurpose,
     tenantId?: string,
-  ): Promise<{ message: string; otp?: string }> {
+  ): Promise<OtpSendResult> {
     // Invalidate any existing unexpired OTPs for this identifier + purpose
     await this.prisma.otpVerification.updateMany({
       where: {
@@ -60,13 +74,19 @@ export class OtpService {
     });
 
     // Real provider dispatch (best-effort; never throws into the login flow)
-    await this.sendOtp(identifier, otpCode, tenantId);
+    const { delivered, channel } = await this.sendOtp(identifier, otpCode, tenantId);
 
     // The OTP is returned to the caller only when ALLOW_DEV_OTP=true (default off).
     // This is deliberately not keyed off NODE_ENV.
     const allowDevOtp = process.env.ALLOW_DEV_OTP === 'true';
     return {
-      message: 'OTP sent successfully',
+      message: delivered
+        ? 'OTP sent successfully'
+        : channel === 'EMAIL'
+          ? 'We could not send an email right now.'
+          : 'We could not send an SMS right now.',
+      delivered,
+      channel,
       ...(allowDevOtp ? { otp: otpCode } : {}),
     };
   }
@@ -170,19 +190,35 @@ export class OtpService {
     return tenant?.id ?? null;
   }
 
+  /**
+   * Which delivery features are actually usable on this deployment. Used by the
+   * storefront to hide phone-OTP login when no SMS/WhatsApp provider exists.
+   */
+  async getCapabilities(tenantId?: string): Promise<AuthCapabilities> {
+    const resolved = await this.resolveTenantId(tenantId).catch(() => null);
+    if (!resolved) return { phoneOtp: false, emailVerification: false };
+    const phoneChannel = this.pickChannel('+910000000000');
+    const phoneProvider = phoneChannel === 'WHATSAPP' ? this.whatsappService : this.smsService;
+    const [phoneOtp, emailVerification] = await Promise.all([
+      phoneProvider ? phoneProvider.isConfigured(resolved).catch(() => false) : false,
+      this.emailService ? this.emailService.isConfigured(resolved).catch(() => false) : false,
+    ]);
+    return { phoneOtp, emailVerification };
+  }
+
   private async sendOtp(
     identifier: string,
     otpCode: string,
     tenantId?: string,
-  ): Promise<void> {
+  ): Promise<{ delivered: boolean; channel: OtpChannel }> {
     const channel = this.pickChannel(identifier);
     const resolvedTenant = await this.resolveTenantId(tenantId).catch(() => null);
 
     if (!resolvedTenant) {
       this.logger.warn(
-        `[OTP] No tenant context available — falling back to log for ${this.redact(identifier)}`,
+        `[OTP] No tenant context available - not delivered for ${this.redact(identifier)}`,
       );
-      return;
+      return { delivered: false, channel };
     }
 
     const message = `Your ${BRAND_NAME} verification code is ${otpCode}. It expires in ${this.OTP_EXPIRY_MINUTES} minutes.`;
@@ -190,8 +226,8 @@ export class OtpService {
     try {
       if (channel === 'EMAIL') {
         if (!this.emailService) {
-          this.logger.warn('[OTP] EmailService not injected — skipping dispatch');
-          return;
+          this.logger.warn('[OTP] EmailService not injected - skipping dispatch');
+          return { delivered: false, channel };
         }
         await this.emailService.sendEmail(resolvedTenant, {
           to: identifier,
@@ -200,31 +236,34 @@ export class OtpService {
           html: `<p>${message}</p>`,
         });
         this.logger.log(`OTP email dispatched to ${this.redact(identifier)}`);
-        return;
+        return { delivered: true, channel };
       }
 
       if (channel === 'WHATSAPP') {
         if (!this.whatsappService) {
-          this.logger.warn('[OTP] WhatsAppService not injected — skipping dispatch');
-          return;
+          this.logger.warn('[OTP] WhatsAppService not injected - skipping dispatch');
+          return { delivered: false, channel };
         }
         await this.whatsappService.sendTextMessage(resolvedTenant, identifier, message);
         this.logger.log(`OTP WhatsApp dispatched to ${this.redact(identifier)}`);
-        return;
+        return { delivered: true, channel };
       }
 
       // Default: SMS
       if (!this.smsService) {
-        this.logger.warn('[OTP] SmsService not injected — skipping dispatch');
-        return;
+        this.logger.warn('[OTP] SmsService not injected - skipping dispatch');
+        return { delivered: false, channel };
       }
       await this.smsService.sendSms(resolvedTenant, { to: identifier, body: message });
       this.logger.log(`OTP SMS dispatched to ${this.redact(identifier)}`);
+      return { delivered: true, channel };
     } catch (err) {
-      // Never block the login flow on provider failure — fall back to log.
+      // Never block the flow on provider failure; report delivered=false.
+      // Provider details are logged server-side only, never returned.
       this.logger.error(
         `[OTP] Provider dispatch failed for ${this.redact(identifier)} via ${channel}: ${(err as Error).message}`,
       );
+      return { delivered: false, channel };
     }
   }
 

@@ -26,7 +26,9 @@ describe('OtpService', () => {
 
       const result = await service.generateOtp('+919876543210', 'LOGIN' as never);
 
-      expect(result.message).toBe('OTP sent successfully');
+      // No provider wired in this test: must not claim delivery.
+      expect(result.delivered).toBe(false);
+      expect(result.message).not.toMatch(/sent successfully/i);
       // In dev mode, OTP is returned
       if (result.otp) {
         expect(result.otp).toMatch(/^\d{6}$/);
@@ -219,6 +221,75 @@ describe('OtpService', () => {
 
       expect(count).toBe(5);
       expect(prisma.otpVerification.deleteMany).toHaveBeenCalled();
+    });
+  });
+
+  // ─── Delivery truthfulness ─────────────────────────────────────
+
+  describe('delivery reporting', () => {
+    const setup = (sms?: unknown, email?: unknown, whatsapp?: unknown) => {
+      prisma.otpVerification.updateMany.mockResolvedValue({ count: 0 });
+      prisma.otpVerification.create.mockResolvedValue({ id: 'otp-id' });
+      return new OtpService(prisma as never, sms as never, email as never, whatsapp as never);
+    };
+
+    it('reports delivered=true when the SMS provider accepts the message', async () => {
+      const sms = { sendSms: vi.fn().mockResolvedValue({}) };
+      const svc = setup(sms);
+      const res = await svc.generateOtp('+919876543210', 'REGISTRATION' as never, 't1');
+      expect(res).toMatchObject({ delivered: true, channel: 'SMS', message: 'OTP sent successfully' });
+    });
+
+    it('reports delivered=false and hides provider details when the provider throws', async () => {
+      const sms = { sendSms: vi.fn().mockRejectedValue(new Error('missing setting "msg91_auth_key"')) };
+      const svc = setup(sms);
+      const res = await svc.generateOtp('+919876543210', 'REGISTRATION' as never, 't1');
+      expect(res.delivered).toBe(false);
+      expect(res.message).toBe('We could not send an SMS right now.');
+      expect(JSON.stringify(res)).not.toContain('msg91');
+    });
+
+    it('reports delivered=false when no SMS service is wired', async () => {
+      const svc = setup();
+      const res = await svc.generateOtp('+919876543210', 'REGISTRATION' as never, 't1');
+      expect(res.delivered).toBe(false);
+    });
+
+    it('reports email channel for an email identifier', async () => {
+      const email = { sendEmail: vi.fn().mockResolvedValue({}) };
+      const svc = setup(undefined, email);
+      const res = await svc.generateOtp('a@b.com', 'REGISTRATION' as never, 't1');
+      expect(res).toMatchObject({ delivered: true, channel: 'EMAIL' });
+    });
+  });
+
+  describe('getCapabilities', () => {
+    it('phoneOtp is false when SMS is not configured', async () => {
+      const sms = { isConfigured: vi.fn().mockResolvedValue(false) };
+      const email = { isConfigured: vi.fn().mockResolvedValue(false) };
+      const svc = new OtpService(prisma as never, sms as never, email as never);
+      await expect(svc.getCapabilities('t1')).resolves.toEqual({
+        phoneOtp: false,
+        emailVerification: false,
+      });
+    });
+
+    it('reflects configured providers', async () => {
+      const sms = { isConfigured: vi.fn().mockResolvedValue(true) };
+      const email = { isConfigured: vi.fn().mockResolvedValue(false) };
+      const svc = new OtpService(prisma as never, sms as never, email as never);
+      await expect(svc.getCapabilities('t1')).resolves.toEqual({
+        phoneOtp: true,
+        emailVerification: false,
+      });
+    });
+
+    it('is all false when no providers are wired', async () => {
+      const svc = new OtpService(prisma as never);
+      await expect(svc.getCapabilities('t1')).resolves.toEqual({
+        phoneOtp: false,
+        emailVerification: false,
+      });
     });
   });
 });
